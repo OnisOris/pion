@@ -57,12 +57,21 @@ class Pion:
         self._attitude = np.array([0, 0, 0, 0, 0, 0])
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag = True
+        # Флаг для остановки сохранения координат
+        self.check_attitude_flag = True
         # Список потоков
         self.threads = []
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
         self.t_speed = np.array([0, 0, 0, 0])
         self.rotate_xyz = rotate_xyz
         self.period_send_speed = 0.05
+        self.period_get_attitude = 0.05
+        # Информация, включающая
+        # x, y, z, yaw, vx, vy, vz, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t,
+        # которая складывается в матрицу (n, 12), где n - число измерений
+        self.trajectory = np.zeros((13,))
+        # Время создания экземпляра
+        self.t0 = time.time()
 
     @property
     def attitude(self) -> np.ndarray:
@@ -204,3 +213,37 @@ class Pion:
                                 command=mavutil.mavlink.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN,
                                 target_component=1,
                                 param1=1)
+
+    def set_attitude_check(self) -> None:
+        """
+        Функция запускает поток отслеживания координат
+        :return: None
+        """
+        self.threads.append(threading.Thread(target=self.attitude_write))
+        self.threads[-1].start()
+
+    def attitude_write(self) -> None:
+        """
+        Функция для записи траектории в numpy массив
+        :return:
+        """
+        while self.check_attitude_flag:
+            t = time.time() - self.t0
+            stack = np.hstack([self.attitude, self.t_speed, t])
+            self.trajectory = np.vstack([self.trajectory, stack])
+            time.sleep(self.period_get_attitude)
+
+    def save_data(self, file_name: str = 'data.npy', path: str = '') -> None:
+        """
+        Функция для сохранения траектории в файл
+        columns=['x', 'y', 'z', 'yaw', 'Vx', 'Vy', 'Vz', 'Vy_yaw', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
+        :param file_name: название файла
+        :param path: путь сохранения
+        :return: None
+        """
+        from os.path import isdir
+        if not isdir(path):
+            from os import makedirs
+            makedirs(path, exist_ok=True)
+        self.speed_flag = False
+        np.save(f'{path}{file_name}', self.trajectory[1:])
