@@ -90,7 +90,10 @@ class Pion:
     def land(self):
         return self._send_command_long(command_name='LAND', command=mavutil.mavlink.MAV_CMD_NAV_LAND)
 
-    def goto(self, x, y, z, yaw) -> None:
+    def goto(self, x: float | int,
+             y: float | int,
+             z: float | int,
+             yaw: float | int = 0) -> None:
         """ Flight to point in the current navigation system's coordinate frame """
         # _ _ _ _ yaw_rate yaw   force_set   afz afy afx   vz vy vx   z y x
         mask = 0b0000_10_0_111_111_000
@@ -99,7 +102,10 @@ class Pion:
         self._send_position_target_local_ned(coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
                                              mask=mask, x=x, y=y, z=z, yaw=yaw)
 
-    def send_speed(self, vx, vy, vz, yaw_rate) -> None:
+    def send_speed(self, vx: float | int,
+                   vy: float | int,
+                   vz: float | int,
+                   yaw_rate: float | int) -> None:
         """
         Функция задает вектор скорости дрону. Отсылать необходимо в цикле.
         :param vx: скорость по оси x
