@@ -188,3 +188,13 @@ class Pion:
         self.speed_flag = True
         self.threads.append(threading.Thread(target=self.v_while, args=[ampl]))
         self.threads[-1].start()
+
+    def reboot_board(self) -> None:
+        """
+        Функция для перезагрузки дрона
+        :return: None
+        """
+        self._send_command_long(command_name='REBOOT_BOARD',
+                                command=mavutil.mavlink.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN,
+                                target_component=1,
+                                param1=1)
