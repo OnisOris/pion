@@ -69,7 +69,7 @@ class Pion:
         # Информация, включающая
         # x, y, z, yaw, vx, vy, vz, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t,
         # которая складывается в матрицу (n, 12), где n - число измерений
-        self.trajectory = np.zeros((13,))
+        self.trajectory = np.zeros((11,))
         # Время создания экземпляра
         self.t0 = time.time()
 
@@ -172,7 +172,7 @@ class Pion:
                 self._send_heartbeat()
             msg = self.mavlink_socket.recv_msg()
             if msg is not None:
-                if msg.get_type() == "LOCAL_POSITION_NED":
+                if msg.get_type() == "LOCAL_POSITION_NED" and msg._header.srcComponent == 1:
                     self.attitude = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
 
     def v_while(self, ampl: float | int = 1) -> None:
@@ -229,7 +229,7 @@ class Pion:
         """
         while self.check_attitude_flag:
             t = time.time() - self.t0
-            stack = np.hstack([self.attitude, self.t_speed, t])
+            stack = np.hstack([self.attitude, self.t_speed, [t]])
             self.trajectory = np.vstack([self.trajectory, stack])
             time.sleep(self.period_get_attitude)
 
@@ -241,9 +241,5 @@ class Pion:
         :param path: путь сохранения
         :return: None
         """
-        from os.path import isdir
-        if not isdir(path):
-            from os import makedirs
-            makedirs(path, exist_ok=True)
         self.speed_flag = False
         np.save(f'{path}{file_name}', self.trajectory[1:])
