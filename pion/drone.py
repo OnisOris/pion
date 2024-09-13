@@ -1,5 +1,5 @@
 import numpy as np
-from numpy import cos, sin, ndarray, dtype, pi
+from numpy import cos, sin
 from pymavlink import mavutil
 import time
 import threading
@@ -40,7 +40,7 @@ def rot_z(vector: list | np.ndarray, angle: float | int) -> np.ndarray:
 
 
 class Pion:
-    def __init__(self, ip='10.1.100.114',
+    def __init__(self, ip: str = '10.1.100.114',
                  mavlink_port: int = 8001,
                  connection_method: str = 'udpout',
                  rotate_xyz: int | float = 0):
@@ -127,7 +127,6 @@ class Pion:
                                                                        coordinate_system,
                                                                        mask, x, y, z, vx, vy, vz, afx, afy, afz,
                                                                        yaw, yaw_rate)
-        return False
 
     def _send_command_long(self, command_name, command, param1: float = 0, param2: float = 0, param3: float = 0,
                            param4: float = 0, param5: float = 0, param6: float = 0, param7: float = 0,
