@@ -164,3 +164,4 @@ data/
 save/
 test.py
 pion_venv/
+git_ssh.sh
