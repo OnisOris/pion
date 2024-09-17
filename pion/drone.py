@@ -43,7 +43,8 @@ class Pion:
     def __init__(self, ip: str = '10.1.100.114',
                  mavlink_port: int = 8001,
                  connection_method: str = 'udpout',
-                 rotate_xyz: int | float = 0):
+                 rotate_xyz: int | float = 0,
+                 combine_system: int=0):
         self.mavlink_socket = create_connection(connection_method=connection_method,
                                                 ip=ip, port=mavlink_port)
         self._heartbeat_timeout = 1
@@ -51,7 +52,7 @@ class Pion:
         self._heartbeat_send_time = time.time() - self._heartbeat_timeout
         self.__is_socket_open = threading.Event()
         self.__is_socket_open.set()
-        self._message_handler_thread = threading.Thread(target=self._message_handler, daemon=True)
+        self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system=combine_system), daemon=True)
         self._message_handler_thread.daemon = True
         self._message_handler_thread.start()
         self._attitude = np.array([0, 0, 0, 0, 0, 0])
@@ -164,16 +165,43 @@ class Pion:
                                                mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
         self._heartbeat_send_time = time.time()
 
-    def _message_handler(self) -> None:
-        while True:
-            if not self.__is_socket_open.is_set():
-                break
-            if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
-                self._send_heartbeat()
-            msg = self.mavlink_socket.recv_msg()
-            if msg is not None:
-                if msg.get_type() == "LOCAL_POSITION_NED" and msg._header.srcComponent == 1:
-                    self.attitude = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
+    def _message_handler(self, combine_system: int=0) -> None:
+        """
+        Функция поддерживает отправку хартбитов на дрон, а также пишет актуальные координаты в attitude
+        Если combine_system = 0, то данные читаются только с локуса, если combine_system = 1, то данные читаются и с локуса и с оптики, 
+        если combine_system = 2, то данные читаются только с оптики
+        """
+        if combine_system == 0:
+            while True:
+                if not self.__is_socket_open.is_set():
+                    break
+                if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
+                    self._send_heartbeat()
+                msg = self.mavlink_socket.recv_msg()
+                if msg is not None:
+                    if msg.get_type() == "LOCAL_POSITION_NED" and msg._header.srcComponent == 1:
+                        self.attitude = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
+        elif combine_system == 1:
+            while True:
+                if not self.__is_socket_open.is_set():
+                    break
+                if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
+                    self._send_heartbeat()
+                msg = self.mavlink_socket.recv_msg()
+                if msg is not None:
+                    if msg.get_type() == "LOCAL_POSITION_NED":
+                        self.attitude = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
+        elif combine_system == 2:
+            while True:
+                if not self.__is_socket_open.is_set():
+                    break
+                if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
+                    self._send_heartbeat()
+                msg = self.mavlink_socket.recv_msg()
+                if msg is not None:
+                    if msg.get_type() == "LOCAL_POSITION_NED" and msg._header.srcComponent == 26:
+                        self.attitude = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
+
 
     def v_while(self, ampl: float | int = 1) -> None:
         """
