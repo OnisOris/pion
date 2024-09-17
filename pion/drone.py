@@ -52,7 +52,7 @@ class Pion:
         self._heartbeat_send_time = time.time() - self._heartbeat_timeout
         self.__is_socket_open = threading.Event()
         self.__is_socket_open.set()
-        self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system=combine_system), daemon=True)
+        self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,), daemon=True)
         self._message_handler_thread.daemon = True
         self._message_handler_thread.start()
         self._attitude = np.array([0, 0, 0, 0, 0, 0])
