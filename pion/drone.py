@@ -73,6 +73,7 @@ class Pion:
         self.trajectory = np.zeros((11,))
         # Время создания экземпляра
         self.t0 = time.time()
+        self.ip = ip
 
     @property
     def attitude(self) -> np.ndarray:
