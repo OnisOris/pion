@@ -14,7 +14,7 @@ def create_connection(connection_method, ip, port):
     return mav_socket
 
 
-def rot_z(vector: list | np.ndarray, angle: float | int) -> np.ndarray:
+def rot_z(vector: np.ndarray, angle: float | int) -> np.ndarray:
     """
     Функция вращает входные вектора вокруг оси z, заданной векторами-столбцами. Положительным вращением считается
     по часовой стрелке при направлении оси к нам.
@@ -88,18 +88,26 @@ class Pion:
         self._attitude = attitude
 
     def arm(self):
-        return self._send_command_long(command_name='ARM', command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
-                                       param1=1)
+        self._send_command_long(command_name='ARM',
+                                command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+                                param1=1,
+                                att=True)
 
     def disarm(self):
-        return self._send_command_long(command_name='DISARM', command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
-                                       param1=0)
+        self._send_command_long(command_name='DISARM',
+                                command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+                                param1=0,
+                                att=True)
 
     def takeoff(self):
-        return self._send_command_long(command_name='TAKEOFF', command=mavutil.mavlink.MAV_CMD_NAV_TAKEOFF)
+        self._send_command_long(command_name='TAKEOFF',
+                                command=mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
+                                att=True)
 
     def land(self):
-        return self._send_command_long(command_name='LAND', command=mavutil.mavlink.MAV_CMD_NAV_LAND)
+            return self._send_command_long(command_name='LAND',
+                                           command=mavutil.mavlink.MAV_CMD_NAV_LAND,
+                                           att=True)
 
     def goto(self, x: float | int,
              y: float | int,
@@ -110,8 +118,11 @@ class Pion:
         mask = 0b0000_10_0_111_111_000
         # ENU coordinates to NED coordinates
         x, y, z = y, x, -z
+        old_mavlink_send_number = self._mavlink_send_number
+        self._mavlink_send_number = 10
         self._send_position_target_local_ned(coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
                                              mask=mask, x=x, y=y, z=z, yaw=yaw)
+        self._mavlink_send_number = old_mavlink_send_number
 
     def send_speed(self, vx: float | int,
                    vy: float | int,
@@ -132,38 +143,68 @@ class Pion:
         self._send_position_target_local_ned(coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
                                              mask=mask, vx=vx, vy=vy, vz=vz, yaw_rate=yaw_rate)
 
-    def _send_position_target_local_ned(self, coordinate_system, mask=0b0000_11_0_111_111_111, x=0, y=0,
-                                        z=0, vx=0, vy=0, vz=0, afx=0, afy=0, afz=0, yaw=0, yaw_rate=0,
-                                        target_system=None, target_component=None) -> None:
+    def _send_position_target_local_ned(self, coordinate_system, 
+                                        mask=0b0000_11_0_111_111_111,
+                                        x: float | int = 0,
+                                        y: float | int = 0,
+                                        z: float | int = 0,
+                                        vx: float | int = 0,
+                                        vy: float | int = 0,
+                                        vz: float | int = 0,
+                                        afx: float | int = 0,
+                                        afy: float | int = 0,
+                                        afz: float | int = 0,
+                                        yaw: float | int = 0,
+                                        yaw_rate: float | int = 0,
+                                        target_system=None,
+                                        target_component=None) -> None:
         if target_system is None:
             target_system = self.mavlink_socket.target_system
         if target_component is None:
             target_component = self.mavlink_socket.target_component
-        for confirm in range(self._mavlink_send_number):
+        for _ in range(self._mavlink_send_number):
             self.mavlink_socket.mav.set_position_target_local_ned_send(0, target_system, target_component,
                                                                        coordinate_system,
                                                                        mask, x, y, z, vx, vy, vz, afx, afy, afz,
                                                                        yaw, yaw_rate)
 
-    def _send_command_long(self, command_name, command, param1: float = 0, param2: float = 0, param3: float = 0,
-                           param4: float = 0, param5: float = 0, param6: float = 0, param7: float = 0,
-                           target_system=None, target_component=None) -> None:
+    def _send_command_long(self,
+                           command_name,
+                           command, 
+                           param1: float | int = 0, 
+                           param2: float | int = 0, 
+                           param3: float | int = 0,
+                           param4: float | int = 0,
+                           param5: float | int = 0,
+                           param6: float | int = 0,
+                           param7: float | int = 0,
+                           target_system=None,
+                           target_component=None, 
+                           att : bool = False) -> None:
         print(f"_send_command_long --> {command_name}")
         if target_system is None:
             target_system = self.mavlink_socket.target_system
         if target_component is None:
             target_component = self.mavlink_socket.target_component
         confirm = 0
+        old_mavlink_send_number = self._mavlink_send_number
+        if att:
+            self._mavlink_send_number = 10
         while True:
             self.mavlink_socket.mav.command_long_send(target_system, target_component, command, confirm,
                                                       param1, param2, param3, param4, param5, param6, param7)
             confirm += 1
             if confirm >= self._mavlink_send_number:
                 break
+        if att:
+            self._mavlink_send_number = old_mavlink_send_number
 
     def _send_heartbeat(self) -> None:
         self.mavlink_socket.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
-                                               mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
+                                               mavutil.mavlink.MAV_AUTOPILOT_INVALID,
+                                               0, 
+                                               0,
+                                               0)
         self._heartbeat_send_time = time.time()
 
     def _message_handler(self, combine_system: int=0) -> None:
