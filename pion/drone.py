@@ -19,6 +19,10 @@ class Pion:
                  mavlink_port: int = 8001,
                  connection_method: str = 'udpout',
                  combine_system: int=0):
+        # Последнее сообщение из _message_handler()
+        self._msg = None
+        # Напряжение батареи дрона (Вольты)
+        self.battery_voltage = None 
         self.mavlink_socket = create_connection(connection_method=connection_method,
                                                 ip=ip, port=mavlink_port)
         self._heartbeat_timeout = 1
@@ -292,10 +296,13 @@ class Pion:
                     break
                 if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
                     self._send_heartbeat()
-                msg = self.mavlink_socket.recv_msg()
-                if msg is not None:
-                    if msg.get_type() == "LOCAL_POSITION_NED" and msg._header.srcComponent == 1:
-                        self.attitude = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
+                self._msg = self.mavlink_socket.recv_msg()
+                if self._msg is not None:
+                    if self._msg.get_type() == "LOCAL_POSITION_NED" and self._msg._header.srcComponent == 1:
+                        self.attitude = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
+                    elif self._msg.get_type() == "BATTERY_STATUS":
+                        self.battery_voltage = self._msg.voltages[0] / 100
+
         elif combine_system == 1:
             while True:
                 if not self.__is_socket_open.is_set():
@@ -406,3 +413,6 @@ class Pion:
                 f"Arguments 'r', 'g', 'b' must have value in [0, 255]. But your values is r={r}, g={g}, b={b}.")
         return self._send_command_long(command_name='LED', command=mavutil.mavlink.MAV_CMD_USER_1,
                                        param1=led_id, param2=r, param3=g, param4=b)
+    
+
+
