@@ -18,6 +18,7 @@ class Pion:
                  mavlink_port: int = 8001,
                  connection_method: str = 'udpout',
                  combine_system: int=0):
+        self.mavlink_port = mavlink_port
         # Последнее сообщение из _message_handler()
         self._msg = None
         # Напряжение батареи дрона (Вольты)
