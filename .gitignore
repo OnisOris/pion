@@ -165,3 +165,7 @@ save/
 test.py
 pion_venv/
 git_ssh.sh
+./pion/__pycache__/
+index.rst
+conf.py
+docs/
