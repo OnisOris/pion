@@ -1,5 +1,4 @@
 import numpy as np
-from numpy import cos, sin
 from pymavlink import mavutil
 import time
 import threading
@@ -62,27 +61,47 @@ class Pion:
         return self._attitude
 
     @attitude.setter
-    def attitude(self, attitude):
+    def attitude(self, attitude) -> None:
+        """
+        Сеттер для attitude
+        :return: None
+        """
         self._attitude = attitude
 
-    def arm(self):
+    def arm(self) -> None:
+        """
+        Включает двигатели
+        :return: None
+        """
         self._send_command_long(command_name='ARM',
                                 command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                                 param1=1,
                                 mavlink_send_number=self._mavlink_send_number)
 
-    def disarm(self):
+    def disarm(self) -> None:
+        """
+        Отключает двигатели
+        :return: None
+        """
         self._send_command_long(command_name='DISARM',
                                 command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                                 param1=0,
                                 mavlink_send_number=self._mavlink_send_number)
 
-    def takeoff(self):
+    def takeoff(self) -> None:
+        """
+        Взлет дрона
+        :return: None
+        """
         self._send_command_long(command_name='TAKEOFF',
                                 command=mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
                                 mavlink_send_number=self._mavlink_send_number)
 
-    def land(self):
+    def land(self) -> None:
+        """
+        Посадка дрона
+        :return: None
+        """
         self._send_command_long(command_name='LAND',
                                 command=mavutil.mavlink.MAV_CMD_NAV_LAND,
                                 mavlink_send_number=self._mavlink_send_number)
@@ -91,10 +110,22 @@ class Pion:
              y: float | int,
              z: float | int,
              yaw: float | int = 0) -> None:
-        """ Flight to point in the current navigation system's coordinate frame """
-        # _ _ _ _ yaw_rate yaw   force_set   afz afy afx   vz vy vx   z y x
+        """
+        Полет к указанной точке в текущей системе координат навигации.
+
+        :param x: Координата по оси X в ENU (East-North-Up) системе координат.
+        :type x: float | int
+        :param y: Координата по оси Y в ENU (East-North-Up) системе координат.
+        :type y: float | int
+        :param z: Координата по оси Z (высота) в ENU (East-North-Up) системе координат.
+        :type z: float | int
+        :param yaw: Угол курса, на который должен повернуться дрон. По умолчанию 0.
+        :type yaw: float | int, optional
+        :return: None
+        :note: Координаты задаются в ENU (East-North-Up) системе координат, но будут автоматически преобразованы 
+        в NED (North-East-Down).
+        """        
         mask = 0b0000_10_0_111_111_000
-        # ENU coordinates to NED coordinates
         x, y, z = y, x, -z
         self._send_position_target_local_ned(coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
                                              mask=mask, 
@@ -294,8 +325,7 @@ class Pion:
             while True:
                 if not self.__is_socket_open.is_set():
                     break
-                if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
-                    self._send_heartbeat()
+                self.heartbeat()
                 self._msg = self.mavlink_socket.recv_msg()
                 if self._msg is not None:
                     if self._msg.get_type() == "LOCAL_POSITION_NED" and self._msg._header.srcComponent == 1:
@@ -307,23 +337,34 @@ class Pion:
             while True:
                 if not self.__is_socket_open.is_set():
                     break
-                if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
-                    self._send_heartbeat()
-                msg = self.mavlink_socket.recv_msg()
-                if msg is not None:
-                    if msg.get_type() == "LOCAL_POSITION_NED":
-                        self.attitude = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
+                self.heartbeat() 
+                self._msg = self.mavlink_socket.recv_msg()
+                if self._msg is not None:
+                    if self._msg.get_type() == "LOCAL_POSITION_NED":
+                        self.attitude = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
+                    elif self._msg.get_type() == "BATTERY_STATUS":
+                        self.battery_voltage = self._msg.voltages[0] / 100
+
+
         elif combine_system == 2:
             while True:
                 if not self.__is_socket_open.is_set():
                     break
-                if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
-                    self._send_heartbeat()
-                msg = self.mavlink_socket.recv_msg()
-                if msg is not None:
-                    if msg.get_type() == "LOCAL_POSITION_NED" and msg._header.srcComponent == 26:
-                        self.attitude = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
+                self.heartbeat() 
+                self._msg = self.mavlink_socket.recv_msg()
+                if self._msg is not None:
+                    if self._msg.get_type() == "LOCAL_POSITION_NED" and self._msg._header.srcComponent == 26:
+                        self.attitude = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
+                    elif self._msg.get_type() == "BATTERY_STATUS":
+                        self.battery_voltage = self._msg.voltages[0] / 100
 
+    def heartbeat(self) -> None:
+        """
+        Функция проверки heartbeat дрона
+        :return: None
+        """
+        if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
+            self._send_heartbeat()
 
     def v_while(self, ampl: float | int = 1) -> None:
         """
@@ -389,7 +430,7 @@ class Pion:
         self.speed_flag = False
         np.save(f'{path}{file_name}', self.trajectory[1:])
 
-    def led_control(self, led_id=255, r=0, g=0, b=0):
+    def led_control(self, led_id=255, r=0, g=0, b=0) -> None:
         """
         Управление светодиодами на дроне.
 
@@ -411,8 +452,19 @@ class Pion:
         if r < 0 or r > 255 or g < 0 or g > 255 or b < 0 or b > 255:
             raise ValueError(
                 f"Arguments 'r', 'g', 'b' must have value in [0, 255]. But your values is r={r}, g={g}, b={b}.")
-        return self._send_command_long(command_name='LED', command=mavutil.mavlink.MAV_CMD_USER_1,
+        self._send_command_long(command_name='LED', command=mavutil.mavlink.MAV_CMD_USER_1,
                                        param1=led_id, param2=r, param3=g, param4=b)
     
-
-
+    def check_battery(self) -> None:
+        """
+        Проверяет статус батареи
+        :return: None
+        """
+        voltage = self.battery_voltage
+        if voltage is not None:
+            if voltage < 6.9:
+                print(f">>>>>>>>>>>>>>>>>>Аккумулятор разряжен<<<<<<<<<<<<<<<<<<<<<<\nvoltage = {voltage}")
+            else:
+                print(f"voltage = {voltage}")
+        else:
+            print("Сообщение о статусе батареи еще не пришло")
