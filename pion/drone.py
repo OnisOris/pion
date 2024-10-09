@@ -6,7 +6,7 @@ import threading
 
 def create_connection(connection_method, ip, port):
     """
-    create mavlink connection
+    Create mavlink connection
     :return: mav_socket
     """
     mav_socket = mavutil.mavlink_connection('%s:%s:%s' % (connection_method, ip, port))
@@ -15,9 +15,15 @@ def create_connection(connection_method, ip, port):
 
 class Pion:
     def __init__(self, ip: str = '10.1.100.114',
-                 mavlink_port: int = 8001,
+                 mavlink_port: int = 5656,
                  connection_method: str = 'udpout',
                  combine_system: int=0):
+        # Флаг для остановки цикла отдачи вектора скорости дрону
+        self.speed_flag = True
+        # Флаг для остановки сохранения координат
+        self.check_attitude_flag = True
+        # Флаг для остановки цикла в _message_handler
+        self.message_handler_flag = True
         self.mavlink_port = mavlink_port
         # Последнее сообщение из _message_handler()
         self._msg = None
@@ -34,15 +40,15 @@ class Pion:
         self._message_handler_thread.daemon = True
         self._message_handler_thread.start()
         self._attitude = np.array([0, 0, 0, 0, 0, 0])
-        # Флаг для остановки цикла отдачи вектора скорости дрону
-        self.speed_flag = True
-        # Флаг для остановки сохранения координат
-        self.check_attitude_flag = True
         # Список потоков
         self.threads = []
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
         self.t_speed = np.array([0, 0, 0, 0])
+        # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
+        # Период приема всех сообщений с дрона (не должен быть менье, чем period_get_attitude)
+        self.period_message_handler = 0.05
+        # Период обновления 
         self.period_get_attitude = 0.05
         # Информация, включающая
         # x, y, z, yaw, vx, vy, vz, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t,
@@ -323,7 +329,7 @@ class Pion:
         :return: None
         """
         if combine_system == 0:
-            while True:
+            while self.message_handler_flag:
                 if not self.__is_socket_open.is_set():
                     break
                 self.heartbeat()
@@ -333,9 +339,10 @@ class Pion:
                         self.attitude = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
                     elif self._msg.get_type() == "BATTERY_STATUS":
                         self.battery_voltage = self._msg.voltages[0] / 100
+                time.sleep(self.period_message_handler)
 
         elif combine_system == 1:
-            while True:
+            while self.message_handler_flag:
                 if not self.__is_socket_open.is_set():
                     break
                 self.heartbeat() 
@@ -345,10 +352,10 @@ class Pion:
                         self.attitude = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
                     elif self._msg.get_type() == "BATTERY_STATUS":
                         self.battery_voltage = self._msg.voltages[0] / 100
-
+                time.sleep(self.period_message_handler)
 
         elif combine_system == 2:
-            while True:
+            while self.message_handler_flag:
                 if not self.__is_socket_open.is_set():
                     break
                 self.heartbeat() 
@@ -358,6 +365,7 @@ class Pion:
                         self.attitude = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
                     elif self._msg.get_type() == "BATTERY_STATUS":
                         self.battery_voltage = self._msg.voltages[0] / 100
+                time.sleep(self.period_message_handler)
 
     def heartbeat(self) -> None:
         """
@@ -469,3 +477,13 @@ class Pion:
                 print(f"voltage = {voltage}")
         else:
             print("Сообщение о статусе батареи еще не пришло")
+
+    def stop(self) -> None:
+        """
+        Останавливает все потоки внутри приложения
+        :return: None
+        """
+        self.speed_flag = False
+        self.check_attitude_flag = False
+        self.message_handler_flag = False
+    
