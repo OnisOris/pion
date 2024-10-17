@@ -47,7 +47,7 @@ class Pion:
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         # Период приема всех сообщений с дрона (не должен быть менье, чем period_get_attitude)
-        self.period_message_handler = 0.05
+        self.period_message_handler = 0
         # Период обновления 
         self.period_get_attitude = 0.05
         # Информация, включающая
