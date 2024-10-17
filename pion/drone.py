@@ -2,7 +2,7 @@ import numpy as np
 from pymavlink import mavutil
 import time
 import threading
-
+from .controller import PController
 
 def create_connection(connection_method, ip, port):
     """
@@ -141,6 +141,33 @@ class Pion:
                                              z=z, 
                                              yaw=yaw, 
                                              mavlink_send_number=10)
+    def vector_reached(self, x: float | int,
+             y: float | int,
+             z: float | int,
+            accuracy: int | float = 1e-4) -> bool:
+
+        if np.allclose([x, y, z], self.attitude[0:3], accuracy):
+            return True
+        else:
+            return False
+
+    def goto_from_out(self, x: float | int,
+             y: float | int,
+             z: float | int,
+             yaw: float | int = 0) -> None:
+        """
+        Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
+        Для использования необходимо включить цикл v_while для посылки вектора скорости дрону
+        :param x: координата по x
+        :param y: координата по y
+        :param z:  координата по z
+        :return: None
+        """
+        p_controller = PController([1, 1, 1])
+        point_reached = self.vector_reached(x, y, z)
+        while not point_reached:
+            self.t_speed = p_controller.compute_control([x, y, z], self.attitude[0:3])
+            time.sleep(self.period_send_speed)
 
     def send_speed(self, vx: float | int,
                    vy: float | int,
