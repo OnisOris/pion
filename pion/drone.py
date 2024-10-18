@@ -145,27 +145,36 @@ class Pion:
              y: float | int,
              z: float | int,
             accuracy: int | float = 1e-4) -> bool:
-
+        """
+        Функция сравнивает текующую позицию с целевой позицией, возвращает True в пределах погрешности accuracy
+        :param x: координата по x
+        :param y: координата по y
+        :param z:  координата по z
+        :param accuracy: Погрешность целевой точки 
+        :return: None
+        """
         if np.allclose([x, y, z], self.attitude[0:3], accuracy):
             return True
         else:
             return False
 
-    def goto_from_out(self, x: float | int,
+    def goto_from_outside(self, x: float | int,
              y: float | int,
              z: float | int,
-             yaw: float | int = 0) -> None:
+             accuracy: float | int = 1e-4) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону
         :param x: координата по x
         :param y: координата по y
         :param z:  координата по z
+        :param accuracy: Погрешность целевой точки 
         :return: None
         """
         p_controller = PController([1, 1, 1])
         point_reached = self.vector_reached(x, y, z)
         while not point_reached:
+            point_reached = self.vector_reached(x, y, z, accuracy=accuracy)
             self.t_speed = p_controller.compute_control([x, y, z], self.attitude[0:3])
             time.sleep(self.period_send_speed)
 
