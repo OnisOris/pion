@@ -39,9 +39,14 @@ disarm()
 land()
 ```
 ---
-- перемещение дрона в глобальной системе координат
+- перемещение дрона в системе координат арены с управлением с микроконтроллера дрона
 ```
 goto(x, y, z, yaw) 
+```
+---
+- перемещение дрона в системе координат арены с управлением по скорости с внешнего устройства
+```
+goto_from_outside(x, y, z, accuracy) 
 ```
 ---
 - задание дрону скорости которое необходимо параллельно менять для 
@@ -72,8 +77,35 @@ drone.trajectory - поле, содержащее в себе траектори
 
 В итоге матрица trajectory представляет собой вектора состояний дрона во времени attitude.
 
-# Пример использования
+# Примеры использования
 
-Пример с инструкцией можно найти по ссылке:
+```python
+from pion import Pion
+import sys
+import time
+number_drone = sys.argv[1]
+drone = Pion(ip=f"10.1.100.{number_drone}", mavlink_port=5656)
+time.sleep(1)
+drone.arm()
+time.sleep(3)
+drone.takeoff()
+
+
+time.sleep(5)
+
+drone.set_v()
+
+drone.goto_from_outside(float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]))
+time.sleep(10)
+drone.land()
+
+drone.stop()
+```
+При запуске примера в качестве аргументов идут: номер дрона, координаты x, y, z
+```commandline
+python test.py [номер дрона] 1 1 1
+```
+
+Дополнительные примеры с инструкцией можно найти по ссылке:
 https://github.com/OnisOris/Danalysis
 
