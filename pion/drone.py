@@ -162,7 +162,7 @@ class Pion:
     def goto_from_outside(self, x: float | int,
              y: float | int,
              z: float | int,
-             accuracy: float | int = 1e-4) -> None:
+             accuracy: float | int = 1e-2) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
@@ -173,11 +173,11 @@ class Pion:
         :param accuracy: Погрешность целевой точки 
         :return: None
         """
-        p_controller = PController([1, 1, 1])
+        p_controller = PController([0.5, 0.5, 1])
         point_reached = self.vector_reached(x, y, z)
         while not point_reached:
             point_reached = self.vector_reached(x, y, z, accuracy=accuracy)
-            self.t_speed = np.clip(p_controller.compute_control([x, y, z], self.attitude[0:3]), -self.max_speed, self.max_speed)
+            self.t_speed = np.hstack([np.clip(p_controller.compute_control([x, y, z], self.attitude[0:3]), -self.max_speed, self.max_speed), 0])
             time.sleep(self.period_send_speed)
 
     def send_speed(self, vx: float | int,
