@@ -58,6 +58,7 @@ class Pion:
         self.t0 = time.time()
         self.ip = ip
         self.connection_lost = False
+        self.max_speed = 1
 
     @property
     def attitude(self) -> np.ndarray:
@@ -164,7 +165,8 @@ class Pion:
              accuracy: float | int = 1e-4) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
-        Для использования необходимо включить цикл v_while для посылки вектора скорости дрону
+        Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
+        Максимальная скорость обрезается np.clip по полю self.max_speed.
         :param x: координата по x
         :param y: координата по y
         :param z:  координата по z
@@ -175,7 +177,7 @@ class Pion:
         point_reached = self.vector_reached(x, y, z)
         while not point_reached:
             point_reached = self.vector_reached(x, y, z, accuracy=accuracy)
-            self.t_speed = p_controller.compute_control([x, y, z], self.attitude[0:3])
+            self.t_speed = np.clip(p_controller.compute_control([x, y, z], self.attitude[0:3]), -self.max_speed, self.max_speed)
             time.sleep(self.period_send_speed)
 
     def send_speed(self, vx: float | int,
