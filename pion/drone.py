@@ -2,7 +2,7 @@ import numpy as np
 from pymavlink import mavutil
 import time
 import threading
-from .controller import PController
+from .controller import PIDController
 
 def create_connection(connection_method, ip, port):
     """
@@ -173,11 +173,13 @@ class Pion:
         :param accuracy: Погрешность целевой точки 
         :return: None
         """
-        p_controller = PController([0.5, 0.5, 1])
+        pid_controller = PIDController([0.5, 0.5, 1], [5, 5, 5], [2, 2, 2])
         point_reached = self.vector_reached(x, y, z)
+        dt = time.time()
         while not point_reached:
+            dt = time.time() - dt
             point_reached = self.vector_reached(x, y, z, accuracy=accuracy)
-            self.t_speed = np.hstack([np.clip(p_controller.compute_control([x, y, z], self.attitude[0:3]), -self.max_speed, self.max_speed), 0])
+            self.t_speed = np.hstack([np.clip(pid_controller.compute_control([x, y, z], self.attitude[0:3]), -self.max_speed, self.max_speed), 0])
             time.sleep(self.period_send_speed)
 
     def send_speed(self, vx: float | int,
