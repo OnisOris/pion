@@ -154,7 +154,7 @@ class Pion:
         :param accuracy: Погрешность целевой точки 
         :return: None
         """
-        if np.allclose([x, y, z], self.attitude[0:3], accuracy):
+        if np.allclose([x, y, z], self.attitude[0:3], atol=accuracy):
             return True
         else:
             return False
