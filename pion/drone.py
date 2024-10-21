@@ -180,7 +180,7 @@ class Pion:
     def goto_from_outside(self, x: float | int,
              y: float | int,
              z: float | int,
-             yaw: float | int,
+             yaw: float | int = 0,
              accuracy: float | int = 5e-2) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
