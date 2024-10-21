@@ -2,6 +2,7 @@ import numpy as np
 from pymavlink import mavutil
 import time
 import threading
+import select
 from .controller import PIDController
 
 def create_connection(connection_method, ip, port):
@@ -40,6 +41,7 @@ class Pion:
         self._message_handler_thread.daemon = True
         self._message_handler_thread.start()
         self._attitude = np.array([0, 0, 0, 0, 0, 0])
+        self._position = np.array([0, 0, 0, 0, 0, 0])
         # Список потоков
         self.threads = []
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
@@ -53,7 +55,7 @@ class Pion:
         # Информация, включающая
         # x, y, z, yaw, vx, vy, vz, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t,
         # которая складывается в матрицу (n, 12), где n - число измерений
-        self.trajectory = np.zeros((11,))
+        self.trajectory = np.zeros((17,))
         # Время создания экземпляра
         self.t0 = time.time()
         self.ip = ip
@@ -61,9 +63,24 @@ class Pion:
         self.max_speed = 1
 
     @property
-    def attitude(self) -> np.ndarray:
+    def position(self) -> np.ndarray:
         """
         Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
+        :return: np.ndarray
+        """
+        return self._position
+
+    @position.setter
+    def position(self, position) -> None:
+        """
+        Сеттер для _position
+        :return: None
+        """
+        self._position = position
+    @property
+    def attitude(self) -> np.ndarray:
+        """
+        Функция вернет ndarray (6,) с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
         :return: np.ndarray
         """
         return self._attitude
@@ -71,10 +88,11 @@ class Pion:
     @attitude.setter
     def attitude(self, attitude) -> None:
         """
-        Сеттер для attitude
+        Сеттер для _attitude
         :return: None
         """
         self._attitude = attitude
+
 
     def arm(self) -> None:
         """
@@ -145,7 +163,7 @@ class Pion:
     def vector_reached(self, x: float | int,
              y: float | int,
              z: float | int,
-            accuracy: int | float = 1e-4) -> bool:
+             accuracy: int | float = 1e-4) -> bool:
         """
         Функция сравнивает текующую позицию с целевой позицией, возвращает True в пределах погрешности accuracy
         :param x: координата по x
@@ -154,7 +172,7 @@ class Pion:
         :param accuracy: Погрешность целевой точки 
         :return: None
         """
-        if np.allclose([x, y, z], self.attitude[0:3], atol=accuracy):
+        if np.allclose([x, y, z], self.position[0:3], atol=accuracy):
             return True
         else:
             return False
@@ -373,39 +391,53 @@ class Pion:
                 if not self.__is_socket_open.is_set():
                     break
                 self.heartbeat()
-                self._msg = self.mavlink_socket.recv_msg()
-                if self._msg is not None:
-                    if self._msg.get_type() == "LOCAL_POSITION_NED" and self._msg._header.srcComponent == 1:
-                        self.attitude = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
-                    elif self._msg.get_type() == "BATTERY_STATUS":
-                        self.battery_voltage = self._msg.voltages[0] / 100
+                # Проверка, доступно ли новое сообщение для чтения
+                rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
+                if rlist:
+                    self._msg = self.mavlink_socket.recv_msg()
+                    if self._msg is not None:
+                        if self._msg.get_type() == "LOCAL_POSITION_NED" and self._msg._header.srcComponent == 1:
+                            self.position = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
+                        elif self._msg.get_type() == "ATTITUDE":
+                            self.attitude = np.array([self._msg.roll, self._msg.pitch, self._msg.yaw, self._msg.rollspeed, self._msg.pitchspeed, self._msg.yawspeed])
+                        elif self._msg.get_type() == "BATTERY_STATUS":
+                            self.battery_voltage = self._msg.voltages[0] / 100
                 time.sleep(self.period_message_handler)
 
         elif combine_system == 1:
             while self.message_handler_flag:
                 if not self.__is_socket_open.is_set():
                     break
-                self.heartbeat() 
-                self._msg = self.mavlink_socket.recv_msg()
-                if self._msg is not None:
-                    if self._msg.get_type() == "LOCAL_POSITION_NED":
-                        self.attitude = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
-                    elif self._msg.get_type() == "BATTERY_STATUS":
-                        self.battery_voltage = self._msg.voltages[0] / 100
-                time.sleep(self.period_message_handler)
-
+                self.heartbeat()
+                # Проверка, доступно ли новое сообщение для чтения
+                rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
+                if rlist:
+                    self._msg = self.mavlink_socket.recv_msg()
+                    if self._msg is not None:
+                        if self._msg.get_type() == "LOCAL_POSITION_NED":
+                            self.position = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
+                        elif self._msg.get_type() == "ATTITUDE":
+                            self.attitude = np.array([self._msg.roll, self._msg.pitch, self._msg.yaw, self._msg.rollspeed, self._msg.pitchspeed, self._msg.yawspeed])
+                        elif self._msg.get_type() == "BATTERY_STATUS":
+                            self.battery_voltage = self._msg.voltages[0] / 100
+                time.sleep(self.period_message_handler)        
         elif combine_system == 2:
             while self.message_handler_flag:
                 if not self.__is_socket_open.is_set():
                     break
-                self.heartbeat() 
-                self._msg = self.mavlink_socket.recv_msg()
-                if self._msg is not None:
-                    if self._msg.get_type() == "LOCAL_POSITION_NED" and self._msg._header.srcComponent == 26:
-                        self.attitude = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
-                    elif self._msg.get_type() == "BATTERY_STATUS":
-                        self.battery_voltage = self._msg.voltages[0] / 100
-                time.sleep(self.period_message_handler)
+                self.heartbeat()
+                # Проверка, доступно ли новое сообщение для чтения
+                rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
+                if rlist:
+                    self._msg = self.mavlink_socket.recv_msg()
+                    if self._msg is not None:
+                        if self._msg.get_type() == "LOCAL_POSITION_NED" and self._msg._header.srcComponent == 26:
+                            self.position = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
+                        elif self._msg.get_type() == "ATTITUDE":
+                            self.attitude = np.array([self._msg.roll, self._msg.pitch, self._msg.yaw, self._msg.rollspeed, self._msg.pitchspeed, self._msg.yawspeed])
+                        elif self._msg.get_type() == "BATTERY_STATUS":
+                            self.battery_voltage = self._msg.voltages[0] / 100
+                time.sleep(self.period_message_handler)    
 
     def heartbeat(self) -> None:
         """
@@ -464,7 +496,7 @@ class Pion:
         """
         while self.check_attitude_flag:
             t = time.time() - self.t0
-            stack = np.hstack([self.attitude, self.t_speed, [t]])
+            stack = np.hstack([self.position, self.attitude, self.t_speed, [t]])
             self.trajectory = np.vstack([self.trajectory, stack])
             time.sleep(self.period_get_attitude)
 
