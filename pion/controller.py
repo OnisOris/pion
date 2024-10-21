@@ -15,7 +15,10 @@ class PIDController:
         self.previous_error = None
         self.integral = np.zeros_like(self.kp)
 
-    def compute_control(self, target_position: float | np.ndarray | list, current_position: float | np.ndarray | list, dt: float | int = 0.) -> float | np.ndarray:
+    def compute_control(self, 
+                        target_position: float | np.ndarray | list,
+                        current_position: float | np.ndarray | list, 
+                        dt: float | int = 0.) -> float | np.ndarray:
         """
         Рассчитывает управляющую скорость для произвольного количества осей на основе ПИД-регулирования.
         target_position и current_position — векторы numpy с одинаковым количеством элементов.
