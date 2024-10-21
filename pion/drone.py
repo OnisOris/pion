@@ -163,6 +163,7 @@ class Pion:
     def vector_reached(self, x: float | int,
              y: float | int,
              z: float | int,
+             yaw: float |int,
              accuracy: int | float = 1e-4) -> bool:
         """
         Функция сравнивает текующую позицию с целевой позицией, возвращает True в пределах погрешности accuracy
@@ -172,7 +173,7 @@ class Pion:
         :param accuracy: Погрешность целевой точки 
         :return: None
         """
-        if np.allclose([x, y, z], self.position[0:3], atol=accuracy):
+        if np.allclose([x, y, z, yaw], np.hstack([self.position[0:3], self.attitude[2]]), atol=accuracy):
             return True
         else:
             return False
@@ -192,12 +193,12 @@ class Pion:
         :param accuracy: Погрешность целевой точки 
         :return: None
         """
-        pid_controller = PIDController([0.5, 0.5, 1, 0.5], [5, 5, 5, 0.5], [2, 2, 2, 0.5])
-        point_reached = self.vector_reached(x, y, z)
+        pid_controller = PIDController([0.5, 0.5, 1, 0.01], [5, 5, 5, 0.01], [2, 2, 2, 0.01])
+        point_reached = self.vector_reached(x, y, z, yaw)
         dt = time.time()
         while not point_reached:
             dt = time.time() - dt
-            point_reached = self.vector_reached(x, y, z, accuracy=accuracy)
+            point_reached = self.vector_reached(x, y, z, yaw, accuracy=accuracy)
             self.t_speed = np.clip(pid_controller.compute_control([x, y, z, yaw], np.hstack([self.position[0:3], self.attitude[2]]), dt=dt), -self.max_speed, self.max_speed)
             time.sleep(self.period_send_speed)
 
