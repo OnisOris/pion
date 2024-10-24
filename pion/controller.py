@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union, List
+from typing import Union
 import numpy.typing as npt
 
 class PIDController:
