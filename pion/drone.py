@@ -4,21 +4,101 @@ import time
 import threading
 import select
 from .controller import PIDController
+from typing import Union, Optional
+import numpy.typing as npt
 
-def create_connection(connection_method, ip, port):
+def create_connection(
+    connection_method: str, 
+    ip: str, 
+    port: Union[int, str]
+) -> mavutil.mavfile:
     """
-    Create mavlink connection
-    :return: mav_socket
+    Создаёт MAVLink соединение.
+
+    :param connection_method: Метод соединения, например, 'udp', 'tcp', или другой.
+    :type connection_method: str
+    
+    :param ip: IP-адрес для соединения, например '127.0.0.1'
+    :type ip: str
+    
+    :param port: Порт для соединения. Может быть целым числом или строкой.
+    :type port: Union[int, str]
+    
+    :return: Возвращает объект mav_socket, который представляет MAVLink соединение.
+    :rtype: mavutil.mavfile
     """
     mav_socket = mavutil.mavlink_connection('%s:%s:%s' % (connection_method, ip, port))
     return mav_socket
 
+def update_array(
+    arr: Union[list, npt.NDArray[Union[float, list, npt.NDArray[np.float64]]]], 
+    new_value: Union[float, list, npt.NDArray[np.float64]]
+) -> npt.NDArray[np.float64]:
+    """
+    Сдвигает элементы массива и вставляет новое значение в начало.
+
+    :param arr: Входной массив или список для обновления. Может быть списком, 
+                numpy-массивом с числами типа float, либо вложенной структурой 
+                из списков или массивов.
+    :type arr: Union[list, npt.NDArray[Union[float, list, npt.NDArray[np.float64]]]]
+    
+    :param new_value: Значение, которое будет помещено в начало массива.
+    :type new_value: Union[float, list, npt.NDArray[np.float64]]
+    
+    :return: Обновлённый массив с новым значением в начале.
+    :rtype: Union[list, npt.NDArray[np.float64]]
+    """
+    arr = np.roll(arr, 1)
+    arr[0] = new_value
+    return arr
+
+def compare_with_first_row(
+    matrix: Union[list, npt.NDArray[np.float64]], 
+    atol: float = 1e-2) -> bool:
+    """
+    Проверяет, являются ли все строки матрицы близкими к первой строке в пределах допуска.
+
+    :param matrix: Входная матрица, представленная списком или numpy-массивом.
+    :type matrix: Union[list, npt.NDArray[np.float64]]
+    
+    :param atol: Абсолютная погрешность для сравнения строк. Значение по умолчанию равно 1e-2.
+    :type atol: float
+    
+    :return: Возвращает True, если все строки матрицы близки к первой строке в пределах указанной погрешности, иначе False.
+    :rtype: bool
+    """
+    first_row = matrix[0]
+    return np.all([np.allclose(first_row, row, atol=atol) for row in matrix[1:]])
+
+
+
 
 class Pion:
-    def __init__(self, ip: str = '10.1.100.114',
+    def __init__(self, 
+                 ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
                  connection_method: str = 'udpout',
-                 combine_system: int=0):
+                 combine_system: int = 0,
+                 count_of_checking_points: int = 20):
+        """
+        Инициализация класса Pion, устанавливающего MAVLink соединение с дроном 
+        и управляющего взаимодействием по передаче и приему данных.
+
+        :param ip: IP-адрес для подключения к дрону.
+        :type ip: str
+        
+        :param mavlink_port: Порт для MAVLink соединения.
+        :type mavlink_port: int
+        
+        :param connection_method: Метод соединения, например, 'udpout' для MAVLink.
+        :type connection_method: str
+        
+        :param combine_system: Системный код для комбинированной системы управления: 1, 2, 3
+        :type combine_system: int
+        
+        :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
+        :type count_of_checking_points: int
+        """
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag = True
         # Флаг для остановки сохранения координат
@@ -61,6 +141,8 @@ class Pion:
         self.ip = ip
         self.connection_lost = False
         self.max_speed = 1
+        # Используется для хранения последних count_of_checking_points данных в виде [x, y, z, yaw] для верификации достижения таргетной точки
+        self.last_points = np.zeros((count_of_checking_points, 4))
 
     @property
     def position(self) -> np.ndarray:
@@ -132,10 +214,11 @@ class Pion:
                                 command=mavutil.mavlink.MAV_CMD_NAV_LAND,
                                 mavlink_send_number=self._mavlink_send_number)
 
-    def goto(self, x: float | int,
-             y: float | int,
-             z: float | int,
-             yaw: float | int = 0) -> None:
+    def goto(self, 
+             x: Union[float, int],
+             y: Union[float, int],
+             z: Union[float, int],
+             yaw: Union[float, int]) -> None:
         """
         Полет к указанной точке в текущей системе координат навигации.
 
@@ -160,58 +243,99 @@ class Pion:
                                              z=z, 
                                              yaw=yaw, 
                                              mavlink_send_number=10)
-    def vector_reached(self, x: float | int,
-             y: float | int,
-             z: float | int,
-             yaw: float |int,
-             accuracy: int | float = 1e-4) -> bool:
+
+
+    def vector_reached(self,
+                       target_vector: Union[list, npt.NDArray[np.float64]],
+                       current_point_matrix: Union[list, npt.NDArray[np.ndarray]],
+                       accuracy: Union[int, float] = 5e-2) -> bool:
         """
         Функция сравнивает текующую позицию с целевой позицией, возвращает True в пределах погрешности accuracy
-        :param x: координата по x
-        :param y: координата по y
-        :param z:  координата по z
+        :param target_vector: целевой вектор
+        :type: Union[list, npt.NDArray[np.float64]]
+        :param current_point_matrix: текущий вектор состояния дрона
+        :type: Union[list, npt.NDArray[np.ndarray]]
         :param accuracy: Погрешность целевой точки 
-        :return: None
+        :type: Union[int, float]
+        :return: bool
         """
-        if np.allclose([x, y, z, yaw], np.hstack([self.position[0:3], self.attitude[2]]), atol=accuracy):
+        matrix = np.vstack([target_vector, current_point_matrix])
+        if compare_with_first_row(matrix, accuracy):
             return True
         else:
             return False
 
-    def goto_from_outside(self, x: float | int,
-             y: float | int,
-             z: float | int,
-             yaw: float | int = 0,
-             accuracy: float | int = 5e-2) -> None:
+    def goto_from_outside(self, 
+                          x: Union[float, int],
+                          y: Union[float, int],
+                          z: Union[float, int],
+                          yaw: Union[float, int],
+                          accuracy: Union[float, int] = 5e-2) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed.
         :param x: координата по x
+        :type x: Union[float, int]
         :param y: координата по y
+        :type: Union[float, int]
         :param z:  координата по z
+        :type: Union[float, int]
         :param accuracy: Погрешность целевой точки 
+        :type: Union[float, int]
         :return: None
         """
-        pid_controller = PIDController([0.5, 0.5, 1, 0.01], [5, 5, 5, 0.01], [2, 2, 2, 0.01])
-        point_reached = self.vector_reached(x, y, z, yaw)
+        self.goto_yaw(yaw)
+        pid_controller = PIDController([0.5, 0.5, 0.5], [5, 5, 5], [2, 2, 2])
+        point_reached = False
         dt = time.time()
         while not point_reached:
             dt = time.time() - dt
-            point_reached = self.vector_reached(x, y, z, yaw, accuracy=accuracy)
-            self.t_speed = np.clip(pid_controller.compute_control([x, y, z, yaw], np.hstack([self.position[0:3], self.attitude[2]]), dt=dt), -self.max_speed, self.max_speed)
+            point_reached = self.vector_reached([x, y, z], self.position[0:3], accuracy=accuracy)
+            self.t_speed = np.hstack([np.clip(pid_controller.compute_control([x, y, z], self.position[0:3]), -self.max_speed, self.max_speed), 0])
             time.sleep(self.period_send_speed)
+        self.t_speed = np.array([0, 0, 0, 0])
 
-    def send_speed(self, vx: float | int,
-                   vy: float | int,
-                   vz: float | int,
-                   yaw_rate: float | int) -> None:
+
+    def goto_yaw(self, 
+                 yaw: Union[float, int] = 0,
+                 accuracy: Union[float, int] = 0.087) -> None:
+        """
+        Функция берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
+        Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
+        Максимальная скорость обрезается np.clip по полю self.max_speed.
+        :param yaw:  координата по yaw (радианы)
+        :type: Union[float, int]
+        :param accuracy: Погрешность целевой точки
+        :type: Union[float, int] 
+        :return: None
+        """
+        pid_controller = PIDController(1, 0, 1)
+        target_yaw = yaw
+        point_reached = False
+        dt = time.time()
+        while not point_reached:
+            dt = time.time() - dt
+            current_yaw = self.attitude[2]
+            point_reached = self.vector_reached(target_yaw, current_yaw, accuracy=accuracy)
+            self.t_speed = np.array([0, 0, 0, -np.clip(pid_controller.compute_control(target_yaw, self.attitude[2], dt=dt), -self.max_speed, self.max_speed)])
+            time.sleep(self.period_send_speed)
+        self.t_speed = np.array([0, 0, 0, 0])
+
+    def send_speed(self, vx: Union[float, int],
+                   vy: Union[float, int],
+                   vz: Union[float, int],
+                   yaw_rate: Union[float, int]) -> None:
         """
         Функция задает вектор скорости дрону. Отсылать необходимо в цикле.
-        :param vx: скорость по оси x
-        :param vy: скорость по оси y
-        :param vz:  скорость по оси z
-        :param yaw_rate:  скорость поворота по оси z
+        :param vx: скорость по оси x (м/с)
+        :type: Union[float, int]
+        :param vy: скорость по оси y (м/с)
+        :type: Union[float, int]
+        :param vz:  скорость по оси z (м/с)
+        :type: Union[float, int]
+        :param yaw_rate:  скорость поворота по оси z (рад/с)
+        :type: Union[float, int]
         :return: None
         """
         # _ _ _ _ yaw_rate yaw   force_set   afz afy afx   vz vy vx   z y x
@@ -228,17 +352,17 @@ class Pion:
 
     def _send_position_target_local_ned(self, coordinate_system, 
                                         mask=0b0000_11_0_111_111_111,
-                                        x: float | int = 0,
-                                        y: float | int = 0,
-                                        z: float | int = 0,
-                                        vx: float | int = 0,
-                                        vy: float | int = 0,
-                                        vz: float | int = 0,
-                                        afx: float | int = 0,
-                                        afy: float | int = 0,
-                                        afz: float | int = 0,
-                                        yaw: float | int = 0,
-                                        yaw_rate: float | int = 0,
+                                        x: Union[float, int] = 0,
+                                        y: Union[float, int] = 0,
+                                        z: Union[float, int] = 0,
+                                        vx: Union[float, int] = 0,
+                                        vy: Union[float, int] = 0,
+                                        vz: Union[float, int] = 0,
+                                        afx: Union[float, int] = 0,
+                                        afy: Union[float, int] = 0,
+                                        afz: Union[float, int] = 0,
+                                        yaw: Union[float, int] = 0,
+                                        yaw_rate: Union[float, int] = 0,
                                         target_system = None,
                                         target_component = None,
                                         mavlink_send_number = 1) -> None:
@@ -250,30 +374,38 @@ class Pion:
         по оси yaw.
         :param coordinate_system: Система координат (например, NED).
         :type coordinate_system: int
-        :param mask: Маска для включения или исключения определенных параметров.
-        :type mask: int
+
+        :param int mask: Битовая маска для указания, какие измерения будут проигнорированы в сообщении MAVLink. 
+        Соответствует спецификации MAVLink `POSITION_TARGET_TYPEMASK`:
+        - Биты 0-2: Игнорировать позицию (x, y, z)
+        - Биты 3-5: Игнорировать скорость (vx, vy, vz)
+        - Биты 6-8: Игнорировать ускорение или силу (afx, afy, afz)
+        - Бит 9: Игнорировать курс (yaw)
+        - Бит 10: Игнорировать скорость изменения курса (yaw_rate)
+        Пример: 0b0000_11_0_111_111_111 означает игнорирование скорости, ускорения, курса и скорости изменения курса.
+
         :param x: Координата x.
-        :type x: float | int
+        :type x: Union[float, int]
         :param y: Координата y.
-        :type y: float | int
+        :type y: Union[float, int]
         :param z: Координата z.
-        :type z: float | int
+        :type z: Union[float, int]
         :param vx: Скорость по оси x.
-        :type vx: float | int
+        :type vx: Union[float, int]
         :param vy: Скорость по оси y.
-        :type vy: float | int
+        :type vy: Union[float, int]
         :param vz: Скорость по оси z.
-        :type vz: float | int
+        :type vz: Union[float, int]
         :param afx: Ускорение по оси x.
-        :type afx: float | int
+        :type afx: Union[float, int]
         :param afy: Ускорение по оси y.
-        :type afy: float | int
+        :type afy: Union[float, int]
         :param afz: Ускорение по оси z.
-        :type afz: float | int
+        :type afz: Union[float, int]
         :param yaw: Угол курса.
-        :type yaw: float | int
+        :type yaw: Union[float, int]
         :param yaw_rate: Скорость изменения курса.
-        :type yaw_rate: float | int
+        :type yaw_rate: Union[float, int]
         :param target_system: Идентификатор целевой системы.
         :type target_system: int, optional
         :param target_component: Идентификатор целевого компонента.
@@ -305,38 +437,42 @@ class Pion:
                                                                        yaw_rate)
 
     def _send_command_long(self,
-                           command_name,
-                           command, 
-                           param1: float | int = 0, 
-                           param2: float | int = 0, 
-                           param3: float | int = 0,
-                           param4: float | int = 0,
-                           param5: float | int = 0,
-                           param6: float | int = 0,
-                           param7: float | int = 0,
+                           command_name: str,
+                           command: int, 
+                           param1: Union[float, int] = 0, 
+                           param2: Union[float, int] = 0,
+                           param3: Union[float, int] = 0, 
+                           param4: Union[float, int] = 0,
+                           param5: Union[float, int] = 0,
+                           param6: Union[float, int] = 0,
+                           param7: Union[float, int] = 0,
                            target_system=None,
                            target_component=None, 
                            mavlink_send_number: int = 1) -> None:
         """
+          def _send_command_long(self, command_name, command, param1: float = 0, param2: float = 0, param3: float = 0,
+                           param4: float = 0, param5: float = 0, param6: float = 0, param7: float = 0,
+                           target_system=None, target_component=None, sending_log_msg='sending...'):
+
         Отправляет команду типа COMMAND_LONG через MAVLink.
         :param command_name: Имя команды для логирования.
         :type command_name: str
         :param command: Команда MAVLink.
         :type command: int
         :param param1: Параметр 1 команды.
-        :type param1: float | int
+        :type param1: Union[float, int]
         :param param2: Параметр 2 команды.
-        :type param2: float | int
+        :type param2: Union[float, int]
         :param param3: Параметр 3 команды.
-        :type param3: float | int
+        :type param3: Union[float, int]
         :param param4: Параметр 4 команды.
-        :type param4: float | int
+        :type param4: Union[float, int]
         :param param5: Параметр 5 команды.
-        :type param5: float | int
+        :type param5: Union[float, int]
         :param param6: Параметр 6 команды.
-        :type param6: float | int
+        :type param6: Union[float, int]
         :param param7: Параметр 7 команды.
-        :type param7: float | int
+        :type param7: Union[float, int]
         :param target_system: Идентификатор целевой системы.
         :type target_system: int, optional
         :param target_component: Идентификатор целевого компонента.
@@ -379,68 +515,56 @@ class Pion:
                                                0)
         self._heartbeat_send_time = time.time()
 
-    def _message_handler(self, combine_system: int=0) -> None:
-
+    def _message_handler(self, combine_system: int = 0) -> None:
         """   
         Обрабатывает сообщения от дрона и отправляет heartbeat, обновляя координаты дрона.
         :param combine_system: Определяет, с каких источников будут считываться данные:
-                            0 — только локус, 1 — локус и оптика, 2 — только оптика.
+                                0 — только локус, 1 — локус и оптика, 2 — только оптика.
         :type combine_system: int
         :return: None
         """
-        if combine_system == 0:
-            while self.message_handler_flag:
-                if not self.__is_socket_open.is_set():
-                    break
-                self.heartbeat()
-                # Проверка, доступно ли новое сообщение для чтения
-                rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
-                if rlist:
-                    self._msg = self.mavlink_socket.recv_msg()
-                    if self._msg is not None:
-                        if self._msg.get_type() == "LOCAL_POSITION_NED" and self._msg._header.srcComponent == 1:
-                            self.position = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
-                        elif self._msg.get_type() == "ATTITUDE":
-                            self.attitude = np.array([self._msg.roll, self._msg.pitch, self._msg.yaw, self._msg.rollspeed, self._msg.pitchspeed, self._msg.yawspeed])
-                        elif self._msg.get_type() == "BATTERY_STATUS":
-                            self.battery_voltage = self._msg.voltages[0] / 100
-                time.sleep(self.period_message_handler)
+        
+        # Определяем источник данных на основе combine_system
+        src_component_map = {
+            0: 1,  # Только локус
+            1: None,  # Локус и оптика (неважно, откуда приходит)
+            2: 26  # Только оптика
+        }
+        src_component = src_component_map.get(combine_system)
 
-        elif combine_system == 1:
-            while self.message_handler_flag:
-                if not self.__is_socket_open.is_set():
-                    break
-                self.heartbeat()
-                # Проверка, доступно ли новое сообщение для чтения
-                rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
-                if rlist:
-                    self._msg = self.mavlink_socket.recv_msg()
-                    if self._msg is not None:
-                        if self._msg.get_type() == "LOCAL_POSITION_NED":
-                            self.position = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
-                        elif self._msg.get_type() == "ATTITUDE":
-                            self.attitude = np.array([self._msg.roll, self._msg.pitch, self._msg.yaw, self._msg.rollspeed, self._msg.pitchspeed, self._msg.yawspeed])
-                        elif self._msg.get_type() == "BATTERY_STATUS":
-                            self.battery_voltage = self._msg.voltages[0] / 100
-                time.sleep(self.period_message_handler)        
-        elif combine_system == 2:
-            while self.message_handler_flag:
-                if not self.__is_socket_open.is_set():
-                    break
-                self.heartbeat()
-                # Проверка, доступно ли новое сообщение для чтения
-                rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
-                if rlist:
-                    self._msg = self.mavlink_socket.recv_msg()
-                    if self._msg is not None:
-                        if self._msg.get_type() == "LOCAL_POSITION_NED" and self._msg._header.srcComponent == 26:
-                            self.position = np.array([self._msg.x, self._msg.y, self._msg.z, self._msg.vx, self._msg.vy, self._msg.vz])
-                        elif self._msg.get_type() == "ATTITUDE":
-                            self.attitude = np.array([self._msg.roll, self._msg.pitch, self._msg.yaw, self._msg.rollspeed, self._msg.pitchspeed, self._msg.yawspeed])
-                        elif self._msg.get_type() == "BATTERY_STATUS":
-                            self.battery_voltage = self._msg.voltages[0] / 100
-                time.sleep(self.period_message_handler)    
+        while self.message_handler_flag:
+            if not self.__is_socket_open.is_set():
+                break
+            
+            self.heartbeat()
+            # Проверка, доступно ли новое сообщение для чтения
+            rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
+            if rlist:
+                self._msg = self.mavlink_socket.recv_msg()
+                if self._msg is not None:
+                    self._process_message(self._msg, src_component)
+            time.sleep(self.period_message_handler)
 
+    def _process_message(self, msg, src_component: Optional[int] = None) -> None:
+        """
+        Обрабатывает одно сообщение и обновляет данные (позиция, ориентация, батарея).
+        :param msg: Сообщение MAVLink
+        :param src_component: Источник данных, по которому фильтруется сообщение.
+        :return: None
+        """
+        # Проверяем источник компонента, если задан
+        if src_component is not None and msg._header.srcComponent != src_component:
+            return
+
+        if msg.get_type() == "LOCAL_POSITION_NED":
+            self.position = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
+            self.last_points = update_array(self.last_points, np.hstack([self.position[0:3], self.attitude[2]]))
+        elif msg.get_type() == "ATTITUDE":
+            self.attitude = np.array([msg.roll, msg.pitch, msg.yaw, msg.rollspeed, msg.pitchspeed, msg.yawspeed])
+            self.last_points = update_array(self.last_points, np.hstack([self.position[0:3], self.attitude[2]]))
+        elif msg.get_type() == "BATTERY_STATUS":
+            self.battery_voltage = msg.voltages[0] / 100
+    
     def heartbeat(self) -> None:
         """
         Функция проверки heartbeat дрона
@@ -449,7 +573,8 @@ class Pion:
         if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
             self._send_heartbeat()
 
-    def v_while(self, ampl: float | int = 1) -> None:
+    def v_while(self, 
+                ampl: Union[float, int]) -> None:
         """
         Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
         :param ampl: Амплитуда усиления вектора скорости
@@ -461,7 +586,8 @@ class Pion:
             self.send_speed(t_speed[0], t_speed[1], t_speed[2], t_speed[3])
             time.sleep(self.period_send_speed)
 
-    def set_v(self, ampl: float | int = 1) -> None:
+    def set_v(self, 
+              ampl: Union[float, int] = 1) -> None:
         """
         Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
         :param ampl: Амплитуда усиления вектора скорости
@@ -502,18 +628,26 @@ class Pion:
             self.trajectory = np.vstack([self.trajectory, stack])
             time.sleep(self.period_get_attitude)
 
-    def save_data(self, file_name: str = 'data.npy', path: str = '') -> None:
+    def save_data(self, 
+                  file_name: str = 'data.npy', 
+                  path: str = '') -> None:
         """
         Функция для сохранения траектории в файл
         columns=['x', 'y', 'z', 'yaw', 'Vx', 'Vy', 'Vz', 'Vy_yaw', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
         :param file_name: название файла
+        :type: str
         :param path: путь сохранения
+        :type: str
         :return: None
         """
         self.speed_flag = False
         np.save(f'{path}{file_name}', self.trajectory[1:])
 
-    def led_control(self, led_id=255, r=0, g=0, b=0) -> None:
+    def led_control(self, 
+                    led_id = 255,
+                    r = 0,
+                    g = 0,
+                    b = 0) -> None:
         """
         Управление светодиодами на дроне.
 
