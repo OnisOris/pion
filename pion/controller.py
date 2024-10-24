@@ -1,27 +1,52 @@
 import numpy as np
+from typing import Union, List
+import numpy.typing as npt
 
 class PIDController:
-    def __init__(self, kp, ki, kd):
+    def __init__(self, 
+                 kp: Union[float, int, list, npt.NDArray[np.float64]], 
+                 ki: Union[float, int, list, npt.NDArray[np.float64]], 
+                 kd: Union[float, int, list, npt.NDArray[np.float64]]):
         """
         Инициализация ПИД-регулятора с коэффициентами пропорциональности, интеграла и дифференциала.
-        kp, ki и kd могут быть скалярными значениями или векторами коэффициентов для каждой оси.
-        dt — шаг по времени для вычисления интегральной и дифференциальной частей.
+
+        :param kp: Пропорциональный коэффициент(ы). Может быть скалярным (float, int) или вектором (list, np.ndarray).
+        :type kp: Union[float, int, list, np.ndarray[float64]]
+        :param ki: Интегральный коэффициент(ы). Может быть скалярным (float, int) или вектором (list, np.ndarray).
+        :type ki: Union[float, int, list, np.ndarray[float64]]
+        :param kd: Дифференциальный коэффициент(ы). Может быть скалярным (float, int) или вектором (list, np.ndarray).
+        :type kd: Union[float, int, list, np.ndarray[float64]]
+
+        Этот класс поддерживает управление для нескольких осей. Коэффициенты могут быть как скалярными значениями,
+        так и векторами, где каждый элемент соответствует своей оси.
         """
+
         self.kp = np.array(kp)
         self.ki = np.array(ki)
         self.kd = np.array(kd)
 
         # Переменные для хранения предыдущих значений
         self.previous_error = None
-        self.integral = np.zeros_like(self.kp)
+        self.integral = np.zeros_like(self.kp, dtype=np.float64)
 
     def compute_control(self, 
-                        target_position: float | np.ndarray | list,
-                        current_position: float | np.ndarray | list, 
-                        dt: float | int = 0.) -> float | np.ndarray:
+                        target_position: Union[float, np.ndarray, list],
+                        current_position: Union[float, np.ndarray, list], 
+                        dt: Union[float, int] = 0.) -> Union[float, np.ndarray]:
         """
-        Рассчитывает управляющую скорость для произвольного количества осей на основе ПИД-регулирования.
-        target_position и current_position — векторы numpy с одинаковым количеством элементов.
+        Вычисляет управляющий сигнал на основе ПИД-регулирования для произвольного количества осей.
+
+        :param target_position: Желаемое положение для каждой оси. Может быть скалярным значением или вектором.
+        :type target_position: Union[float, np.ndarray, list]
+        :param current_position: Текущее положение для каждой оси. Может быть скалярным значением или вектором.
+        :type current_position: Union[float, np.ndarray, list]
+        :param dt: Шаг времени, используемый для вычисления интегральной и дифференциальной частей. По умолчанию 0.
+        :type dt: Union[float, int]
+        :return: Рассчитанный управляющий сигнал, который может быть как скалярным значением, так и вектором.
+        :rtype: Union[float, np.ndarray]
+
+        Функция вычисляет пропорциональную, интегральную и дифференциальную составляющие для регулирования
+        управляющего сигнала на основе ошибки между целевым и текущим положениями.
         """
         target_position = np.array(target_position)
         current_position = np.array(current_position)
@@ -52,6 +77,7 @@ class PIDController:
         control_signal = p_term + i_term + d_term
 
         return control_signal
+
 
 
 
