@@ -819,7 +819,7 @@ class Apion(Pion):
                                 y: Union[float, int],
                                 z: Union[float, int],
                                 yaw: Union[float, int],
-                                accuracy: Union[float, int] = 5e-2) -> None:
+                                accuracy: Union[float, int] = 8e-2) -> None:
         """
         Асинхронная функция для перемещения дрона к указанной точке с учетом управления yaw.
         :param x: координата по x
