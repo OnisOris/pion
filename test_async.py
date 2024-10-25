@@ -1,7 +1,6 @@
 from pion import Apion
 import sys
 import asyncio
-import numpy as np
 
 args = sys.argv
 
