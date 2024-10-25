@@ -8,10 +8,11 @@ from typing import Union, Optional
 import numpy.typing as npt
 import asyncio
 
+
 def create_connection(
-    connection_method: str, 
-    ip: str, 
-    port: Union[int, str]
+        connection_method: str,
+        ip: str,
+        port: Union[int, str]
 ) -> mavutil.mavfile:
     """
     Создаёт MAVLink соединение.
@@ -31,9 +32,10 @@ def create_connection(
     mav_socket = mavutil.mavlink_connection('%s:%s:%s' % (connection_method, ip, port))
     return mav_socket
 
+
 def update_array(
-    arr: Union[list, npt.NDArray[Union[float, list, npt.NDArray[np.float64]]]], 
-    new_value: Union[float, list, npt.NDArray[np.float64]]
+        arr: Union[list, npt.NDArray[Union[float, list, npt.NDArray[np.float64]]]],
+        new_value: Union[float, list, npt.NDArray[np.float64]]
 ) -> npt.NDArray[np.float64]:
     """
     Сдвигает элементы массива и вставляет новое значение в начало.
@@ -53,9 +55,10 @@ def update_array(
     arr[0] = new_value
     return arr
 
+
 def compare_with_first_row(
-    matrix: Union[list, npt.NDArray[np.float64]], 
-    atol: float = 1e-2) -> bool:
+        matrix: Union[list, npt.NDArray[np.float64]],
+        atol: float = 1e-2) -> bool:
     """
     Проверяет, являются ли все строки матрицы близкими к первой строке в пределах допуска.
 
@@ -72,10 +75,28 @@ def compare_with_first_row(
     return np.all([np.allclose(first_row, row, atol=atol) for row in matrix[1:]])
 
 
+def vector_reached(target_vector: Union[list, npt.NDArray[np.float64]],
+                   current_point_matrix: Union[list, npt.NDArray[np.ndarray]],
+                   accuracy: Union[int, float] = 5e-2) -> bool:
+    """
+    Функция сравнивает текующую позицию с целевой позицией, возвращает True в пределах погрешности accuracy
+    :param target_vector: целевой вектор
+    :type: Union[list, npt.NDArray[np.float64]]
+    :param current_point_matrix: текущий вектор состояния дрона
+    :type: Union[list, npt.NDArray[np.ndarray]]
+    :param accuracy: Погрешность целевой точки
+    :type: Union[int, float]
+    :return: bool
+    """
+    matrix = np.vstack([target_vector, current_point_matrix])
+    if compare_with_first_row(matrix, accuracy):
+        return True
+    else:
+        return False
 
 
 class Pion:
-    def __init__(self, 
+    def __init__(self,
                  ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
                  connection_method: str = 'udpout',
@@ -110,7 +131,7 @@ class Pion:
         # Последнее сообщение из _message_handler()
         self._msg = None
         # Напряжение батареи дрона (Вольты)
-        self.battery_voltage = None 
+        self.battery_voltage = None
         self.mavlink_socket = create_connection(connection_method=connection_method,
                                                 ip=ip, port=mavlink_port)
         self._heartbeat_timeout = 1
@@ -118,7 +139,8 @@ class Pion:
         self._heartbeat_send_time = time.time() - self._heartbeat_timeout
         self.__is_socket_open = threading.Event()
         self.__is_socket_open.set()
-        self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,), daemon=True)
+        self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,),
+                                                        daemon=True)
         self._message_handler_thread.daemon = True
         self._message_handler_thread.start()
         self._attitude = np.array([0, 0, 0, 0, 0, 0])
@@ -160,6 +182,7 @@ class Pion:
         :return: None
         """
         self._position = position
+
     @property
     def attitude(self) -> np.ndarray:
         """
@@ -175,7 +198,6 @@ class Pion:
         :return: None
         """
         self._attitude = attitude
-
 
     def arm(self) -> None:
         """
@@ -215,7 +237,7 @@ class Pion:
                                 command=mavutil.mavlink.MAV_CMD_NAV_LAND,
                                 mavlink_send_number=self._mavlink_send_number)
 
-    def goto(self, 
+    def goto(self,
              x: Union[float, int],
              y: Union[float, int],
              z: Union[float, int],
@@ -234,39 +256,18 @@ class Pion:
         :return: None
         :note: Координаты задаются в ENU (East-North-Up) системе координат, но будут автоматически преобразованы 
         в NED (North-East-Down).
-        """        
+        """
         mask = 0b0000_10_0_111_111_000
         x, y, z = y, x, -z
         self._send_position_target_local_ned(coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
-                                             mask=mask, 
-                                             x=x, 
-                                             y=y, 
-                                             z=z, 
-                                             yaw=yaw, 
+                                             mask=mask,
+                                             x=x,
+                                             y=y,
+                                             z=z,
+                                             yaw=yaw,
                                              mavlink_send_number=10)
 
-
-    def vector_reached(self,
-                       target_vector: Union[list, npt.NDArray[np.float64]],
-                       current_point_matrix: Union[list, npt.NDArray[np.ndarray]],
-                       accuracy: Union[int, float] = 5e-2) -> bool:
-        """
-        Функция сравнивает текующую позицию с целевой позицией, возвращает True в пределах погрешности accuracy
-        :param target_vector: целевой вектор
-        :type: Union[list, npt.NDArray[np.float64]]
-        :param current_point_matrix: текущий вектор состояния дрона
-        :type: Union[list, npt.NDArray[np.ndarray]]
-        :param accuracy: Погрешность целевой точки 
-        :type: Union[int, float]
-        :return: bool
-        """
-        matrix = np.vstack([target_vector, current_point_matrix])
-        if compare_with_first_row(matrix, accuracy):
-            return True
-        else:
-            return False
-
-    def goto_from_outside(self, 
+    def goto_from_outside(self,
                           x: Union[float, int],
                           y: Union[float, int],
                           z: Union[float, int],
@@ -282,6 +283,8 @@ class Pion:
         :type: Union[float, int]
         :param z:  координата по z
         :type: Union[float, int]
+        :param yaw:  координата по yaw
+        :type: Union[float, int]
         :param accuracy: Погрешность целевой точки 
         :type: Union[float, int]
         :return: None
@@ -292,13 +295,13 @@ class Pion:
         dt = time.time()
         while not point_reached:
             dt = time.time() - dt
-            point_reached = self.vector_reached([x, y, z], self.position[0:3], accuracy=accuracy)
-            self.t_speed = np.hstack([np.clip(pid_controller.compute_control([x, y, z], self.position[0:3]), -self.max_speed, self.max_speed), 0])
+            point_reached = vector_reached([x, y, z], self.position[0:3], accuracy=accuracy)
+            self.t_speed = np.hstack([np.clip(pid_controller.compute_control([x, y, z], self.position[0:3]),
+                                              -self.max_speed, self.max_speed), 0])
             time.sleep(self.period_send_speed)
         self.t_speed = np.array([0, 0, 0, 0])
 
-
-    def goto_yaw(self, 
+    def goto_yaw(self,
                  yaw: Union[float, int] = 0,
                  accuracy: Union[float, int] = 0.087) -> None:
         """
@@ -318,8 +321,10 @@ class Pion:
         while not point_reached:
             dt = time.time() - dt
             current_yaw = self.attitude[2]
-            point_reached = self.vector_reached(target_yaw, current_yaw, accuracy=accuracy)
-            self.t_speed = np.array([0, 0, 0, -np.clip(pid_controller.compute_control(target_yaw, self.attitude[2], dt=dt), -self.max_speed, self.max_speed)])
+            point_reached = vector_reached(target_yaw, current_yaw, accuracy=accuracy)
+            self.t_speed = np.array([0, 0, 0,
+                                     -np.clip(pid_controller.compute_control(target_yaw, self.attitude[2], dt=dt),
+                                              -self.max_speed, self.max_speed)])
             time.sleep(self.period_send_speed)
         self.t_speed = np.array([0, 0, 0, 0])
 
@@ -345,13 +350,13 @@ class Pion:
         vx, vy, vz = vy, vx, -vz
         self._send_position_target_local_ned(coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
                                              mask=mask,
-                                             vx=vx, 
-                                             vy=vy, 
-                                             vz=vz, 
-                                             yaw_rate=yaw_rate, 
+                                             vx=vx,
+                                             vy=vy,
+                                             vz=vz,
+                                             yaw_rate=yaw_rate,
                                              mavlink_send_number=1)
 
-    def _send_position_target_local_ned(self, coordinate_system, 
+    def _send_position_target_local_ned(self, coordinate_system,
                                         mask=0b0000_11_0_111_111_111,
                                         x: Union[float, int] = 0,
                                         y: Union[float, int] = 0,
@@ -364,9 +369,9 @@ class Pion:
                                         afz: Union[float, int] = 0,
                                         yaw: Union[float, int] = 0,
                                         yaw_rate: Union[float, int] = 0,
-                                        target_system = None,
-                                        target_component = None,
-                                        mavlink_send_number = 1) -> None:
+                                        target_system=None,
+                                        target_component=None,
+                                        mavlink_send_number=1) -> None:
         """
         Функция отправляет команду MAVLink для установки целевой позиции
         или скорости в локальной системе координат NED (North, East, Down). 
@@ -420,35 +425,35 @@ class Pion:
         if target_component is None:
             target_component = self.mavlink_socket.target_component
         for _ in range(mavlink_send_number):
-            self.mavlink_socket.mav.set_position_target_local_ned_send(0, 
-                                                                       target_system, 
+            self.mavlink_socket.mav.set_position_target_local_ned_send(0,
+                                                                       target_system,
                                                                        target_component,
                                                                        coordinate_system,
-                                                                       mask, 
-                                                                       x, 
-                                                                       y, 
-                                                                       z, 
-                                                                       vx, 
-                                                                       vy, 
-                                                                       vz, 
-                                                                       afx, 
-                                                                       afy, 
+                                                                       mask,
+                                                                       x,
+                                                                       y,
+                                                                       z,
+                                                                       vx,
+                                                                       vy,
+                                                                       vz,
+                                                                       afx,
+                                                                       afy,
                                                                        afz,
-                                                                       yaw, 
+                                                                       yaw,
                                                                        yaw_rate)
 
     def _send_command_long(self,
                            command_name: str,
-                           command: int, 
-                           param1: Union[float, int] = 0, 
+                           command: int,
+                           param1: Union[float, int] = 0,
                            param2: Union[float, int] = 0,
-                           param3: Union[float, int] = 0, 
+                           param3: Union[float, int] = 0,
                            param4: Union[float, int] = 0,
                            param5: Union[float, int] = 0,
                            param6: Union[float, int] = 0,
                            param7: Union[float, int] = 0,
                            target_system=None,
-                           target_component=None, 
+                           target_component=None,
                            mavlink_send_number: int = 1) -> None:
         """
           def _send_command_long(self, command_name, command, param1: float = 0, param2: float = 0, param3: float = 0,
@@ -490,15 +495,15 @@ class Pion:
         confirm = 0
         while True:
             self.mavlink_socket.mav.command_long_send(target_system,
-                                                      target_component, 
-                                                      command, 
+                                                      target_component,
+                                                      command,
                                                       confirm,
-                                                      param1, 
-                                                      param2, 
-                                                      param3, 
-                                                      param4, 
-                                                      param5, 
-                                                      param6, 
+                                                      param1,
+                                                      param2,
+                                                      param3,
+                                                      param4,
+                                                      param5,
+                                                      param6,
                                                       param7)
             confirm += 1
             if confirm >= mavlink_send_number:
@@ -511,12 +516,12 @@ class Pion:
         """
         self.mavlink_socket.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
                                                mavutil.mavlink.MAV_AUTOPILOT_INVALID,
-                                               0, 
+                                               0,
                                                0,
                                                0)
         self._heartbeat_send_time = time.time()
 
-    def _message_handler(self, 
+    def _message_handler(self,
                          combine_system: int = 0) -> None:
         """   
         Обрабатывает сообщения от дрона и отправляет heartbeat, обновляя координаты дрона.
@@ -525,7 +530,7 @@ class Pion:
         :type combine_system: int
         :return: None
         """
-        
+
         # Определяем источник данных на основе combine_system
         src_component_map = {
             0: 1,  # Только локус
@@ -537,7 +542,7 @@ class Pion:
         while self.message_handler_flag:
             if not self.__is_socket_open.is_set():
                 break
-            
+
             self.heartbeat()
             # Проверка, доступно ли новое сообщение для чтения
             rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
@@ -549,8 +554,8 @@ class Pion:
                 self.attitude_write()
             time.sleep(self.period_message_handler)
 
-    def _process_message(self, 
-                         msg, 
+    def _process_message(self,
+                         msg,
                          src_component: Optional[int] = None) -> None:
         """
         Обрабатывает одно сообщение и обновляет данные (позиция, ориентация, батарея).
@@ -570,7 +575,7 @@ class Pion:
             self.last_points = update_array(self.last_points, np.hstack([self.position[0:3], self.attitude[2]]))
         elif msg.get_type() == "BATTERY_STATUS":
             self.battery_voltage = msg.voltages[0] / 100
-    
+
     def heartbeat(self) -> None:
         """
         Функция проверки heartbeat дрона
@@ -579,7 +584,7 @@ class Pion:
         if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
             self._send_heartbeat()
 
-    def v_while(self, 
+    def v_while(self,
                 ampl: Union[float, int]) -> None:
         """
         Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
@@ -592,7 +597,7 @@ class Pion:
             self.send_speed(t_speed[0], t_speed[1], t_speed[2], t_speed[3])
             time.sleep(self.period_send_speed)
 
-    def set_v(self, 
+    def set_v(self,
               ampl: Union[float, int] = 1) -> None:
         """
         Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
@@ -625,8 +630,8 @@ class Pion:
         if np.all(np.equal(stack[:-1], self.trajectory[-1, :-1])):
             self.trajectory = np.vstack([self.trajectory, stack])
 
-    def save_data(self, 
-                  file_name: str = 'data.npy', 
+    def save_data(self,
+                  file_name: str = 'data.npy',
                   path: str = '') -> None:
         """
         Функция для сохранения траектории в файл
@@ -640,11 +645,11 @@ class Pion:
         self.speed_flag = False
         np.save(f'{path}{file_name}', self.trajectory[1:])
 
-    def led_control(self, 
-                    led_id = 255,
-                    r = 0,
-                    g = 0,
-                    b = 0) -> None:
+    def led_control(self,
+                    led_id=255,
+                    r=0,
+                    g=0,
+                    b=0) -> None:
         """
         Управление светодиодами на дроне.
 
@@ -667,8 +672,8 @@ class Pion:
             raise ValueError(
                 f"Arguments 'r', 'g', 'b' must have value in [0, 255]. But your values is r={r}, g={g}, b={b}.")
         self._send_command_long(command_name='LED', command=mavutil.mavlink.MAV_CMD_USER_1,
-                                       param1=led_id, param2=r, param3=g, param4=b)
-    
+                                param1=led_id, param2=r, param3=g, param4=b)
+
     def check_battery(self) -> None:
         """
         Проверяет статус батареи
@@ -697,7 +702,8 @@ class Apion(Pion):
     """
     Асинхронная версия Pion
     """
-    async def message_handler(self, 
+
+    async def message_handler(self,
                               combine_system: int = 0) -> None:
         """   
         Асинхронно обрабатывает сообщения от дрона и отправляет heartbeat, обновляя координаты дрона.
@@ -720,7 +726,8 @@ class Apion(Pion):
             self.heartbeat()
 
             # Асинхронно ждем сообщения
-            rlist, _, _ = await asyncio.to_thread(select.select, [self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
+            rlist, _, _ = await asyncio.to_thread(select.select, [self.mavlink_socket.port.fileno()], [], [],
+                                                  self.period_message_handler)
             if rlist:
                 # Асинхронно получаем сообщение
                 self._msg = await asyncio.to_thread(self.mavlink_socket.recv_msg)
@@ -732,17 +739,16 @@ class Apion(Pion):
                 self.attitude_write()
             await asyncio.sleep(self.period_message_handler)
 
-    
     async def send_speed(self, vx: Union[float, int],
-                     vy: Union[float, int],
-                     vz: Union[float, int],
-                     yaw_rate: Union[float, int]) -> None:
+                         vy: Union[float, int],
+                         vz: Union[float, int],
+                         yaw_rate: Union[float, int]) -> None:
         """
         Асинхронно задает вектор скорости дрону. Отсылать необходимо в цикле.
         """
         # Преобразуем ENU координаты в NED
         vx, vy, vz = vy, vx, -vz  # Конвертация координат
-        
+
         # Маска, указывающая, что мы отправляем только скорость и yaw_rate
         mask = 0b0000_01_0_111_000_111
 
@@ -750,17 +756,14 @@ class Apion(Pion):
         await asyncio.to_thread(self._send_position_target_local_ned,
                                 mavutil.mavlink.MAV_FRAME_LOCAL_NED,
                                 mask,
-                                0, 0, 0,   # Позиция игнорируется
-                                vx, vy, vz, # Скорости
-                                0, 0, 0,    # Ускорения
-                                0,          # yaw
-                                yaw_rate,   # yaw rate
+                                0, 0, 0,  # Позиция игнорируется
+                                vx, vy, vz,  # Скорости
+                                0, 0, 0,  # Ускорения
+                                0,  # yaw
+                                yaw_rate,  # yaw rate
                                 mavlink_send_number=1)
 
-
-
-
-    async def v_while(self, 
+    async def v_while(self,
                       ampl: Union[float, int]) -> None:
         """
         Асинхронная функция, которая отправляет вектор скорости в цикле.
@@ -777,7 +780,6 @@ class Apion(Pion):
             # Асинхронная задержка
             await asyncio.sleep(self.period_send_speed)
 
-
     async def main(self) -> None:
         """
         Главная асинхронная функция для запуска обработки сообщений и отправки скоростей.
@@ -785,10 +787,10 @@ class Apion(Pion):
         """
         # Запуск обработчика сообщений
         task1 = asyncio.create_task(self.message_handler(combine_system=0))
-        
+
         # Запуск цикла отправки скоростей
         task2 = asyncio.create_task(self.v_while(ampl=1))
-        
+
         # Ожидание завершения задач (в зависимости от вашей логики)
         await task1
         await task2
@@ -802,7 +804,7 @@ class Apion(Pion):
         self.check_attitude_flag = False
         self.message_handler_flag = False
 
-    async def set_v_async(self, 
+    async def set_v_async(self,
                           ampl: Union[float, int] = 1) -> None:
         """
         Асинхронно запускает цикл, который вызывает функцию v_while() для параллельной отправки вектора скорости.
@@ -812,7 +814,7 @@ class Apion(Pion):
         self.speed_flag = True
         await self.v_while(ampl)
 
-    async def goto_from_outside(self, 
+    async def goto_from_outside(self,
                                 x: Union[float, int],
                                 y: Union[float, int],
                                 z: Union[float, int],
@@ -826,33 +828,34 @@ class Apion(Pion):
         :type: Union[float, int]
         :param z:  координата по z
         :type: Union[float, int]
+        :param yaw: координата по yaw
+        :type: Union[float, int]
         :param accuracy: Погрешность целевой точки 
         :type: Union[float, int]
         :return: None
         """
-        await self.goto_yaw(yaw)  # Дождитесь поворота на указанный угол
-        pid_controller = PIDController([0.5, 0.5, 0.5], [5, 5, 5], [0.5, 0.5, 0.5])  # Проверьте параметры PID
+        await self.goto_yaw(yaw)
+        pid_controller = PIDController([0.5, 0.5, 0.5], [5, 5, 5], [0.5, 0.5, 0.5])
         point_reached = False
         dt = time.time()  # Для расчета временного шага
         while not point_reached:
             dt = time.time() - dt  # Расчет временного шага
-            point_reached = self.vector_reached([x, y, z], self.position[0:3], accuracy=accuracy)
+            point_reached = vector_reached([x, y, z], self.position[0:3], accuracy=accuracy)
 
             # Рассчитываем управляющие воздействия на основе текущей позиции
             control = pid_controller.compute_control([x, y, z], self.position[0:3])
             control_clipped = np.clip(control, -self.max_speed, self.max_speed)  # Ограничиваем максимальную скорость
 
-
             # Обновляем t_speed, добавляем нулевой yaw
             self.t_speed = np.hstack([control_clipped, 0])
-            
+
             # Ждем некоторое время перед следующим расчетом
             await asyncio.sleep(self.period_send_speed)
-        
+
         # Останавливаем движение после достижения точки
         self.t_speed = np.array([0, 0, 0, 0])
 
-    async def goto_yaw(self, 
+    async def goto_yaw(self,
                        yaw: Union[float, int] = 0,
                        accuracy: Union[float, int] = 0.087) -> None:
         """
@@ -867,20 +870,12 @@ class Apion(Pion):
         point_reached = False
         while not point_reached:
             current_yaw = self.attitude[2]
-            point_reached = self.vector_reached(yaw, current_yaw, accuracy=accuracy)
-            
+            point_reached = vector_reached(yaw, current_yaw, accuracy=accuracy)
             # Рассчитываем yaw скорость
             yaw_control = pid_controller.compute_control(yaw, current_yaw)
             yaw_speed = np.clip(yaw_control, -self.max_speed, self.max_speed)  # Ограничиваем скорость yaw
-            
             # Обновляем t_speed только для yaw
             self.t_speed = np.array([0, 0, 0, -yaw_speed])
-            
             await asyncio.sleep(self.period_send_speed)
-        
         # Останавливаем yaw после достижения цели
         self.t_speed = np.array([0, 0, 0, 0])
-
-
-
-
