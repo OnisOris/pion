@@ -26,7 +26,7 @@ async def main():
         v_while_task = asyncio.create_task(drone.set_v_async())
 
         # Попробуем двигать дрон
-        await drone.goto_from_outside(int(args[2]), int(args[3]), int(args[4]), 0)
+        await drone.goto_from_outside(float(args[2]), float(args[3]), float(args[4]), float(args[5]))
 
         print(f"After goto_from_outside t_speed: {drone.t_speed}")
 
