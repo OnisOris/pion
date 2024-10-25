@@ -102,8 +102,8 @@ class Pion:
         """
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag = True
-        # Флаг для остановки сохранения координат
-        self.check_attitude_flag = True
+        # Флаг для запуска и остановки сохранения координат
+        self.check_attitude_flag = False
         # Флаг для остановки цикла в _message_handler
         self.message_handler_flag = True
         self.mavlink_port = mavlink_port
@@ -134,8 +134,8 @@ class Pion:
         # Период обновления 
         self.period_get_attitude = 0.05
         # Информация, включающая
-        # x, y, z, yaw, vx, vy, vz, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t,
-        # которая складывается в матрицу (n, 12), где n - число измерений
+        # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
+        # которая складывается в матрицу (n, 17), где n - число измерений
         self.trajectory = np.zeros((17,))
         # Время создания экземпляра
         self.t0 = time.time()
@@ -545,6 +545,8 @@ class Pion:
                 self._msg = self.mavlink_socket.recv_msg()
                 if self._msg is not None:
                     self._process_message(self._msg, src_component)
+            if self.check_attitude_flag:
+                self.attitude_write()
             time.sleep(self.period_message_handler)
 
     def _process_message(self, 
@@ -613,24 +615,16 @@ class Pion:
                                 param1=1,
                                 mavlink_send_number=self._mavlink_send_number)
 
-    def set_attitude_check(self) -> None:
-        """
-        Функция запускает поток отслеживания координат
-        :return: None
-        """
-        self.threads.append(threading.Thread(target=self.attitude_write))
-        self.threads[-1].start()
-
     def attitude_write(self) -> None:
         """
-        Функция для записи траектории в numpy массив
+        Функция для записи траектории в numpy массив. Записывается только уникальная координата
         :return:
         """
-        while self.check_attitude_flag:
-            t = time.time() - self.t0
-            stack = np.hstack([self.position, self.attitude, self.t_speed, [t]])
+        t = time.time() - self.t0
+        stack = np.hstack([self.position, self.attitude, self.t_speed, [t]])
+        if np.all(np.equal(stack[:-1], self.trajectory[-1, :-1])):
             self.trajectory = np.vstack([self.trajectory, stack])
-            time.sleep(self.period_get_attitude)
+        time.sleep(self.period_get_attitude)
 
     def save_data(self, 
                   file_name: str = 'data.npy', 
