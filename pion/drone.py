@@ -624,7 +624,6 @@ class Pion:
         stack = np.hstack([self.position, self.attitude, self.t_speed, [t]])
         if np.all(np.equal(stack[:-1], self.trajectory[-1, :-1])):
             self.trajectory = np.vstack([self.trajectory, stack])
-        time.sleep(self.period_get_attitude)
 
     def save_data(self, 
                   file_name: str = 'data.npy', 
@@ -715,23 +714,22 @@ class Apion(Pion):
         src_component = src_component_map.get(combine_system)
 
         while self.message_handler_flag:
-            try:
-                if not self.__is_socket_open.is_set():
-                    break
+            if not self.__is_socket_open.is_set():
+                break
 
-                self.heartbeat()
+            self.heartbeat()
 
-                # Асинхронно ждем сообщения
-                rlist, _, _ = await asyncio.to_thread(select.select, [self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
-                if rlist:
-                    # Асинхронно получаем сообщение
-                    self._msg = await asyncio.to_thread(self.mavlink_socket.recv_msg)
-                    if self._msg is not None:
-                        self._process_message(self._msg, src_component)
-                    else:
-                        print("Received empty message or timeout.")
-            except Exception as e:
-                print(f"Error in message handler: {e}")
+            # Асинхронно ждем сообщения
+            rlist, _, _ = await asyncio.to_thread(select.select, [self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
+            if rlist:
+                # Асинхронно получаем сообщение
+                self._msg = await asyncio.to_thread(self.mavlink_socket.recv_msg)
+                if self._msg is not None:
+                    self._process_message(self._msg, src_component)
+                else:
+                    print("Received empty message or timeout.")
+            if self.check_attitude_flag:
+                self.attitude_write()
             await asyncio.sleep(self.period_message_handler)
 
     
