@@ -8,6 +8,7 @@ number_drone = sys.argv[1]
 drone = Apion(ip=f"10.1.100.{number_drone}", mavlink_port=5656)
 drone.check_attitude_flag = True
 
+
 async def main():
     if '-c' in args:
         while True:
@@ -41,5 +42,3 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
     drone.save_data('data.npy', './')
-
-
