@@ -158,7 +158,7 @@ class Pion:
         # Информация, включающая
         # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
         # которая складывается в матрицу (n, 17), где n - число измерений
-        self.trajectory = np.zeros((17,))
+        self.trajectory = np.zeros((2, 17))
         # Время создания экземпляра
         self.t0 = time.time()
         self.ip = ip
@@ -627,7 +627,7 @@ class Pion:
         """
         t = time.time() - self.t0
         stack = np.hstack([self.position, self.attitude, self.t_speed, [t]])
-        if np.all(np.equal(stack[:-1], self.trajectory[-1, :-1])):
+        if not np.all(np.equal(stack[:-1], self.trajectory[-2, :-1])):
             self.trajectory = np.vstack([self.trajectory, stack])
 
     def save_data(self,
@@ -643,7 +643,7 @@ class Pion:
         :return: None
         """
         self.speed_flag = False
-        np.save(f'{path}{file_name}', self.trajectory[1:])
+        np.save(f'{path}{file_name}', self.trajectory[2:])
 
     def led_control(self,
                     led_id=255,
@@ -736,6 +736,7 @@ class Apion(Pion):
                 else:
                     print("Received empty message or timeout.")
             if self.check_attitude_flag:
+                print("Attitude write")
                 self.attitude_write()
             await asyncio.sleep(self.period_message_handler)
 
