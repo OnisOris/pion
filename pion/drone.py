@@ -151,10 +151,8 @@ class Pion:
         self.t_speed = np.array([0, 0, 0, 0])
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
-        # Период приема всех сообщений с дрона (не должен быть менье, чем period_get_attitude)
+        # Период приема всех сообщений с дрона
         self.period_message_handler = 0
-        # Период обновления 
-        self.period_get_attitude = 0.05
         # Информация, включающая
         # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
         # которая складывается в матрицу (n, 17), где n - число измерений
