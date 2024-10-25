@@ -91,7 +91,7 @@ drone = Pion(ip=f"10.1.100.{number_drone}", mavlink_port=5656)
 drone.speed_flag = False
 if '-c' in args:
     while True:
-        print(drone.attitude)
+        print(drone.position)
         time.sleep(0)
 else:
     print("---")
@@ -158,3 +158,73 @@ if __name__ == "__main__":
 Дополнительные примеры с инструкцией можно найти по ссылке:
 https://github.com/OnisOris/Danalysis
 
+# Важные поля дрона и их стандартные значения
+
+Флаг для остановки цикла отдачи вектора скорости дрону
+```
+speed_flag = True
+```
+Флаг для запуска и остановки сохранения координат
+```
+check_attitude_flag = False
+```
+
+Флаг для остановки цикла в _message_handler
+```
+message_handler_flag = True
+```
+Порт подключения к дрону:
+```
+self.mavlink_port = 5656
+```
+Последнее сообщение из _message_handler()
+```
+self._msg = None
+```
+
+Напряжение батареи дрона (Вольты)
+```
+self.battery_voltage = None
+```
+Ориентация дрона и скорости по ней вида [pitch, roll, yaw, pitch_speed, roll_speed, yaw_speed]
+```
+self._attitude = np.array([0, 0, 0, 0, 0, 0])
+```
+Позиция дрона в системе координат локуса вида [x, y, z, vx, vy, vz]
+```
+self._position = np.array([0, 0, 0, 0, 0, 0])
+```
+
+Список потоков
+```
+self.threads = []
+```
+
+Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
+```
+self.t_speed = np.array([0, 0, 0, 0])
+```
+Период отправления следующего вектора скорости
+```
+self.period_send_speed = 0.05
+```
+Период приема всех сообщений с дрона
+self.period_message_handler = 0
+Информация, включающая [x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t],
+которая складывается в матрицу (n, 17), где n - число измерений
+```
+self.trajectory = np.zeros((2, 17))
+```
+
+Время создания экземпляра
+```
+self.t0 = time.time()
+```
+Максимальная скорость дрона для goto_from_outside()
+```
+self.max_speed = 1
+```
+Используется для хранения последних count_of_checking_points данных в виде [x, y, z, yaw] для верификации достижения таргетной точки
+```
+self.last_points = np.zeros((count_of_checking_points, 4))
+```
