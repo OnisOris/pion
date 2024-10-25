@@ -64,8 +64,8 @@ set_v()
 ---
 
 - Запуск записи траектории и скоростей дрона во времени
-```commandline
-drone.attitude_write()
+```
+drone.check_attitude_flag = True
 ```
 drone.trajectory - поле, содержащее в себе траекторию - матрицу 12xn, где каждая строка -
 это [x, y, z, yaw, vx, vy, vz, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t], где
@@ -83,31 +83,41 @@ drone.trajectory - поле, содержащее в себе траектори
 from pion import Pion
 import sys
 import time
+
+args = sys.argv
+
 number_drone = sys.argv[1]
 drone = Pion(ip=f"10.1.100.{number_drone}", mavlink_port=5656)
-time.sleep(1)
-drone.arm()
-time.sleep(3)
-drone.takeoff()
-
-
-time.sleep(5)
-
-drone.set_v()
-
-drone.goto_from_outside(float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]))
-time.sleep(10)
-drone.land()
-
-drone.stop()
+drone.speed_flag = False
+if '-c' in args:
+    while True:
+        print(drone.attitude)
+        time.sleep(0)
+else:
+    print("---")
+    drone.land()
+    drone.arm()
+    drone.takeoff()
+    time.sleep(5)
+    drone.set_v()
+    drone.goto_from_outside(float(args[2]), float(args[3]), float(args[4]), float(args[5]))
+    time.sleep(10)
+    drone.land()
+    drone.stop()
 ```
-При запуске примера в качестве аргументов идут: номер дрона, координаты x, y, z
+При запуске примера в качестве аргументов идут: номер дрона, координаты x, y, z, yaw
 ```commandline
-python test.py [номер дрона] 1 1 1
+python test.py [номер дрона] 1 1 1 0
+```
+Если необходимо протестировать получаемые с дрона координаты: поставить флаг -c
+```commandline
+python test.py [номер дрона] -с
 ```
 # Класс Apion
 Apion - класс наследник Pion.
-Все методы остались теми же, кроме set_v_async. Данный метод запускает асинхронно метод v_while для 
+Все методы остались теми же, кроме set_v_async. 
+
+Данный метод запускает асинхронно метод v_while для 
 параллельной отправки векторов скоростей в дрон"
 ```
 set_v_async()
