@@ -456,10 +456,6 @@ class Pion:
                            target_component=None,
                            mavlink_send_number: int = 1) -> None:
         """
-          def _send_command_long(self, command_name, command, param1: float = 0, param2: float = 0, param3: float = 0,
-                           param4: float = 0, param5: float = 0, param6: float = 0, param7: float = 0,
-                           target_system=None, target_component=None, sending_log_msg='sending...'):
-
         Отправляет команду типа COMMAND_LONG через MAVLink.
         :param command_name: Имя команды для логирования.
         :type command_name: str
