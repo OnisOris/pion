@@ -4,9 +4,10 @@ import select
 from .controller import PIDController
 from typing import Union, Optional
 from .functions import *
+from .pio import Pio
 
 
-class Pion:
+class Pion(Pio):
     def __init__(self,
                  ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
@@ -50,10 +51,6 @@ class Pion:
         self._heartbeat_send_time = time.time() - self._heartbeat_timeout
         self.__is_socket_open = threading.Event()
         self.__is_socket_open.set()
-        self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,),
-                                                        daemon=True)
-        self._message_handler_thread.daemon = True
-        self._message_handler_thread.start()
         self._attitude = np.array([0, 0, 0, 0, 0, 0])
         self._position = np.array([0, 0, 0, 0, 0, 0])
         # Список потоков
@@ -75,6 +72,10 @@ class Pion:
         self.max_speed = 1
         # Используется для хранения последних count_of_checking_points данных в виде [x, y, z, yaw] для верификации достижения таргетной точки
         self.last_points = np.zeros((count_of_checking_points, 4))
+        self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,),
+        daemon=True)
+        self._message_handler_thread.daemon = True
+        self._message_handler_thread.start()
 
     @property
     def position(self) -> np.ndarray:
