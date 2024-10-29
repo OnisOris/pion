@@ -1,14 +1,24 @@
-from setuptools import setup, find_packages
-
+from setuptools import setup, find_packages, Extension
+from Cython.Build import cythonize
+import numpy as np
 
 def readme():
     with open('README.md', 'r', encoding='utf-8') as f:
         return f.read()
 
+# Cython-модуль, который нужно скомпилировать
+extensions = [
+    Extension(
+        "pion.cython_pid",
+        ["pion/cython_pid.pyx"],
+        include_dirs=[np.get_include()]
+    ),
+]
 
 setup(
     name='pion',
     version='0.0.1',
+    ext_modules=cythonize(extensions),
     author='OnisOris',
     author_email='onisoris@yandex.ru',
     description='This module is needed to control drones.',
