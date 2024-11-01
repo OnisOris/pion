@@ -259,6 +259,21 @@ class Spion(Simulator3DRealTime, Pio):
         :return: None
             """
         return None
+    def goto_yaw(self,
+                yaw: Union[float, int] = 0,
+                accuracy: Union[float, int] = 0.087) -> None:
+        """
+        Функция пробка.
+        Берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
+        Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
+        Максимальная скорость обрезается np.clip по полю self.max_speed.
+        :param yaw:  координата по yaw (радианы)
+        :type: Union[float, int]
+        :param accuracy: Погрешность целевой точки
+        :type: Union[float, int] 
+        :return: None
+        """
+        return None
 
 
 
