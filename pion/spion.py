@@ -65,6 +65,7 @@ class Spion(Simulator3DRealTime, Pio):
                                             np.array([0, 0, 0], dtype=np.float64), 
                                             np.array([1, 1, 1], dtype=np.float64))
         self.battery_voltage = 8
+        self._heartbeat_send_time = 0.01
         # Информация, включающая
         # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
         # которая складывается в матрицу (n, 17), где n - число измерений
