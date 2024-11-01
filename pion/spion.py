@@ -234,7 +234,20 @@ class Spion(Simulator3DRealTime, Pio):
         np.save(f'{path}{file_name}', self.trajectory[2:])
     
     def borders(self):
-        self.simulation_object.position = np.clip(self.simulation_object.position, [-5.5, -5.5, 0], [5.5, 5.5, 4])
+        lower_bound = np.array([-5.5, -5.5, 0])
+        upper_bound = np.array([5.5, 5.5, 4])
+        position = self.simulation_object.position
+
+        # Проверка на достижение границы и добавление отскока
+        for i in range(3):
+            if position[i] <= lower_bound[i]:
+                position[i] += 0.1  # отскок внутрь области
+            elif position[i] >= upper_bound[i]:
+                position[i] -= 0.1
+
+        # Применение ограничения с np.clip
+        self.simulation_object.position = np.clip(position, lower_bound, upper_bound)
+
 
 
     def led_control(self,
