@@ -236,6 +236,29 @@ class Spion(Simulator3DRealTime, Pio):
         self.simulation_object.position = np.clip(self.simulation_object.position, [-5.5, -5.5, 0], [5.5, 5.5, 4])
 
 
+    def led_control(self,
+                led_id=255,
+                r=0,
+                g=0,
+                b=0) -> None:
+        """
+        Функция пробка.
+        Управление светодиодами на дроне.
+
+        :param led_id: Идентификатор светодиода, который нужно управлять. Допустимые значения: 0, 1, 2, 3, 255.
+        255 — для управления всеми светодиодами одновременно.
+        :type led_id: int
+        :param r: Значение интенсивности красного канала (от 0 до 255).
+        :type r: int
+        :param g: Значение интенсивности зеленого канала (от 0 до 255).
+        :type g: int
+        :param b: Значение интенсивности синего канала (от 0 до 255).
+        :type b: int
+        :raises ValueError: Если переданы недопустимые значения для параметра led_id или для значений r, g, b.
+        :return: None
+            """
+        return None
+
 
 
 
