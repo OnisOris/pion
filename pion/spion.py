@@ -42,6 +42,7 @@ class Spion(Simulator3DRealTime, Pio):
         self.connection_method = connection_method
         self.combine_system = combine_system
         self.count_of_checking_points = count_of_checking_points
+        self.t0 = time.time()
         # Создание объекта Point3D
         self.simulation_object = Point3D(mass, position, speed)
         Simulator3DRealTime.__init__(self, self.simulation_object, name, mass, position, speed, dt)
@@ -60,9 +61,14 @@ class Spion(Simulator3DRealTime, Pio):
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         self.speed_flag = True
-        self.pid_controller = PIDController(np.array([1, 1, 1], dtype=np.float64), 
+        self.pid_controller = PIDController(np.array([10, 10, 10], dtype=np.float64), 
                                             np.array([0, 0, 0], dtype=np.float64), 
                                             np.array([1, 1, 1], dtype=np.float64))
+        self.drone.battery_voltage = 8
+        # Информация, включающая
+        # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
+        # которая складывается в матрицу (n, 17), где n - число измерений
+        self.trajectory = np.zeros((2, 17))
 
 
 
@@ -81,6 +87,23 @@ class Spion(Simulator3DRealTime, Pio):
         :return: None
         """
         self._position = position
+
+    @property
+    def attitude(self) -> np.ndarray:
+        """
+        Функция вернет ndarray (6,) с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
+        :return: np.ndarray
+        """
+        return self._attitude
+
+    @attitude.setter
+    def attitude(self, attitude) -> None:
+        """
+        Сеттер для _attitude
+        :return: None
+        """
+        self._attitude = attitude
+
 
 
     # Реализация обязательных методов абстрактного класса Pio
@@ -127,15 +150,17 @@ class Spion(Simulator3DRealTime, Pio):
         while not point_reached:
             dt = time.time() - dt
             point_reached = vector_reached([x, y, z], self.simulation_object.position[0:3], accuracy=accuracy)
-
-            self.t_speed = np.hstack([np.clip(self.pid_controller.compute_control(
+            signal = self.pid_controller.compute_control(
             target_position=np.array([x, y, z], dtype=np.float64),
             current_position=self.simulation_object.position,
-            dt=self.dt),
+            dt=self.dt)
+            self.t_speed = np.hstack([np.clip(signal,
             -self.max_speed, self.max_speed), 0])
             time.sleep(self.period_send_speed)
-            print(f"local to {x, y, z, yaw}, current_pos = {self.simulation_object.position}, mass = {self.mass}")
+            print(f"local to {x, y, z, yaw}, current_pos = {self.position[0:3]}, mass = {self.mass}, signal = {signal}\n")
         self.t_speed = np.array([0, 0, 0, 0])
+        self.external_control_signal = self.t_speed[0:3]
+        self.simulation_object.speed = np.array(self.t_speed[0:3], dtype=np.float64)
 
         print(f"{self.name} is moving to {self.position}.")
 
@@ -150,6 +175,16 @@ class Spion(Simulator3DRealTime, Pio):
         self.speed_flag = True
         self.threads.append(threading.Thread(target=self.run_real_time_simulation))
         self.threads[-1].start()
+
+    def attitude_write(self) -> None:
+        """
+        Функция для записи траектории в numpy массив. Записывается только уникальная координата
+        :return:
+        """
+        t = time.time() - self.t0
+        stack = np.hstack([self.position, self.attitude, self.t_speed, [t]])
+        if not np.all(np.equal(stack[:-1], self.trajectory[-2, :-1])):
+            self.trajectory = np.vstack([self.trajectory, stack])
 
     def run_real_time_simulation(self) -> None:
         """
@@ -167,6 +202,8 @@ class Spion(Simulator3DRealTime, Pio):
                 last_time = current_time
             self._position = np.hstack([self.simulation_object.position, self.simulation_object.speed])
             self.external_control_signal = self.t_speed[0:3]
+                    # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
+            self.attitude_write()
             time.sleep(0.01)  # Немного ждем, чтобы избежать слишком частых проверок
             # print(f"Position: {self.simulation_object.position}, Time: {self.simulation_time}, speed_flag = {self.speed_flag}")
 
@@ -175,25 +212,27 @@ class Spion(Simulator3DRealTime, Pio):
         Останавливает все потоки, завершает симуляцию
         """
         self.speed_flag = False
-        for thread in self.threads:
-            thread.join()  # Ждем завершения всех потоков
+        # for thread in self.threads:
+        #     thread.join()  # Ждем завершения всех потоков
         print("Simulation stopped")
+
+    def save_data(self,
+                  file_name: str = 'data.npy',
+                  path: str = '') -> None:
+        """
+        Функция для сохранения траектории в файл
+        columns=['x', 'y', 'z', 'yaw', 'Vx', 'Vy', 'Vz', 'Vy_yaw', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
+        :param file_name: название файла
+        :type: str
+        :param path: путь сохранения
+        :type: str
+        :return: None
+        """
+        self.speed_flag = False
+        np.save(f'{path}{file_name}', self.trajectory[2:])
     
     def borders(self):
-        if self.simulation_object.position[0] >= 5.5:
-            self.simulation_object.position[0] = 5.5
-        elif self.simulation_object.position[0] <= -5.5:
-            self.position[0] = -5.5
-
-        if self.simulation_object.position[1] >= 5.5:
-            self.simulation_object.position[1] = 5.5
-        elif self.simulation_object.position[1] <= -5.5:
-            self.simulation_object.position[1] = -5.5
-
-        if self.simulation_object.position[2] >= 4:
-            self.simulation_object.position[2] = 4
-        elif self.simulation_object.position[2] <= 0:
-            self.simulation_object.position[2] = 0
+        self.simulation_object.position = np.clip(self.simulation_object.position, [-5.5, -5.5, 0], [5.5, 5.5, 4])
 
 
 
