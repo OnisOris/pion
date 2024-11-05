@@ -61,15 +61,19 @@ class Spion(Simulator3DRealTime, Pio):
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         self.speed_flag = True
-        self.pid_controller = PIDController(np.array([10, 10, 10], dtype=np.float64), 
+        self.pid_controller = PIDController(np.array([5, 5, 20], dtype=np.float64), 
                                             np.array([0, 0, 0], dtype=np.float64), 
-                                            np.array([1, 1, 1], dtype=np.float64))
+                                            np.array([0.8, 0.8, 0.8], dtype=np.float64))
         self.battery_voltage = 8
         self._heartbeat_send_time = time.time()
         # Информация, включающая
         # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
         # которая складывается в матрицу (n, 17), где n - число измерений
         self.trajectory = np.zeros((2, 17))
+        # Границы симуляции
+        self.lower_bound = np.array([-5.5, -5.5, 0])
+        self.upper_bound = np.array([5.5, 5.5, 4])
+        self.point_reached = False
 
 
 
@@ -145,12 +149,12 @@ class Spion(Simulator3DRealTime, Pio):
         :return: None
         """
         # pid_controller = PIDController(np.array([1, 1, 1], dtype=np.float64), np.array([0, 0, 0], dtype=np.float64), np.array([1, 1, 1], dtype=np.float64))
-        point_reached = False
+        self.point_reached = False
         dt = time.time()
  
-        while not point_reached:
+        while not self.point_reached:
             dt = time.time() - dt
-            point_reached = vector_reached([x, y, z], self.simulation_object.position[0:3], accuracy=accuracy)
+            self.point_reached = vector_reached([x, y, z], self.simulation_object.position[0:3], accuracy=accuracy)
             signal = self.pid_controller.compute_control(
             target_position=np.array([x, y, z], dtype=np.float64),
             current_position=self.simulation_object.position,
@@ -234,19 +238,21 @@ class Spion(Simulator3DRealTime, Pio):
         np.save(f'{path}{file_name}', self.trajectory[2:])
     
     def borders(self):
-        lower_bound = np.array([-5.5, -5.5, 0])
-        upper_bound = np.array([5.5, 5.5, 4])
         position = self.simulation_object.position
 
         # Проверка на достижение границы и добавление отскока
         for i in range(3):
-            if position[i] <= lower_bound[i]:
+            if position[i] <= self.lower_bound[i]:
                 position[i] += 0.1  # отскок внутрь области
-            elif position[i] >= upper_bound[i]:
+                print("lower bound")
+                self.point_reached = True # Отменяем полетные цели
+            elif position[i] >= self.upper_bound[i]:
                 position[i] -= 0.1
+                print("upper bound")
+                self.point_reached = True
 
         # Применение ограничения с np.clip
-        self.simulation_object.position = np.clip(position, lower_bound, upper_bound)
+        self.simulation_object.position = np.clip(position, self.lower_bound, self.upper_bound)
 
 
 

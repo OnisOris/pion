@@ -17,13 +17,10 @@ drone.arm()
 print("takeoff -----------------<")
 
 drone.takeoff()
-time.sleep(5)
 
 print("goto --------------<")
 
-drone.goto(1, 1, 1, 0)
-time.sleep(10)
-drone.speed_flag = False
+drone.goto(20, 1, 1, 0)
 print("land ----------------<")
 
 drone.land()
