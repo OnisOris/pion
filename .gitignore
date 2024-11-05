@@ -168,3 +168,9 @@ git_ssh.sh
 index.rst
 conf.py
 docs/
+data.npy
+file.csv
+plot.py
+traj.npy
+traj.py
+
