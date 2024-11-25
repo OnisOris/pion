@@ -1,20 +1,15 @@
-from .simulator import Simulator3DRealTime, Point3D
+from .simulator import Simulator, Point
 from .pio import Pio
 from .functions import vector_reached
-# from .controller import PIDController
 from pion.cython_pid import PIDController  # Cython-версия PIDController
-from typing import List, Union, Optional, overload
+from typing import List, Union
+from .annotation import *
 import numpy as np
 import time
 import threading
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from itertools import combinations, product
-import matplotlib
-matplotlib.use('Agg')
 
 
-class Spion(Simulator3DRealTime, Pio):
+class Spion(Simulator, Pio):
     def __init__(self,
                  ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
@@ -23,20 +18,16 @@ class Spion(Simulator3DRealTime, Pio):
                  count_of_checking_points: int = 20,
                  name: str = 'simulator',
                  mass: float = 0.3,
-                 position: Union[List[float], np.ndarray] = None,
-                 speed: Union[List[float], np.ndarray] = None,
+                 position: Union[Array6, None] = None,
                  dt: float = 0.1) -> None:
         """
-        Конструктор дочернего класса, наследующегося от Pio и Simulator3DRealTime.
+        Конструктор дочернего класса, наследующегося от Pio и Simulator.
         :param name: Имя дрона.
         :param mass: Масса дрона.
-        :param position: Начальная позиция дрона.
-        :param simulation_speed: Скорость симуляции.
+        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz]
         """
-        if speed is None:
-            speed = [0, 0, 0]
         if position is None:
-            position = [0, 0, 0]
+            position = np.array([0, 0, 0, 0, 0, 0])
         self.ip = ip
         self.mavlink_port = mavlink_port
         self.connection_method = connection_method
@@ -44,26 +35,26 @@ class Spion(Simulator3DRealTime, Pio):
         self.count_of_checking_points = count_of_checking_points
         self.t0 = time.time()
         # Создание объекта Point3D
-        self.simulation_object = Point3D(mass, position, speed)
-        Simulator3DRealTime.__init__(self, self.simulation_object, name, mass, position, speed, dt)
+        self.simulation_objects = np.array([Point(mass, position[0:3], position[3:6])])
+        Simulator.__init__(self, self.simulation_objects, dt=dt, dimension=3)
         Pio.__init__(self)  # Pio
         # Инициализация дополнительных параметров, специфичных для дрона
         self.name = name
         self.mass = mass
-        self.position = position
+        self._position = position
         self._attitude = np.array([0, 0, 0, 0, 0, 0])
-        self._position = np.array([0, 0, 0, 0, 0, 0])
-        # Список потоков
-        self.threads = []
-        # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
+        # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw]
         self.t_speed = np.array([0, 0, 0, 0])
         self.max_speed = 2
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         self.speed_flag = True
-        self.pid_controller = PIDController(np.array([5, 5, 20], dtype=np.float64), 
+        self.pid_position_controller = PIDController(np.array([3, 3, 3], dtype=np.float64), 
                                             np.array([0, 0, 0], dtype=np.float64), 
-                                            np.array([0.8, 0.8, 0.8], dtype=np.float64))
+                                            np.array([0, 0, 0], dtype=np.float64))
+        self.pid_velocity_controller = PIDController(np.array([1, 1, 1], dtype=np.float64), 
+                                        np.array([0, 0, 0], dtype=np.float64), 
+                                        np.array([0, 0, 0], dtype=np.float64))
         self.battery_voltage = 8
         self._heartbeat_send_time = time.time()
         # Информация, включающая
@@ -74,27 +65,31 @@ class Spion(Simulator3DRealTime, Pio):
         self.lower_bound = np.array([-5.5, -5.5, 0])
         self.upper_bound = np.array([5.5, 5.5, 4])
         self.point_reached = False
-
+        self._message_thread = None  # Поток для _message_handler
+        self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
+        self.start_message_handler()
 
 
     @property
-    def position(self) -> np.ndarray:
+    def position(self) -> Array6:
         """
         Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
         :return: np.ndarray
         """
-        return self._position
+        return np.hstack([self.simulation_objects[0].position, self.simulation_objects[0].speed])
 
     @position.setter
-    def position(self, position) -> None:
+    def position(self, position: Array6) -> None:
         """
         Сеттер для _position
         :return: None
         """
-        self._position = position
+        self.simulation_objects[0].position = position[0:3]
+        self.simulation_objects[0].speed = position[3:6]
+
 
     @property
-    def attitude(self) -> np.ndarray:
+    def attitude(self) -> Array6:
         """
         Функция вернет ndarray (6,) с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
         :return: np.ndarray
@@ -102,13 +97,72 @@ class Spion(Simulator3DRealTime, Pio):
         return self._attitude
 
     @attitude.setter
-    def attitude(self, attitude) -> None:
+    def attitude(self, attitude: Array6) -> None:
         """
         Сеттер для _attitude
         :return: None
         """
         self._attitude = attitude
 
+
+    def start_message_handler(self) -> None:
+        """
+        Запуск потока _message_handler.
+        """
+        if not self.simulation_turn_on:
+            self.simulation_turn_on = True
+            self._message_thread = threading.Thread(target=self._message_handler, daemon=True)
+            self._message_thread.start()
+            print("Message handler started.")
+
+    def stop_message_handler(self) -> None:
+        """
+        Остановка потока _message_handler.
+        """
+        if self.simulation_turn_on:
+            self.simulation_turn_on = False
+            if self._message_thread:
+                self._message_thread.join()
+            print("Message handler stopped.")
+
+
+    def _message_handler(self, *args):
+            """
+            Основной цикл обработки сообщений.
+            """
+            last_time = time.time()
+            while self.simulation_turn_on:
+                with self._handler_lock:  # Блокируем доступ для других операций
+                    self.position[0:3] = self.simulation_objects[0].position
+                    self.position[3:6] = self.simulation_objects[0].speed
+
+                    current_time = time.time()
+                    elapsed_time = current_time - last_time
+                    if elapsed_time >= self.dt:
+                        last_time = current_time
+                        self.velocity_controller()
+
+                        for object_channel, simulation_object in enumerate(self.simulation_objects):
+                            self.step(simulation_object, object_channel)
+
+                time.sleep(0.01)
+
+    def velocity_controller(self):
+        signal = self.pid_velocity_controller.compute_control(target_position = np.array(self.t_speed[0:3], dtype=np.float64), 
+                                                              current_position=np.array(self.simulation_objects[0].speed, dtype=np.float64), 
+                                                              dt=self.dt)
+        self.set_force(signal, 0)
+
+    def position_controller(self, position_xyz):
+        signal = np.clip(
+            self.pid_position_controller.compute_control(
+            target_position = np.array(position_xyz, dtype=np.float64),
+            current_position=self.simulation_objects[0].position,
+            dt=self.dt), 
+            -self.max_speed,
+            self.max_speed)
+        self.t_speed[0:3] = signal
+        
 
 
     # Реализация обязательных методов абстрактного класса Pio
@@ -148,38 +202,41 @@ class Spion(Simulator3DRealTime, Pio):
         :type: Union[float, int]
         :return: None
         """
-        # pid_controller = PIDController(np.array([1, 1, 1], dtype=np.float64), np.array([0, 0, 0], dtype=np.float64), np.array([1, 1, 1], dtype=np.float64))
-        self.point_reached = False
-        dt = time.time()
- 
-        while not self.point_reached:
-            dt = time.time() - dt
-            self.point_reached = vector_reached([x, y, z], self.simulation_object.position[0:3], accuracy=accuracy)
-            signal = self.pid_controller.compute_control(
-            target_position=np.array([x, y, z], dtype=np.float64),
-            current_position=self.simulation_object.position,
-            dt=self.dt)
-            self.t_speed = np.hstack([np.clip(signal,
-            -self.max_speed, self.max_speed), 0])
-            time.sleep(self.period_send_speed)
-            print(f"local to {x, y, z, yaw}, current_pos = {self.position[0:3]}, mass = {self.mass}, signal = {signal}\n")
-        self.t_speed = np.array([0, 0, 0, 0])
-        self.external_control_signal = self.t_speed[0:3]
-        self.simulation_object.speed = np.array(self.t_speed[0:3], dtype=np.float64)
+        print("Произошел goto")
+        with self._handler_lock:  # Захватываем управление
+            last_time = time.time()
+            while not self.point_reached:
+                current_time = time.time()
+                elapsed_time = current_time - last_time
+                    # Проверяем, прошло ли достаточно времени для очередного шага
+                if elapsed_time >= self.dt:
+                    self.point_reached = vector_reached([x, y, z], self.simulation_objects[0].position[0:3], accuracy=accuracy)
+                    self.position[0:3] = self.simulation_objects[0].position
+                    self.position[3:6] = self.simulation_objects[0].speed
 
-        print(f"{self.name} is moving to {self.position}.")
+                    self.velocity_controller()
+                    self.position_controller(np.array([x, y, z]))
+                    last_time = current_time
+                    for object_channel, simulation_object in enumerate(self.simulation_objects):
+                        self.step(simulation_object, object_channel)
+                    print(f"goto: {self.position}")
+                time.sleep(0.01)  # Даем CPU немного отдохнуть
+                
+            self.t_speed = np.array([0, 0, 0, 0])
+
+        # print(f"{self.name} is moving to {self.position}.")
 
     def set_v(self,
               ampl: Union[float, int] = 1) -> None:
         """
+        (Имитация)
         Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
         :param ampl: Амплитуда усиления вектора скорости
         :type ampl: float | int
         :return: None
         """
-        self.speed_flag = True
-        self.threads.append(threading.Thread(target=self.run_real_time_simulation))
-        self.threads[-1].start()
+        pass
+
 
     def attitude_write(self) -> None:
         """
@@ -191,35 +248,12 @@ class Spion(Simulator3DRealTime, Pio):
         if not np.all(np.equal(stack[:-1], self.trajectory[-2, :-1])):
             self.trajectory = np.vstack([self.trajectory, stack])
 
-    def run_real_time_simulation(self) -> None:
-        """
-        Запуск симуляции в реальном времени. Шаг симуляции синхронизируется с реальным временем.
-        """
-        last_time = time.time()
-        while self.speed_flag:
-            self.borders()
-            current_time = time.time()
-            elapsed_time = current_time - last_time
-            self._heartbeat_send_time = current_time
-
-            # Проверяем, прошло ли достаточно времени для очередного шага
-            if elapsed_time >= self.dt:
-                self.step()
-                last_time = current_time
-            self._position = np.hstack([self.simulation_object.position, self.simulation_object.speed])
-            self.external_control_signal = self.t_speed[0:3]
-                    # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
-            self.attitude_write()
-            time.sleep(0.01)  # Немного ждем, чтобы избежать слишком частых проверок
-            # print(f"Position: {self.simulation_object.position}, Time: {self.simulation_time}, speed_flag = {self.speed_flag}")
-
     def stop(self):
         """
         Останавливает все потоки, завершает симуляцию
         """
         self.speed_flag = False
-        # for thread in self.threads:
-        #     thread.join()  # Ждем завершения всех потоков
+        self.simulation_turn_on = False
         print("Simulation stopped")
 
     def save_data(self,
@@ -235,10 +269,17 @@ class Spion(Simulator3DRealTime, Pio):
         :return: None
         """
         self.speed_flag = False
+        self.simulation_turn_on = False
         np.save(f'{path}{file_name}', self.trajectory[2:])
     
-    def borders(self):
-        position = self.simulation_object.position
+    def borders(self) -> None:
+
+        """
+        Функция накладывает границы симуляции для дрона
+        :return: None
+
+        """
+        position = self.simulation_objects[0].position
 
         # Проверка на достижение границы и добавление отскока
         for i in range(3):
@@ -252,7 +293,7 @@ class Spion(Simulator3DRealTime, Pio):
                 self.point_reached = True
 
         # Применение ограничения с np.clip
-        self.simulation_object.position = np.clip(position, self.lower_bound, self.upper_bound)
+        self.simulation_objects[0].position = np.clip(position, self.lower_bound, self.upper_bound)
 
 
 
@@ -262,7 +303,7 @@ class Spion(Simulator3DRealTime, Pio):
                 g=0,
                 b=0) -> None:
         """
-        Функция пробка.
+        Функция имитация.
         Управление светодиодами на дроне.
 
         :param led_id: Идентификатор светодиода, который нужно управлять. Допустимые значения: 0, 1, 2, 3, 255.
