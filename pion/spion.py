@@ -50,8 +50,8 @@ class Spion(Simulator, Pio):
         self.period_send_speed = 0.05
         self.speed_flag = True
         self.pid_position_controller = PIDController(np.array([3, 3, 3], dtype=np.float64), 
-                                            np.array([0, 0, 0], dtype=np.float64), 
-                                            np.array([0, 0, 0], dtype=np.float64))
+                                            np.array([1, 1, 1], dtype=np.float64),
+                                            np.array([0.1, 0.1, 0.1], dtype=np.float64))
         self.pid_velocity_controller = PIDController(np.array([1, 1, 1], dtype=np.float64), 
                                         np.array([0, 0, 0], dtype=np.float64), 
                                         np.array([0, 0, 0], dtype=np.float64))
@@ -187,7 +187,8 @@ class Spion(Simulator, Pio):
             yaw: Union[float, int],
             accuracy: Union[float, int] = 5e-2) -> None:
         """
-        Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
+        Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в
+        управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed.
         :param x: координата по x
@@ -205,12 +206,16 @@ class Spion(Simulator, Pio):
         print("Произошел goto")
         with self._handler_lock:  # Захватываем управление
             last_time = time.time()
+            print(f"point_reached = {self.point_reached}")
+            self.point_reached = False
             while not self.point_reached:
                 current_time = time.time()
                 elapsed_time = current_time - last_time
                     # Проверяем, прошло ли достаточно времени для очередного шага
                 if elapsed_time >= self.dt:
-                    self.point_reached = vector_reached([x, y, z], self.simulation_objects[0].position[0:3], accuracy=accuracy)
+                    self.point_reached = vector_reached([x, y, z],
+                                                        self.simulation_objects[0].position[0:3],
+                                                        accuracy=accuracy)
                     self.position[0:3] = self.simulation_objects[0].position
                     self.position[3:6] = self.simulation_objects[0].speed
 
@@ -245,7 +250,7 @@ class Spion(Simulator, Pio):
         """
         t = time.time() - self.t0
         stack = np.hstack([self.position, self.attitude, self.t_speed, [t]])
-        if not np.all(np.equal(stack[:-1], self.trajectory[-2, :-1])):
+        if not np.allclose(stack[:-1], self.trajectory[-2, :-1]):
             self.trajectory = np.vstack([self.trajectory, stack])
 
     def stop(self):
