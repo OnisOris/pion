@@ -1,37 +1,54 @@
-import numpy as np
-from typing import List, Union, Optional
+import threading
 import time
+from typing import Union
+import numpy as np
+from .annotation import *
 
 
-class Point3D:
+class Point:
     def __init__(self,
-                 mass: float = 0.3,
-                 position: Union[List[float], np.ndarray] = None,
-                 speed: Union[List[float], np.ndarray] = None) -> None:
+                 mass: float = 1,
+                 position: Union[Array2, Array3] = np.array([0, 0, 0], dtype=np.float64),
+                 speed: Union[Array2, Array3] = np.array([0, 0, 0], dtype=np.float64),
+                 trajectory_write: bool = False):
         """
-        Инициализация объекта Point3D.
+        Инициализация объекта Point3D
 
-        :param mass: Масса объекта.
-        :param position: Начальная позиция объекта в пространстве [x, y, z].
-        :param speed: Начальная скорость объекта [vx, vy, vz].
+        :param mass: масса объекта
+        :type: Union[Array2, Array3]
+        :param position: начальная позиция объекта в пространстве [x, y, z]
+        :type: Union[Array2, Array3]
+        :param speed: начальная скорость объекта [vx, vy, vz]
+        :type: Union[Array2, Array3]
+        :trajectory_write: записывать ли траекторию
+        :type: bool
         """
-        if speed is None:
-            speed = [0, 0, 0]
-        if position is None:
-            position = [0, 0, 0]
+        if not position.shape == speed.shape:
+            raise ValueError(f"Начальная координата должна иметь схожую размерность со своей скоростью")
+        if position.shape not in [(2,), (3,)]:
+            raise ValueError(f"Размерность точки должна быть равна 2 или 3")
+        self.dimension = position.shape[0]
+        self.trajectory = Trajectory_writer(['x', 'y', 'vx', 'vy', 't'] if self.dimension == 2 else
+                                            ['x', 'y', 'z', 'vx', 'vy', 'vz', 't'])
+        self.trajectory_write = trajectory_write
         self.mass = mass
         self.initial_position = np.array(position, dtype=np.float64)
         self.position = np.array(position, dtype=np.float64)
         self.speed = np.array(speed, dtype=np.float64)
+        self.time = 0.0
 
     def rk4_step(self,
-                 acceleration: np.ndarray,
+                 acceleration: Union[Array2, Array3],
                  dt: float) -> None:
         """
-        Шаг симуляции с использованием метода Рунге-Кутты 4-го порядка.
+        Шаг симуляции с использованием метода Рунге-Кутты 4-го порядка
 
-        :param acceleration: Вектор ускорения.
-        :param dt: Временной шаг.
+        :param acceleration: вектор ускорения
+        :type: Union[Array2, Array3]
+        :param dt: временной шаг
+        :type: float
+        :return: None
+        :rtype: None
         """
         k1v = acceleration * dt
         k1x = self.speed * dt
@@ -48,105 +65,253 @@ class Point3D:
         self.speed += (k1v + 2 * k2v + 2 * k3v + k4v) / 6
         self.position += (k1x + 2 * k2x + 2 * k3x + k4x) / 6
 
+    def step(self,
+             force: Union[Array2, Array3],
+             dt: float) -> None:
+        """
+        Шаг симуляции. Вычисляются следующие значения координат и скорости в зависимости от дискретного шага dt
+        :param: force: сила воздействия на точку
+        :type: Union[Array2, Array3]
+        :param dt: дискретный шаг времени
+        :type: float
+        :return: None
+        :rtype: None
+        """
+        if force.shape != (self.dimension,):
+            raise ValueError(f"Сила должна иметь размерность {self.dimension}, но имеет размерность:  {force.shape}")
+        self.rk4_step(force / self.mass, dt=dt)
+        self.time += dt
+        if self.trajectory_write:
+            self.trajectory.vstack(np.hstack([self.position, self.speed, self.time]))
 
-class Simulator3D:
+    def get_trajectory(self) -> NDArray[np.float64]:
+        """
+        Функция возвращает траекторию точки
+        :return: NDArray[np.float64]
+        """
+        return self.trajectory.get_trajectory()
+
+
+class Simulator:
+    """
+    Класс симулятора, моделирующий поведение материальной точки
+    """
     def __init__(self,
-                 simulation_object: Optional['Point3D'] = None,
-                 name: str = 'simulator',
-                 mass: float = 0.3,
-                 position: Union[List[float], np.ndarray] = None,
-                 speed: Union[List[float], np.ndarray] = None,
-                 dt: float = 0.1) -> None:
-        if speed is None:
-            speed = [0, 0, 0]
-        if position is None:
-            position = [0, 0, 0]
-        self.name = name
-        self.dt = dt  # Временной шаг для симуляции
-        if simulation_object is not None:
-            self.simulation_object = simulation_object
+                 simulation_objects: NDArray[Point],
+                 dt: float = 0.01,
+                 dimension: int = 3):
+        """
+        Класс принимает в себя массив numpy с объектами, в которых реализован метод step, принимающий dt - дискретный
+        шаг вычисления, а также в которых есть поля speed и position.
+        Введем локальные определения: 
+        канал объекта - порядковый номер объекта в self.simulation_object.
+        """
+        self.dimension = dimension
+        self.simulation_objects = simulation_objects
+        self.simulation_turn_on = False
+        self.dt = dt
+        self.forces = np.zeros((np.shape(simulation_objects)[0], dimension))
+        self.threading_list = []
+
+    def start_simulation_while(self) -> None:
+        """
+        Функция запускает последовательную симуляцию всех симулируемых объектов
+        :return: None
+        :rtype: None
+        """
+        self.object_cycle('while')
+
+    def start_simulation_for(self,
+                             steps: int = 100) -> None:
+        """
+        Запускает симуляцию для всех объектов, используя цикл `for`
+
+        :param steps: количество шагов симуляции
+        :type steps: int
+        :return: None
+        :rtype: None
+        """
+        self.object_cycle('for', steps)
+
+    def step(self,
+             simulation_object: Point,
+             object_channel: int) -> None:
+        """
+        Выполняет один шаг симуляции для объекта.
+
+        :param simulation_object: объект, который выполняет шаг симуляции
+        :type simulation_object: Point
+        :param object_channel: канал, соответствующий объекту в массиве simulation_objects
+        :type object_channel: int
+        :return: None
+        :rtype: None
+        """
+        simulation_object.step(self.forces[object_channel], self.dt)
+
+    def set_force(self,
+                  force: Array3,
+                  object_channel: int) -> None:
+        """
+        Устанавливает силу для объекта на указанном канале.
+
+        :param force: вектор силы, который будет применён к объекту
+        :type force: Union[Array2, Array3]
+        :param object_channel: канал, соответствующий объекту в массиве simulation_objects
+        :type object_channel: int
+        :return: None
+        :rtype: None
+        """
+        self.forces[object_channel] = force
+
+    def get_position(self) -> NDArray[np.float64]:
+        """
+        Возвращает матрицу позиций всех объектов симуляции.
+
+        :return: матрица размером nx3, где n - количество объектов. Столбцы - x, y, z
+        :rtype: np.ndarray
+        """
+        position_matrix = np.zeros((self.dimension,))
+        for obj in self.simulation_objects:
+            position_matrix = np.vstack([position_matrix, obj.position])
+        return position_matrix[1:]
+
+    def object_cycle(self,
+                     type_of_cycle: str = 'while',
+                     steps: int = 100) -> None:
+        """
+        Фукнция запускает симуляцию объекта.
+        :param type_of_cycle: тип симуляции - while или for, если for, то нужно указать steps
+        :type: str
+        :param steps: количество шагов симуляции для цикла for
+        :return: None
+        :rtype: None
+        """
+        if type_of_cycle == 'while':
+            while self.simulation_turn_on:
+                for object_channel, simulation_object in enumerate(self.simulation_objects):
+                    self.step(simulation_object, object_channel)
+        elif type_of_cycle == 'for':
+            for _ in range(steps):
+                for object_channel, simulation_object in enumerate(self.simulation_objects):
+                    simulation_object.step(self.forces[object_channel], self.dt)
         else:
-            self.simulation_object = Point3D(mass, position, speed),
-        self.simulation_time = 0  # Инициализируем симулированное время
-        self.external_control_signal = np.array([0.0, 0.0, 0.0], dtype=np.float64)
-        self.time_data, self.x_data, self.y_data, self.z_data = [], [], [], []
+            print("Такой type_of_cycle не задан в начальных настройках, попробуйте while или for 1")
 
-    def receive_external_signal(self,
-                                control_signal):
+
+class Simulator_th(Simulator):
+    """
+    Класс запускает симуляции в отдельных потоках.
+    """
+
+    def start_simulation_while(self) -> None:
         """
-        Метод для получения внешнего управляющего сигнала.
-        Например, этот метод можно использовать для получения команды из внешнего источника (сети, сенсора, и т.д.).
-        control_signal: np.array([x, y, z]) — вектор управления.
+        Функция запускает симуляцию всех объектов в self.simulation_object в отдельных потоках
+        через цикл while с полем-флагом выключения self.simulation_turn_on
+        :return: None
+        :rtype: None
         """
-        self.external_control_signal = control_signal
+        self.simulation_turn_on = True
+        for channel, simulation_object in enumerate(self.simulation_objects):
+            self.threading_list.append(
+                threading.Thread(target=self.object_cycle, args=(simulation_object, channel, 'while')))
+        for thread in self.threading_list:
+            thread.start()
 
-    def step(self) -> None:
+    def start_simulation_for(self,
+                             steps: int = 100):
         """
-        Выполняет один шаг симуляции, обновляя позицию и скорость объекта.
+        Запускает симуляцию для всех объектов в отдельных потоках, используя цикл `for`.
+
+        :param steps: количество шагов симуляции
+        :type steps: int
+        :return: None
+        :rtype: None
         """
-        # Добавляем внешнее управление
-        total_control_signal = self.external_control_signal
+        self.simulation_turn_on = True
+        for channel, simulation_object in enumerate(self.simulation_objects):
+            self.threading_list.append(
+                threading.Thread(target=self.object_cycle, args=(simulation_object, channel, 'for', steps)))
+        for thread in self.threading_list:
+            thread.start()
 
-        # Вычисляем ускорение
-        acceleration = total_control_signal / self.simulation_object.mass
-        self.simulation_object.rk4_step(acceleration, self.dt)
 
-        # Обновляем симулированное время и сохраняем данные для анализа
-        self.simulation_time += self.dt
-        self.time_data.append(self.simulation_time)
-        self.x_data.append(self.simulation_object.position[0])
-        self.y_data.append(self.simulation_object.position[1])
-        self.z_data.append(self.simulation_object.position[2])
+class Simulator_realtime(Simulator):
+    """
+    Класс симуляции с синхронизацией с реальным временем
+    """
 
-    def run_simulation(self,
-                       steps: int) -> None:
+    def object_cycle(self,
+                     type_of_cycle: str = 'while',
+                     steps: int = 100) -> None:
         """
-        Запуск симуляции на определенное количество шагов.
-
-        :param steps: Количество шагов симуляции.
-        """
-        for _ in range(steps):
-            self.step()
-
-
-class Simulator3DRealTime(Simulator3D):
-    def __init__(self,
-                 simulation_object: Optional['Point3D'] = None,
-                 name: str = 'simulator real time',
-                 mass: float = 0.3,
-                 position: Union[List[float], np.ndarray] = None,
-                 speed: Union[List[float], np.ndarray] = None,
-                 dt: float = 0.1) -> None:
-        """
-        Инициализация симулятора для работы в реальном времени.
-
-        :param name: Имя симуляции.
-        :param mass: Масса объекта.
-        :param position: Начальная позиция объекта.
-        :param speed: Начальная скорость объекта.
-        :param dt: Временной шаг.
-        :param max_acceleration: Максимальное ускорение.
-        """
-        # Инициализируем базовый класс
-        if speed is None:
-            speed = [0, 0, 0]
-        if position is None:
-            position = [0, 0, 0]
-        super().__init__(simulation_object, name, mass, position, speed, dt)
-
-    def run_real_time_simulation(self) -> None:
-        """
-        Запуск симуляции в реальном времени. Шаг симуляции синхронизируется с реальным временем.
+        Фукнция запускает симуляцию объектов в отдельных потоках, но с
+        синхронизацией с реальным временем.
+        :param type_of_cycle: тип симуляции - while или for, если for, то нужно указать steps
+        :type: str
+        :param steps: количество шагов симуляции для цикла for
+        :return: None
+        :rtype: None
         """
         last_time = time.time()
-        while True:
-            current_time = time.time()
-            elapsed_time = current_time - last_time
+        if type_of_cycle == 'while':
+            while self.simulation_turn_on:
+                current_time = time.time()
+                elapsed_time = current_time - last_time
+                # Проверяем, прошло ли достаточно времени для очередного шага
+                if elapsed_time >= self.dt:
+                    last_time = current_time
+                    for object_channel, simulation_object in enumerate(self.simulation_objects):
+                        self.step(simulation_object, object_channel)
+                # print(simulation_object.position)
+        elif type_of_cycle == 'for':
+            for _ in range(steps):
+                current_time = time.time()
+                elapsed_time = current_time - last_time
+                if elapsed_time >= self.dt:
+                    last_time = current_time
+                    for object_channel, simulation_object in enumerate(self.simulation_objects):
+                        self.step(simulation_object, object_channel)
+        else:
+            print("Такой type_of_cycle не задан в начальных настройках, попробуйте while или for 1")
 
-            # Проверяем, прошло ли достаточно времени для очередного шага
-            if elapsed_time >= self.dt:
-                self.step()
-                last_time = current_time
 
-            time.sleep(0.01)  # Немного ждем, чтобы избежать слишком частых проверок
-            print(f"Position: {self.simulation_object.position}, Time: {self.simulation_time}")
+class Simulator_realtime_th(Simulator_realtime, Simulator_th):
+    """
+    Класс симуляции с синхронизацией в реальном времени и с запуском в отдельных потоках.
+    """
+    pass
+
+
+class Trajectory_writer:
+    def __init__(self,
+                 list_of_names_columns: Union[list[str], NDArray[str]]):
+        """
+        Специальный класс для записи и хранения траектории размером
+        nx[len(list_of_names_columns)], n - количество точек.
+        :param list_of_names_columns: названия колонн
+        :type: Union[list[str], NDArray[str]]
+        """
+        self.trajectory = np.zeros((len(list_of_names_columns),))
+        self.columns = list_of_names_columns
+
+    def vstack(self,
+               vstack_array: NDArray[np.float64]) -> None:
+        """
+        Функция объединяет входящие вектора с матрицей trajectory
+        :param vstack_array: массив размерности len(list_of_names_columns)
+        :type: NDArray[Any]
+        :return: None
+        :rtype: None
+        """
+        self.trajectory = np.vstack([self.trajectory, vstack_array])
+
+    def get_trajectory(self) -> NDArray[np.float64]:
+        """
+        Функция возвращает записанную траекторию
+        :return: NDArray[np.float64]
+        :rtype: None
+        """
+        if not self.trajectory.shape == (len(self.columns),):
+            return self.trajectory[1:]
+        else:
+            return self.trajectory
