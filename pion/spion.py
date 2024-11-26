@@ -19,13 +19,15 @@ class Spion(Simulator, Pio):
                  name: str = 'simulator',
                  mass: float = 0.3,
                  position: Union[Array6, None] = None,
-                 dt: float = 0.1) -> None:
+                 dt: float = 0.1,
+                 logger: bool = False) -> None:
         """
         Конструктор дочернего класса, наследующегося от Pio и Simulator.
         :param name: Имя дрона.
         :param mass: Масса дрона.
         :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz]
         """
+        self.logger = logger
         if position is None:
             position = np.array([0, 0, 0, 0, 0, 0])
         self.ip = ip
@@ -49,12 +51,12 @@ class Spion(Simulator, Pio):
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         self.speed_flag = True
-        self.pid_position_controller = PIDController(np.array([3, 3, 3], dtype=np.float64), 
-                                            np.array([1, 1, 1], dtype=np.float64),
-                                            np.array([0.1, 0.1, 0.1], dtype=np.float64))
-        self.pid_velocity_controller = PIDController(np.array([2, 2, 2], dtype=np.float64), 
-                                        np.array([0, 0, 0], dtype=np.float64), 
-                                        np.array([0.1, 0.1, 0.1], dtype=np.float64))
+        self.pid_position_controller = PIDController(np.array([1., 1., 1.], dtype=np.float64),
+                                                     np.array([0., 0., 0.], dtype=np.float64),
+                                                     np.array([0., 0., 0.], dtype=np.float64))
+        self.pid_velocity_controller = PIDController(np.array([3., 3., 3.], dtype=np.float64),
+                                                     np.array([0., 0., 0.], dtype=np.float64),
+                                                     np.array([0.1, 0.1, 0.1], dtype=np.float64))
         self.battery_voltage = 8
         self._heartbeat_send_time = time.time()
         # Информация, включающая
@@ -68,7 +70,6 @@ class Spion(Simulator, Pio):
         self._message_thread = None  # Поток для _message_handler
         self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
         self.start_message_handler()
-
 
     @property
     def position(self) -> Array6:
@@ -87,7 +88,6 @@ class Spion(Simulator, Pio):
         self.simulation_objects[0].position = position[0:3]
         self.simulation_objects[0].speed = position[3:6]
 
-
     @property
     def attitude(self) -> Array6:
         """
@@ -104,7 +104,6 @@ class Spion(Simulator, Pio):
         """
         self._attitude = attitude
 
-
     def start_message_handler(self) -> None:
         """
         Запуск потока _message_handler.
@@ -113,7 +112,8 @@ class Spion(Simulator, Pio):
             self.simulation_turn_on = True
             self._message_thread = threading.Thread(target=self._message_handler, daemon=True)
             self._message_thread.start()
-            print("Message handler started.")
+            if self.logger:
+                print("Message handler started.")
 
     def stop_message_handler(self) -> None:
         """
@@ -123,46 +123,46 @@ class Spion(Simulator, Pio):
             self.simulation_turn_on = False
             if self._message_thread:
                 self._message_thread.join()
-            print("Message handler stopped.")
-
+            if self.logger:
+                print("Message handler stopped.")
 
     def _message_handler(self, *args):
-            """
+        """
             Основной цикл обработки сообщений.
             """
-            last_time = time.time()
-            while self.simulation_turn_on:
-                with self._handler_lock:  # Блокируем доступ для других операций
-                    self.position[0:3] = self.simulation_objects[0].position
-                    self.position[3:6] = self.simulation_objects[0].speed
-                    current_time = time.time()
-                    elapsed_time = current_time - last_time
-                    if elapsed_time >= self.dt:
-                        last_time = current_time
-                        self._heartbeat_send_time = current_time
-                        self.velocity_controller()
-                        for object_channel, simulation_object in enumerate(self.simulation_objects):
-                            self.step(simulation_object, object_channel)
-
-                time.sleep(0.01)
+        last_time = time.time()
+        while self.simulation_turn_on:
+            with self._handler_lock:  # Блокируем доступ для других операций
+                self.position[0:3] = self.simulation_objects[0].position
+                self.position[3:6] = self.simulation_objects[0].speed
+                current_time = time.time()
+                elapsed_time = current_time - last_time
+                if elapsed_time >= self.dt:
+                    last_time = current_time
+                    self._heartbeat_send_time = current_time
+                    self.velocity_controller()
+                    for object_channel, simulation_object in enumerate(self.simulation_objects):
+                        self.step(simulation_object, object_channel)
+                    if self.logger:
+                        print(f"xyz = {self.position[0:3]}, speed = {self.position[3:6]}, t_speed = {self.t_speed}")
+            time.sleep(0.01)
 
     def velocity_controller(self):
-        signal = self.pid_velocity_controller.compute_control(target_position = np.array(self.t_speed[0:3], dtype=np.float64), 
-                                                              current_position=np.array(self.simulation_objects[0].speed, dtype=np.float64), 
-                                                              dt=self.dt)
+        signal = self.pid_velocity_controller.compute_control(
+            target_position=np.array(self.t_speed[0:3], dtype=np.float64),
+            current_position=np.array(self.simulation_objects[0].speed, dtype=np.float64),
+            dt=self.dt)
         self.set_force(signal, 0)
 
     def position_controller(self, position_xyz):
         signal = np.clip(
             self.pid_position_controller.compute_control(
-            target_position = np.array(position_xyz, dtype=np.float64),
-            current_position=self.simulation_objects[0].position,
-            dt=self.dt), 
+                target_position=np.array(position_xyz, dtype=np.float64),
+                current_position=self.simulation_objects[0].position,
+                dt=self.dt),
             -self.max_speed,
             self.max_speed)
-        self.t_speed[0:3] = signal
-        
-
+        self.t_speed = np.hstack([signal, 0])
 
     # Реализация обязательных методов абстрактного класса Pio
     def arm(self):
@@ -180,11 +180,11 @@ class Spion(Simulator, Pio):
         print(f"{self.name} is landing.")
 
     def goto(self,
-            x: Union[float, int],
-            y: Union[float, int],
-            z: Union[float, int],
-            yaw: Union[float, int],
-            accuracy: Union[float, int] = 5e-2) -> None:
+             x: Union[float, int],
+             y: Union[float, int],
+             z: Union[float, int],
+             yaw: Union[float, int],
+             accuracy: Union[float, int] = 5e-2) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в
         управление t_speed.
@@ -202,15 +202,13 @@ class Spion(Simulator, Pio):
         :type: Union[float, int]
         :return: None
         """
-        print("Произошел goto")
         with self._handler_lock:  # Захватываем управление
             last_time = time.time()
-            print(f"point_reached = {self.point_reached}")
             self.point_reached = False
             while not self.point_reached:
                 current_time = time.time()
                 elapsed_time = current_time - last_time
-                    # Проверяем, прошло ли достаточно времени для очередного шага
+                # Проверяем, прошло ли достаточно времени для очередного шага
                 if elapsed_time >= self.dt:
                     self.point_reached = vector_reached([x, y, z],
                                                         self.simulation_objects[0].position[0:3],
@@ -223,12 +221,12 @@ class Spion(Simulator, Pio):
                     last_time = current_time
                     for object_channel, simulation_object in enumerate(self.simulation_objects):
                         self.step(simulation_object, object_channel)
-                    print(f"goto: {self.position}")
+                    if self.logger:
+                        print(f"xyz = {self.position[0:3]}, speed = {self.position[3:6]}, t_speed = {self.t_speed}")
                 time.sleep(0.01)  # Даем CPU немного отдохнуть
-                
+            if self.logger:
+                print(f"Точка {x, y, z} достигнута")
             self.t_speed = np.array([0, 0, 0, 0])
-
-        # print(f"{self.name} is moving to {self.position}.")
 
     def set_v(self,
               ampl: Union[float, int] = 1) -> None:
@@ -240,7 +238,6 @@ class Spion(Simulator, Pio):
         :return: None
         """
         pass
-
 
     def attitude_write(self) -> None:
         """
@@ -275,7 +272,7 @@ class Spion(Simulator, Pio):
         self.speed_flag = False
         self.simulation_turn_on = False
         np.save(f'{path}{file_name}', self.trajectory[2:])
-    
+
     def borders(self) -> None:
 
         """
@@ -290,7 +287,7 @@ class Spion(Simulator, Pio):
             if position[i] <= self.lower_bound[i]:
                 position[i] += 0.1  # отскок внутрь области
                 print("lower bound")
-                self.point_reached = True # Отменяем полетные цели
+                self.point_reached = True  # Отменяем полетные цели
             elif position[i] >= self.upper_bound[i]:
                 position[i] -= 0.1
                 print("upper bound")
@@ -299,13 +296,11 @@ class Spion(Simulator, Pio):
         # Применение ограничения с np.clip
         self.simulation_objects[0].position = np.clip(position, self.lower_bound, self.upper_bound)
 
-
-
     def led_control(self,
-                led_id=255,
-                r=0,
-                g=0,
-                b=0) -> None:
+                    led_id=255,
+                    r=0,
+                    g=0,
+                    b=0) -> None:
         """
         Функция имитация.
         Управление светодиодами на дроне.
@@ -323,9 +318,10 @@ class Spion(Simulator, Pio):
         :return: None
             """
         return None
+
     def goto_yaw(self,
-                yaw: Union[float, int] = 0,
-                accuracy: Union[float, int] = 0.087) -> None:
+                 yaw: Union[float, int] = 0,
+                 accuracy: Union[float, int] = 0.087) -> None:
         """
         Функция пробка.
         Берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
@@ -338,7 +334,3 @@ class Spion(Simulator, Pio):
         :return: None
         """
         return None
-
-
-
-
