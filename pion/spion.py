@@ -52,9 +52,9 @@ class Spion(Simulator, Pio):
         self.pid_position_controller = PIDController(np.array([3, 3, 3], dtype=np.float64), 
                                             np.array([1, 1, 1], dtype=np.float64),
                                             np.array([0.1, 0.1, 0.1], dtype=np.float64))
-        self.pid_velocity_controller = PIDController(np.array([1, 1, 1], dtype=np.float64), 
+        self.pid_velocity_controller = PIDController(np.array([2, 2, 2], dtype=np.float64), 
                                         np.array([0, 0, 0], dtype=np.float64), 
-                                        np.array([0, 0, 0], dtype=np.float64))
+                                        np.array([0.1, 0.1, 0.1], dtype=np.float64))
         self.battery_voltage = 8
         self._heartbeat_send_time = time.time()
         # Информация, включающая
@@ -135,13 +135,12 @@ class Spion(Simulator, Pio):
                 with self._handler_lock:  # Блокируем доступ для других операций
                     self.position[0:3] = self.simulation_objects[0].position
                     self.position[3:6] = self.simulation_objects[0].speed
-
                     current_time = time.time()
                     elapsed_time = current_time - last_time
                     if elapsed_time >= self.dt:
                         last_time = current_time
+                        self._heartbeat_send_time = current_time
                         self.velocity_controller()
-
                         for object_channel, simulation_object in enumerate(self.simulation_objects):
                             self.step(simulation_object, object_channel)
 
