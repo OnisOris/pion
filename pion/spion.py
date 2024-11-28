@@ -228,6 +228,28 @@ class Spion(Simulator, Pio):
                 print(f"Точка {x, y, z} достигнута")
             self.t_speed = np.array([0, 0, 0, 0])
 
+    def goto_from_outside(self,
+                          x: Union[float, int],
+                          y: Union[float, int],
+                          z: Union[float, int],
+                          yaw: Union[float, int],
+                          accuracy: Union[float, int] = 5e-2) -> None:
+        """
+        Функция симулятор оригинальной функции в Pion, полностью повторяет функционал goto в данном классе
+        :param x: координата по x
+        :type x: Union[float, int]
+        :param y: координата по y
+        :type: Union[float, int]
+        :param z:  координата по z
+        :type: Union[float, int]
+        :param yaw:  координата по yaw
+        :type: Union[float, int]
+        :param accuracy: Погрешность целевой точки
+        :type: Union[float, int]
+        :return: None
+        """
+        self.goto(x, y, z, yaw, accuracy)
+
     def set_v(self,
               ampl: Union[float, int] = 1) -> None:
         """
