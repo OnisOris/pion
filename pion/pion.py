@@ -1,7 +1,7 @@
 import time
 import threading
 import select
-from .controller import PIDController
+from .cython_pid.controller import PIDController
 from typing import Union, Optional
 from .functions import *
 from .pio import Pio
@@ -490,29 +490,23 @@ class Pion(Pio):
         if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
             self._send_heartbeat()
 
-    def v_while(self,
-                ampl: Union[float, int]) -> None:
+    def v_while(self) -> None:
         """
         Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
-        :param ampl: Амплитуда усиления вектора скорости
-        :type ampl: float | int
         :return: None
         """
         while self.speed_flag:
-            t_speed = self.t_speed * ampl
+            t_speed = self.t_speed
             self.send_speed(t_speed[0], t_speed[1], t_speed[2], t_speed[3])
             time.sleep(self.period_send_speed)
 
-    def set_v(self,
-              ampl: Union[float, int] = 1) -> None:
+    def set_v(self) -> None:
         """
         Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
-        :param ampl: Амплитуда усиления вектора скорости
-        :type ampl: float | int
         :return: None
         """
         self.speed_flag = True
-        self.threads.append(threading.Thread(target=self.v_while, args=[ampl]))
+        self.threads.append(threading.Thread(target=self.v_while))
         self.threads[-1].start()
 
     def reboot_board(self) -> None:
