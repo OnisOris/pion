@@ -1,7 +1,7 @@
 import time
 import threading
 import select
-from .cython_pid.controller import PIDController
+from pion.cython_pid import PIDController  
 from typing import Union, Optional
 from .functions import *
 from .pio import Pio
@@ -13,7 +13,10 @@ class Pion(Pio):
                  mavlink_port: int = 5656,
                  connection_method: str = 'udpout',
                  combine_system: int = 0,
-                 count_of_checking_points: int = 20):
+                 count_of_checking_points: int = 20,
+                 name: str = "Pion",
+                 mass: float = 0.3,
+                 dt: float = 0.):
         """
         Инициализация класса Pion, устанавливающего MAVLink соединение с дроном 
         и управляющего взаимодействием по передаче и приему данных.
@@ -60,7 +63,7 @@ class Pion(Pio):
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         # Период приема всех сообщений с дрона
-        self.period_message_handler = 0
+        self.period_message_handler = dt
         # Информация, включающая
         # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
         # которая складывается в матрицу (n, 17), где n - число измерений
@@ -76,6 +79,8 @@ class Pion(Pio):
         daemon=True)
         self._message_handler_thread.daemon = True
         self._message_handler_thread.start()
+        self.name = name
+        self.mass = mass
 
     @property
     def position(self) -> np.ndarray:
@@ -92,6 +97,15 @@ class Pion(Pio):
         :return: None
         """
         self._position = position
+        
+    @property
+    def yaw(self) -> np.ndarray:
+        """
+        Геттер вернет yaw
+        :return: np.ndarray
+        """
+        return self.attitude[2]
+
 
     @property
     def attitude(self) -> np.ndarray:
