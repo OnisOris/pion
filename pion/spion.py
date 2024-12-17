@@ -19,8 +19,10 @@ class Spion(Simulator, Pio):
                  name: str = 'simulator',
                  mass: float = 0.3,
                  position: Union[Array6, None] = None,
+                 attitude: Union[Array6, None] = None,
                  dt: float = 0.1,
-                 logger: bool = False) -> None:
+                 logger: bool = False,
+                 start_message_handler_from_init: bool = True) -> None:
         """
         Конструктор дочернего класса, наследующегося от Pio и Simulator.
         :param name: Имя дрона.
@@ -30,6 +32,8 @@ class Spion(Simulator, Pio):
         self.logger = logger
         if position is None:
             position = np.array([0, 0, 0, 0, 0, 0])
+        if attitude is None:
+            attitude = np.array([0, 0, 0, 0, 0, 0])
         self.ip = ip
         self.mavlink_port = mavlink_port
         self.connection_method = connection_method
@@ -44,7 +48,7 @@ class Spion(Simulator, Pio):
         self.name = name
         self.mass = mass
         self._position = position
-        self._attitude = np.array([0, 0, 0, 0, 0, 0])
+        self._attitude = attitude
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw]
         self.t_speed = np.array([0, 0, 0, 0])
         self.max_speed = 2
@@ -69,7 +73,8 @@ class Spion(Simulator, Pio):
         self.point_reached = False
         self._message_thread = None  # Поток для _message_handler
         self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
-        self.start_message_handler()
+        if start_message_handler_from_init:
+            self.start_message_handler()
 
     @property
     def position(self) -> Array6:
@@ -126,10 +131,19 @@ class Spion(Simulator, Pio):
             if self.logger:
                 print("Message handler stopped.")
 
+    def _step_messege_handler(self):
+        self.velocity_controller()
+        for object_channel, simulation_object in enumerate(self.simulation_objects):
+            self.step(simulation_object, object_channel)
+        if self.logger:
+            print(f"xyz = {self.position[0:3]}, speed = {self.position[3:6]}, t_speed = {self.t_speed}")
+
+
+
     def _message_handler(self, *args):
         """
-            Основной цикл обработки сообщений.
-            """
+        Основной цикл обработки сообщений.
+        """
         last_time = time.time()
         while self.simulation_turn_on:
             with self._handler_lock:  # Блокируем доступ для других операций
@@ -140,21 +154,19 @@ class Spion(Simulator, Pio):
                 if elapsed_time >= self.dt:
                     last_time = current_time
                     self._heartbeat_send_time = current_time
-                    self.velocity_controller()
-                    for object_channel, simulation_object in enumerate(self.simulation_objects):
-                        self.step(simulation_object, object_channel)
-                    if self.logger:
-                        print(f"xyz = {self.position[0:3]}, speed = {self.position[3:6]}, t_speed = {self.t_speed}")
+
+                self._step_messege_handler()
             time.sleep(0.01)
 
     def velocity_controller(self):
+        # print(f"Spion \n target: {self.t_speed[0:3]}, current = {np.array(self.simulation_objects[0].speed, dtype=np.float64)}, dt = {self.dt}")
         signal = self.pid_velocity_controller.compute_control(
             target_position=np.array(self.t_speed[0:3], dtype=np.float64),
             current_position=np.array(self.simulation_objects[0].speed, dtype=np.float64),
             dt=self.dt)
         self.set_force(signal, 0)
 
-    def position_controller(self, position_xyz):
+    def position_controller(self, position_xyz: Array3):
         signal = np.clip(
             self.pid_position_controller.compute_control(
                 target_position=np.array(position_xyz, dtype=np.float64),
