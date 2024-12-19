@@ -71,6 +71,7 @@ class Spion(Simulator, Pio):
         self.lower_bound = np.array([-5.5, -5.5, 0])
         self.upper_bound = np.array([5.5, 5.5, 4])
         self.point_reached = False
+        self.check_attitude_flag = True
         self._message_thread = None  # Поток для _message_handler
         self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
         if start_message_handler_from_init:
@@ -154,6 +155,8 @@ class Spion(Simulator, Pio):
                 if elapsed_time >= self.dt:
                     last_time = current_time
                     self._heartbeat_send_time = current_time
+                    if self.check_attitude_flag:
+                        self.attitude_write()
 
                 self._step_messege_handler()
             time.sleep(0.01)
