@@ -1,6 +1,6 @@
 from .simulator import Simulator, Point
 from .pio import Pio
-from .functions import vector_reached
+from .functions import vector_reached, update_array
 from pion.cython_pid import PIDController  # Cython-версия PIDController
 from typing import List, Union
 from .annotation import *
@@ -74,6 +74,9 @@ class Spion(Simulator, Pio):
         self.check_attitude_flag = True
         self._message_thread = None  # Поток для _message_handler
         self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
+
+        self.last_points = np.zeros((count_of_checking_points, 3))
+
         if start_message_handler_from_init:
             self.start_message_handler()
 
@@ -116,7 +119,7 @@ class Spion(Simulator, Pio):
         """
         if not self.simulation_turn_on:
             self.simulation_turn_on = True
-            self._message_thread = threading.Thread(target=self._message_handler, daemon=True)
+            self._message_thread = threading.Thread(target=self._message_handler)
             self._message_thread.start()
             if self.logger:
                 print("Message handler started.")
@@ -136,6 +139,8 @@ class Spion(Simulator, Pio):
         self.velocity_controller()
         for object_channel, simulation_object in enumerate(self.simulation_objects):
             self.step(simulation_object, object_channel)
+        self.last_points = update_array(self.last_points, self.position[0:3])
+
         if self.logger:
             print(f"xyz = {self.position[0:3]}, speed = {self.position[3:6]}, t_speed = {self.t_speed}")
 
@@ -148,21 +153,20 @@ class Spion(Simulator, Pio):
         last_time = time.time()
         while self.simulation_turn_on:
             with self._handler_lock:  # Блокируем доступ для других операций
-                self.position[0:3] = self.simulation_objects[0].position
-                self.position[3:6] = self.simulation_objects[0].speed
                 current_time = time.time()
                 elapsed_time = current_time - last_time
                 if elapsed_time >= self.dt:
                     last_time = current_time
                     self._heartbeat_send_time = current_time
+                    self._step_messege_handler()
+                    self.position[0:3] = self.simulation_objects[0].position
+                    self.position[3:6] = self.simulation_objects[0].speed
                     if self.check_attitude_flag:
                         self.attitude_write()
 
-                self._step_messege_handler()
             time.sleep(0.01)
 
     def velocity_controller(self):
-        # print(f"Spion \n target: {self.t_speed[0:3]}, current = {np.array(self.simulation_objects[0].speed, dtype=np.float64)}, dt = {self.dt}")
         signal = self.pid_velocity_controller.compute_control(
             target_position=np.array(self.t_speed[0:3], dtype=np.float64),
             current_position=np.array(self.simulation_objects[0].speed, dtype=np.float64),
@@ -226,11 +230,11 @@ class Spion(Simulator, Pio):
                 # Проверяем, прошло ли достаточно времени для очередного шага
                 if elapsed_time >= self.dt:
                     self.point_reached = vector_reached([x, y, z],
-                                                        self.simulation_objects[0].position[0:3],
+                                                        self.last_points,
                                                         accuracy=accuracy)
                     self.position[0:3] = self.simulation_objects[0].position
                     self.position[3:6] = self.simulation_objects[0].speed
-
+                    self.last_points = update_array(self.last_points, self.position[0:3])
                     self.velocity_controller()
                     self.position_controller(np.array([x, y, z]))
                     last_time = current_time
