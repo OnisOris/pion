@@ -46,7 +46,8 @@ def update_array(
     :return: Обновлённый массив с новым значением в начале.
     :rtype: Union[list, npt.NDArray[np.float64]]
     """
-    arr = np.roll(arr, 1)
+
+    arr = np.roll(arr, 1, axis=0)
     arr[0] = new_value
     return arr
 
