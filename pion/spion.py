@@ -27,7 +27,8 @@ class Spion(Simulator, Pio):
         Конструктор дочернего класса, наследующегося от Pio и Simulator.
         :param name: Имя дрона.
         :param mass: Масса дрона.
-        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz]
+        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz]. Поле position имеет координаты и скорость, подобно 
+        сообщению LOCAL_POSITION_NED в mavlink.
         """
         self.logger = logger
         if position is None:
@@ -47,7 +48,9 @@ class Spion(Simulator, Pio):
         # Инициализация дополнительных параметров, специфичных для дрона
         self.name = name
         self.mass = mass
+        # Вектор, подобный LOCAL_POSITION_NED из mavlink
         self._position = position
+        # Вектор, подобный ATTITUDE из mavlink
         self._attitude = attitude
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw]
         self.t_speed = np.array([0, 0, 0, 0])
@@ -143,8 +146,6 @@ class Spion(Simulator, Pio):
 
         if self.logger:
             print(f"xyz = {self.position[0:3]}, speed = {self.position[3:6]}, t_speed = {self.t_speed}")
-
-
 
     def _message_handler(self, *args):
         """
