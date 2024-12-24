@@ -18,23 +18,23 @@ class Spion(Simulator, Pio):
                  count_of_checking_points: int = 20,
                  name: str = 'simulator',
                  mass: float = 0.3,
-                 position: Union[Array6, None] = None,
-                 attitude: Union[Array6, None] = None,
+                 position: Union[Array6, Array4, None] = None,
+                 attitude: Union[Array6, Array4, None] = None,
                  dt: float = 0.1,
                  logger: bool = False,
                  start_message_handler_from_init: bool = True,
-                 dimansion: int = 3) -> None:
+                 dimension: int = 3) -> None:
         """
         Конструктор дочернего класса, наследующегося от Pio и Simulator.
         :param name: Имя дрона.
         :param mass: Масса дрона.
-        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz]. Поле position имеет координаты и скорость, подобно 
-        сообщению LOCAL_POSITION_NED в mavlink.
+        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy].
+        Поле position имеет координаты и скорость, подобно сообщению LOCAL_POSITION_NED в mavlink.
         """
         self.logger = logger
-        self.dimansion = dimansion
+        self.dimension = dimension
         if position is None:
-            position = np.zeros(self.dimansion*2)
+            position = np.zeros(self.dimension * 2)
         else:
             if position.shape not in [(4,), (6,)]:
                 raise ValueError(f"Размерность вектора position должна быть равна 4 или 6")
@@ -47,21 +47,20 @@ class Spion(Simulator, Pio):
         self.count_of_checking_points = count_of_checking_points
         self.t0 = time.time()
         # Создание объекта Point3D
-
-        self.simulation_objects = np.array([Point(mass, position[0:self.dimansion], 
-                                                  position[self.dimansion:self.dimansion*2])])
+        self.simulation_objects = np.array([Point(mass, position[0:self.dimension],
+                                                  position[self.dimension:self.dimension * 2])])
         self.position_pid_matrix = np.array([
-            [1.0] * self.dimansion,
-            [0.0] * self.dimansion,
-            [0.0] * self.dimansion
+            [1.0] * self.dimension,
+            [0.0] * self.dimension,
+            [0.0] * self.dimension
         ], dtype=np.float64)
 
         self.velocity_pid_matrix = np.array([
-            [3.0] * self.dimansion,
-            [0.0] * self.dimansion,
-            [0.1] * self.dimansion
+            [3.0] * self.dimension,
+            [0.0] * self.dimension,
+            [0.1] * self.dimension
         ], dtype=np.float64)
-        Simulator.__init__(self, self.simulation_objects, dt=dt, dimension=self.dimansion)
+        Simulator.__init__(self, self.simulation_objects, dt=dt, dimension=self.dimension)
         Pio.__init__(self)  # Pio
         # Инициализация дополнительных параметров, специфичных для дрона
         self.name = name
@@ -71,19 +70,19 @@ class Spion(Simulator, Pio):
         # Вектор, подобный ATTITUDE из mavlink
         self._attitude = attitude
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw]
-        self.t_speed = np.zeros(self.dimansion+1)
+        self.t_speed = np.zeros(self.dimension + 1)
         self.max_speed = 2
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         self.speed_flag = True
         self._pid_position_controller = None 
-        self._pid_velocity_controller = None        
-
+        self._pid_velocity_controller = None
         self.battery_voltage = 8
         self._heartbeat_send_time = time.time()
         # Информация, включающая
         # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
-        # которая складывается в матрицу (n, 17), где n - число измерений
+        # которая складывается в матрицу (n, 17/14), где n - число точек в траектории
+        # если размерность 2, то z составляющая убирается из траектории и размерность вектора равна 14, а не 17
         self.trajectory = np.zeros((2, self._position.shape[0] + self._attitude.shape[0] + self.t_speed.shape[0] + 1))
         # Границы симуляции
         self.lower_bound = np.array([-5.5, -5.5, 0])
@@ -92,9 +91,7 @@ class Spion(Simulator, Pio):
         self.check_attitude_flag = True
         self._message_thread = None  # Поток для _message_handler
         self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
-
-        self.last_points = np.zeros((count_of_checking_points, self.dimansion))
-
+        self.last_points = np.zeros((count_of_checking_points, self.dimension))
         if start_message_handler_from_init:
             self.start_message_handler()
 
@@ -112,31 +109,31 @@ class Spion(Simulator, Pio):
         Сеттер для _position
         :return: None
         """
-        self.simulation_objects[0].position = position[0:self.dimansion]
-        self.simulation_objects[0].speed = position[self.dimansion:self.dimansion*2]
+        self.simulation_objects[0].position = position[0:self.dimension]
+        self.simulation_objects[0].speed = position[self.dimension:self.dimension * 2]
 
     @property
-    def speed(self) -> Union[Array6, Array4]:
+    def speed(self) -> Union[Array2, Array3]:
         """
-        Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
-        :return: np.ndarray
+        Функция вернет скорость [vx, vy, vz]
+        :return: Union[Array2, Array3]
         """
         return self.simulation_objects[0].speed
 
     @speed.setter
-    def speed(self, position: Union[Array6, Array4]) -> None:
+    def speed(self, position: Union[Array2, Array3]) -> None:
         """
         Сеттер для _position
         :return: None
         """
-        self.simulation_objects[0].position = position[0:self.dimansion]
-        self.simulation_objects[0].speed = position[self.dimansion:self.dimansion*2]
+        self.simulation_objects[0].position = position[0:self.dimension]
+        self.simulation_objects[0].speed = position[self.dimension:self.dimension * 2]
 
 
     @property
     def attitude(self) -> Array6:
         """
-        Функция вернет ndarray (6,) с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
+        Функция вернет ndarray (6,) или () с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
         :return: np.ndarray
         """
         return self._attitude
@@ -175,10 +172,11 @@ class Spion(Simulator, Pio):
         self.velocity_controller()
         for object_channel, simulation_object in enumerate(self.simulation_objects):
             self.step(simulation_object, object_channel)
-        self.last_points = update_array(self.last_points, self.position[0:self.dimansion])
-
+        self.last_points = update_array(self.last_points, self.position[0:self.dimension])
         if self.logger:
-            print(f"xyz = {self.position[0:self.dimansion]}, speed = {self.position[self.dimansion:self.dimansion*2]}, t_speed = {self.t_speed}")
+            print(f"xyz = {self.position[0:self.dimension]}, "
+                  f"speed = {self.position[self.dimension:self.dimension * 2]}, "
+                  f"t_speed = {self.t_speed}")
 
     def _message_handler(self, *args):
         """
@@ -196,8 +194,8 @@ class Spion(Simulator, Pio):
                     last_time = current_time
                     self._heartbeat_send_time = current_time
                     self._step_messege_handler()
-                    self.position[0:self.dimansion] = self.simulation_objects[0].position
-                    self.position[self.dimansion:self.dimansion*2] = self.simulation_objects[0].speed
+                    self.position[0:self.dimension] = self.simulation_objects[0].position
+                    self.position[self.dimension:self.dimension * 2] = self.simulation_objects[0].speed
                     if self.check_attitude_flag:
                         self.attitude_write()
 
@@ -205,7 +203,7 @@ class Spion(Simulator, Pio):
 
     def velocity_controller(self):
         signal = self._pid_velocity_controller.compute_control(
-            target_position=np.array(self.t_speed[0:self.dimansion], dtype=np.float64),
+            target_position=np.array(self.t_speed[0:self.dimension], dtype=np.float64),
             current_position=np.array(self.simulation_objects[0].speed, dtype=np.float64),
             dt=self.dt)
         self.set_force(signal, 0)
@@ -222,18 +220,22 @@ class Spion(Simulator, Pio):
 
     # Реализация обязательных методов абстрактного класса Pio
     def arm(self):
-        print(f"{self.name} is armed.")
+        if self.logger:
+            print(f"{self.name} is armed.")
 
     def disarm(self):
-        print(f"{self.name} is disarmed.")
+        if self.logger:
+            print(f"{self.name} is disarmed.")
 
     def takeoff(self):
         self.goto(self.position[0], self.position[1], 1.5, 0)
-        print(f"{self.name} is taking off.")
+        if self.logger:
+            print(f"{self.name} is taking off.")
 
     def land(self):
         self.goto(self.position[0], self.position[1], 0, 0)
-        print(f"{self.name} is landing.")
+        if self.logger:
+            print(f"{self.name} is landing.")
 
     def goto(self,
              x: Union[float, int],
@@ -250,7 +252,7 @@ class Spion(Simulator, Pio):
         :type x: Union[float, int]
         :param y: координата по y
         :type: Union[float, int]
-        :param z:  координата по z
+        :param z:  координата по z (не используется, если self.dimension = 2)
         :type: Union[float, int]
         :param yaw:  координата по yaw
         :type: Union[float, int]
@@ -258,7 +260,7 @@ class Spion(Simulator, Pio):
         :type: Union[float, int]
         :return: None
         """
-        if self.dimansion == 2:
+        if self.dimension == 2:
             target_point = [x, y]
         else:
             target_point = [x, y, z]
@@ -276,21 +278,23 @@ class Spion(Simulator, Pio):
                     self.point_reached = vector_reached(target_point,
                                                         self.last_points,
                                                         accuracy=accuracy)
-                    self.position[0:self.dimansion] = self.simulation_objects[0].position
-                    self.position[self.dimansion:self.dimansion*2] = self.simulation_objects[0].speed
+                    self.position[0:self.dimension] = self.simulation_objects[0].position
+                    self.position[self.dimension:self.dimension * 2] = self.simulation_objects[0].speed
                     self.last_points = update_array(self.last_points,
-                                                    self.position[0:self.dimansion])
+                                                    self.position[0:self.dimension])
                     self.velocity_controller()
                     self.position_controller(np.array(target_point))
                     last_time = current_time
                     for object_channel, simulation_object in enumerate(self.simulation_objects):
                         self.step(simulation_object, object_channel)
                     if self.logger:
-                        print(f"xyz = {self.position[0:self.dimansion]}, speed = {self.position[self.dimansion:self.dimansion*2]}, t_speed = {self.t_speed}")
+                        print(f"xyz = {self.position[0:self.dimension]}, "
+                              f"speed = {self.position[self.dimension:self.dimension * 2]}, "
+                              f"t_speed = {self.t_speed}")
                 time.sleep(0.01)  # Даем CPU немного отдохнуть
             if self.logger:
                 print(f"Точка {target_point} достигнута")
-            self.t_speed = np.zeros(self.dimansion+1)
+            self.t_speed = np.zeros(self.dimension + 1)
 
     def goto_from_outside(self,
                           x: Union[float, int],
@@ -369,7 +373,7 @@ class Spion(Simulator, Pio):
         position = self.simulation_objects[0].position
 
         # Проверка на достижение границы и добавление отскока
-        for i in range(self.dimansion):
+        for i in range(self.dimension):
             if position[i] <= self.lower_bound[i]:
                 position[i] += 0.1  # отскок внутрь области
                 print("lower bound")
