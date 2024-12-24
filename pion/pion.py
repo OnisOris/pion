@@ -16,7 +16,10 @@ class Pion(Pio):
                  count_of_checking_points: int = 20,
                  name: str = "Pion",
                  mass: float = 0.3,
-                 dt: float = 0.):
+                 dt: float = 0.,
+                 logger: bool = False,
+                 start_message_handler_from_init: bool = True,
+                 checking_components: bool = True):
         """
         Инициализация класса Pion, устанавливающего MAVLink соединение с дроном 
         и управляющего взаимодействием по передаче и приему данных.
@@ -35,7 +38,12 @@ class Pion(Pio):
         
         :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
         :type count_of_checking_points: int
+
+        :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах во избежание ошибок.
+        :type checking_components: bool
         """
+        self.checking_components = checking_components
+        self.dimension = 3
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag = True
         # Флаг для запуска и остановки сохранения координат
@@ -54,12 +62,11 @@ class Pion(Pio):
         self._heartbeat_send_time = time.time() - self._heartbeat_timeout
         self.__is_socket_open = threading.Event()
         self.__is_socket_open.set()
-        self._attitude = np.array([0, 0, 0, 0, 0, 0])
-        self._position = np.array([0, 0, 0, 0, 0, 0])
-        # Список потоков
+        self._attitude = np.zeros(6)
+        self._position = np.zeros(6)        # Список потоков
         self.threads = []
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
-        self.t_speed = np.array([0, 0, 0, 0])
+        self.t_speed = np.zeros(4)
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         # Период приема всех сообщений с дрона
@@ -75,12 +82,23 @@ class Pion(Pio):
         self.max_speed = 1
         # Используется для хранения последних count_of_checking_points данных в виде [x, y, z, yaw] для верификации достижения таргетной точки
         self.last_points = np.zeros((count_of_checking_points, 4))
-        self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,),
-        daemon=True)
-        self._message_handler_thread.daemon = True
-        self._message_handler_thread.start()
+        if start_message_handler_from_init:
+            self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,))
+            self._message_handler_thread.daemon = True
+            self._message_handler_thread.start()
         self.name = name
         self.mass = mass
+        self.position_pid_matrix = np.array([
+            [0.5] * self.dimension,
+            [5.] * self.dimension,
+            [2.] * self.dimension
+        ], dtype=np.float64)
+        self.yaw_pid_matrix = np.array([
+            [1] * 1,
+            [0] * 1,
+            [1] * 1
+        ], dtype=np.float64)
+
 
     @property
     def position(self) -> np.ndarray:
@@ -214,13 +232,14 @@ class Pion(Pio):
         :return: None
         """
         self.goto_yaw(yaw)
-        pid_controller = PIDController([0.5, 0.5, 0.5], [5, 5, 5], [2, 2, 2])
+        pid_controller = PIDController(*self.position_pid_matrix)
         point_reached = False
         dt = time.time()
         while not point_reached:
             dt = time.time() - dt
+            print(self.position[0:3])
             point_reached = vector_reached([x, y, z], self.position[0:3], accuracy=accuracy)
-            self.t_speed = np.hstack([np.clip(pid_controller.compute_control([x, y, z], self.position[0:3]),
+            self.t_speed = np.hstack([np.clip(pid_controller.compute_control(np.array([x, y, z], dtype=np.float64), self.position[0:3], dt),
                                               -self.max_speed, self.max_speed), 0])
             time.sleep(self.period_send_speed)
         self.t_speed = np.array([0, 0, 0, 0])
@@ -238,17 +257,19 @@ class Pion(Pio):
         :type: Union[float, int] 
         :return: None
         """
-        pid_controller = PIDController(1, 0, 1)
-        target_yaw = yaw
+        
+        pid_controller = PIDController(*self.yaw_pid_matrix)
         point_reached = False
         dt = time.time()
         while not point_reached:
             dt = time.time() - dt
-            current_yaw = self.attitude[2]
-            point_reached = vector_reached(target_yaw, current_yaw, accuracy=accuracy)
+            current_yaw = [self.attitude[2]]
+            point_reached = vector_reached([yaw], current_yaw, accuracy=accuracy)
             self.t_speed = np.array([0, 0, 0,
-                                     -np.clip(pid_controller.compute_control(target_yaw, self.attitude[2], dt=dt),
-                                              -self.max_speed, self.max_speed)])
+                                     -np.clip(pid_controller.compute_control(np.array([yaw], dtype=np.float64),
+                                                                             np.array([self.attitude[2]], dtype=np.float64),
+                                                                             dt=dt)[0],
+                                                                             -self.max_speed, self.max_speed)])
             time.sleep(self.period_send_speed)
         self.t_speed = np.array([0, 0, 0, 0])
 
@@ -484,9 +505,9 @@ class Pion(Pio):
         :return: None
         """
         # Проверяем источник компонента, если задан
-        if src_component is not None and msg._header.srcComponent != src_component:
-            return
-
+        if self.checking_components:
+            if src_component is not None and msg._header.srcComponent != src_component:
+                return
         if msg.get_type() == "LOCAL_POSITION_NED":
             self.position = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
             self.last_points = update_array(self.last_points, np.hstack([self.position[0:3], self.attitude[2]]))
@@ -511,6 +532,7 @@ class Pion(Pio):
         """
         while self.speed_flag:
             t_speed = self.t_speed
+            # print(f"v_while: {t_speed}")
             self.send_speed(t_speed[0], t_speed[1], t_speed[2], t_speed[3])
             time.sleep(self.period_send_speed)
 
