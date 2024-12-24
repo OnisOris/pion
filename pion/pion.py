@@ -90,7 +90,7 @@ class Pion(Pio):
         self.mass = mass
         self.position_pid_matrix = np.array([
             [0.5] * self.dimension,
-            [5.] * self.dimension,
+            [0.] * self.dimension,
             [2.] * self.dimension
         ], dtype=np.float64)
         self.yaw_pid_matrix = np.array([
