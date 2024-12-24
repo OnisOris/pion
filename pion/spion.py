@@ -22,7 +22,8 @@ class Spion(Simulator, Pio):
                  attitude: Union[Array6, None] = None,
                  dt: float = 0.1,
                  logger: bool = False,
-                 start_message_handler_from_init: bool = True) -> None:
+                 start_message_handler_from_init: bool = True,
+                 dimansion: int = 3) -> None:
         """
         Конструктор дочернего класса, наследующегося от Pio и Simulator.
         :param name: Имя дрона.
@@ -31,10 +32,14 @@ class Spion(Simulator, Pio):
         сообщению LOCAL_POSITION_NED в mavlink.
         """
         self.logger = logger
+        self.dimansion = dimansion
         if position is None:
-            position = np.array([0, 0, 0, 0, 0, 0])
+            position = np.zeros(self.dimansion*2)
+        else:
+            if position.shape not in [(4,), (6,)]:
+                raise ValueError(f"Размерность вектора position должна быть равна 4 или 6")
         if attitude is None:
-            attitude = np.array([0, 0, 0, 0, 0, 0])
+            attitude = np.zeros(6)
         self.ip = ip
         self.mavlink_port = mavlink_port
         self.connection_method = connection_method
@@ -42,8 +47,21 @@ class Spion(Simulator, Pio):
         self.count_of_checking_points = count_of_checking_points
         self.t0 = time.time()
         # Создание объекта Point3D
-        self.simulation_objects = np.array([Point(mass, position[0:3], position[3:6])])
-        Simulator.__init__(self, self.simulation_objects, dt=dt, dimension=3)
+
+        self.simulation_objects = np.array([Point(mass, position[0:self.dimansion], 
+                                                  position[self.dimansion:self.dimansion*2])])
+        self.position_pid_matrix = np.array([
+            [1.0] * self.dimansion,
+            [0.0] * self.dimansion,
+            [0.0] * self.dimansion
+        ], dtype=np.float64)
+
+        self.velocity_pid_matrix = np.array([
+            [3.0] * self.dimansion,
+            [0.0] * self.dimansion,
+            [0.1] * self.dimansion
+        ], dtype=np.float64)
+        Simulator.__init__(self, self.simulation_objects, dt=dt, dimension=self.dimansion)
         Pio.__init__(self)  # Pio
         # Инициализация дополнительных параметров, специфичных для дрона
         self.name = name
@@ -53,23 +71,20 @@ class Spion(Simulator, Pio):
         # Вектор, подобный ATTITUDE из mavlink
         self._attitude = attitude
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw]
-        self.t_speed = np.array([0, 0, 0, 0])
+        self.t_speed = np.zeros(self.dimansion+1)
         self.max_speed = 2
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         self.speed_flag = True
-        self.pid_position_controller = PIDController(np.array([1., 1., 1.], dtype=np.float64),
-                                                     np.array([0., 0., 0.], dtype=np.float64),
-                                                     np.array([0., 0., 0.], dtype=np.float64))
-        self.pid_velocity_controller = PIDController(np.array([3., 3., 3.], dtype=np.float64),
-                                                     np.array([0., 0., 0.], dtype=np.float64),
-                                                     np.array([0.1, 0.1, 0.1], dtype=np.float64))
+        self._pid_position_controller = None 
+        self._pid_velocity_controller = None        
+
         self.battery_voltage = 8
         self._heartbeat_send_time = time.time()
         # Информация, включающая
         # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
         # которая складывается в матрицу (n, 17), где n - число измерений
-        self.trajectory = np.zeros((2, 17))
+        self.trajectory = np.zeros((2, self._position.shape[0] + self._attitude.shape[0] + self.t_speed.shape[0] + 1))
         # Границы симуляции
         self.lower_bound = np.array([-5.5, -5.5, 0])
         self.upper_bound = np.array([5.5, 5.5, 4])
@@ -78,7 +93,7 @@ class Spion(Simulator, Pio):
         self._message_thread = None  # Поток для _message_handler
         self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
 
-        self.last_points = np.zeros((count_of_checking_points, 3))
+        self.last_points = np.zeros((count_of_checking_points, self.dimansion))
 
         if start_message_handler_from_init:
             self.start_message_handler()
@@ -92,13 +107,31 @@ class Spion(Simulator, Pio):
         return np.hstack([self.simulation_objects[0].position, self.simulation_objects[0].speed])
 
     @position.setter
-    def position(self, position: Array6) -> None:
+    def position(self, position: Union[Array6, Array4]) -> None:
         """
         Сеттер для _position
         :return: None
         """
-        self.simulation_objects[0].position = position[0:3]
-        self.simulation_objects[0].speed = position[3:6]
+        self.simulation_objects[0].position = position[0:self.dimansion]
+        self.simulation_objects[0].speed = position[self.dimansion:self.dimansion*2]
+
+    @property
+    def speed(self) -> Union[Array6, Array4]:
+        """
+        Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
+        :return: np.ndarray
+        """
+        return self.simulation_objects[0].speed
+
+    @speed.setter
+    def speed(self, position: Union[Array6, Array4]) -> None:
+        """
+        Сеттер для _position
+        :return: None
+        """
+        self.simulation_objects[0].position = position[0:self.dimansion]
+        self.simulation_objects[0].speed = position[self.dimansion:self.dimansion*2]
+
 
     @property
     def attitude(self) -> Array6:
@@ -142,16 +175,19 @@ class Spion(Simulator, Pio):
         self.velocity_controller()
         for object_channel, simulation_object in enumerate(self.simulation_objects):
             self.step(simulation_object, object_channel)
-        self.last_points = update_array(self.last_points, self.position[0:3])
+        self.last_points = update_array(self.last_points, self.position[0:self.dimansion])
 
         if self.logger:
-            print(f"xyz = {self.position[0:3]}, speed = {self.position[3:6]}, t_speed = {self.t_speed}")
+            print(f"xyz = {self.position[0:self.dimansion]}, speed = {self.position[self.dimansion:self.dimansion*2]}, t_speed = {self.t_speed}")
 
     def _message_handler(self, *args):
         """
         Основной цикл обработки сообщений.
         """
         last_time = time.time()
+        self._pid_position_controller = PIDController(*self.position_pid_matrix)
+        self._pid_velocity_controller = PIDController(*self.velocity_pid_matrix)
+
         while self.simulation_turn_on:
             with self._handler_lock:  # Блокируем доступ для других операций
                 current_time = time.time()
@@ -160,23 +196,23 @@ class Spion(Simulator, Pio):
                     last_time = current_time
                     self._heartbeat_send_time = current_time
                     self._step_messege_handler()
-                    self.position[0:3] = self.simulation_objects[0].position
-                    self.position[3:6] = self.simulation_objects[0].speed
+                    self.position[0:self.dimansion] = self.simulation_objects[0].position
+                    self.position[self.dimansion:self.dimansion*2] = self.simulation_objects[0].speed
                     if self.check_attitude_flag:
                         self.attitude_write()
 
             time.sleep(0.01)
 
     def velocity_controller(self):
-        signal = self.pid_velocity_controller.compute_control(
-            target_position=np.array(self.t_speed[0:3], dtype=np.float64),
+        signal = self._pid_velocity_controller.compute_control(
+            target_position=np.array(self.t_speed[0:self.dimansion], dtype=np.float64),
             current_position=np.array(self.simulation_objects[0].speed, dtype=np.float64),
             dt=self.dt)
         self.set_force(signal, 0)
 
     def position_controller(self, position_xyz: Array3):
         signal = np.clip(
-            self.pid_position_controller.compute_control(
+            self._pid_position_controller.compute_control(
                 target_position=np.array(position_xyz, dtype=np.float64),
                 current_position=self.simulation_objects[0].position,
                 dt=self.dt),
@@ -222,31 +258,39 @@ class Spion(Simulator, Pio):
         :type: Union[float, int]
         :return: None
         """
+        if self.dimansion == 2:
+            target_point = [x, y]
+        else:
+            target_point = [x, y, z]
+
         with self._handler_lock:  # Захватываем управление
             last_time = time.time()
             self.point_reached = False
+            self._pid_position_controller = PIDController(*self.position_pid_matrix)
+            self._pid_velocity_controller = PIDController(*self.velocity_pid_matrix)
             while not self.point_reached:
                 current_time = time.time()
                 elapsed_time = current_time - last_time
                 # Проверяем, прошло ли достаточно времени для очередного шага
                 if elapsed_time >= self.dt:
-                    self.point_reached = vector_reached([x, y, z],
+                    self.point_reached = vector_reached(target_point,
                                                         self.last_points,
                                                         accuracy=accuracy)
-                    self.position[0:3] = self.simulation_objects[0].position
-                    self.position[3:6] = self.simulation_objects[0].speed
-                    self.last_points = update_array(self.last_points, self.position[0:3])
+                    self.position[0:self.dimansion] = self.simulation_objects[0].position
+                    self.position[self.dimansion:self.dimansion*2] = self.simulation_objects[0].speed
+                    self.last_points = update_array(self.last_points,
+                                                    self.position[0:self.dimansion])
                     self.velocity_controller()
-                    self.position_controller(np.array([x, y, z]))
+                    self.position_controller(np.array(target_point))
                     last_time = current_time
                     for object_channel, simulation_object in enumerate(self.simulation_objects):
                         self.step(simulation_object, object_channel)
                     if self.logger:
-                        print(f"xyz = {self.position[0:3]}, speed = {self.position[3:6]}, t_speed = {self.t_speed}")
+                        print(f"xyz = {self.position[0:self.dimansion]}, speed = {self.position[self.dimansion:self.dimansion*2]}, t_speed = {self.t_speed}")
                 time.sleep(0.01)  # Даем CPU немного отдохнуть
             if self.logger:
-                print(f"Точка {x, y, z} достигнута")
-            self.t_speed = np.array([0, 0, 0, 0])
+                print(f"Точка {target_point} достигнута")
+            self.t_speed = np.zeros(self.dimansion+1)
 
     def goto_from_outside(self,
                           x: Union[float, int],
@@ -288,7 +332,7 @@ class Spion(Simulator, Pio):
         """
         t = time.time() - self.t0
         stack = np.hstack([self.position, self.attitude, self.t_speed, [t]])
-        if not np.allclose(stack[:-1], self.trajectory[-2, :-1]):
+        if not np.all(np.equal(stack[:-1], self.trajectory[-2, :-1])):
             self.trajectory = np.vstack([self.trajectory, stack])
 
     def stop(self):
@@ -325,7 +369,7 @@ class Spion(Simulator, Pio):
         position = self.simulation_objects[0].position
 
         # Проверка на достижение границы и добавление отскока
-        for i in range(3):
+        for i in range(self.dimansion):
             if position[i] <= self.lower_bound[i]:
                 position[i] += 0.1  # отскок внутрь области
                 print("lower bound")
