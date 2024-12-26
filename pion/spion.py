@@ -30,7 +30,7 @@ class Spion(Simulator, DroneBase):
         :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy].
         Поле position имеет координаты и скорость, подобно сообщению LOCAL_POSITION_NED в mavlink.
         """
-        DroneBase.__init__(self, name, mass, dimension, position, attitude, logger)  # Pio
+        DroneBase.__init__(self, name, mass, dimension, position, attitude, count_of_checking_points, logger)  # Pio
         # Создание объекта Point3D
         self.simulation_objects = np.array([Point(mass, self._position[0:self.dimension],
                                                   self._position[self.dimension:self.dimension * 2])])
@@ -63,6 +63,7 @@ class Spion(Simulator, DroneBase):
         self._pid_velocity_controller = None
         self.battery_voltage = 8
         self._heartbeat_send_time = time.time()
+        self._heartbeat_timeout = 3
         # Информация, включающая
         # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
         # которая складывается в матрицу (n, 17/14), где n - число точек в траектории
@@ -80,7 +81,7 @@ class Spion(Simulator, DroneBase):
             self.start_message_handler()
 
     @property
-    def position(self) -> Array6:
+    def position(self) -> Union[Array6, Array4]:
         """
         Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
         :return: np.ndarray
@@ -103,16 +104,6 @@ class Spion(Simulator, DroneBase):
         :return: Union[Array2, Array3]
         """
         return self.simulation_objects[0].speed
-
-    @speed.setter
-    def speed(self, position: Union[Array2, Array3]) -> None:
-        """
-        Сеттер для _position
-        :return: None
-        """
-        self.simulation_objects[0].position = position[0:self.dimension]
-        self.simulation_objects[0].speed = position[self.dimension:self.dimension * 2]
-
 
     @property
     def attitude(self) -> Array6:
@@ -408,3 +399,10 @@ class Spion(Simulator, DroneBase):
         :return: None
         """
         return None
+
+    def _send_heartbeat(self):
+        """
+        Отправляет сообщение HEARTBEAT для поддержания активного соединения с дроном.
+        :return: None
+        """
+        pass
