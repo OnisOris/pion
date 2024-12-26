@@ -1,15 +1,14 @@
 from .simulator import Simulator, Point
-from .pio import Pio
+from .pio import DroneBase
 from .functions import vector_reached, update_array
 from pion.cython_pid import PIDController  # Cython-версия PIDController
-from typing import List, Union
 from .annotation import *
 import numpy as np
 import time
 import threading
 
 
-class Spion(Simulator, Pio):
+class Spion(Simulator, DroneBase):
     def __init__(self,
                  ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
@@ -31,24 +30,18 @@ class Spion(Simulator, Pio):
         :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy].
         Поле position имеет координаты и скорость, подобно сообщению LOCAL_POSITION_NED в mavlink.
         """
-        self.logger = logger
+        DroneBase.__init__(self, name, mass, dimension, position, attitude, logger)  # Pio
+        # Создание объекта Point3D
+        self.simulation_objects = np.array([Point(mass, self._position[0:self.dimension],
+                                                  self._position[self.dimension:self.dimension * 2])])
         self.dimension = dimension
-        if position is None:
-            position = np.zeros(self.dimension * 2)
-        else:
-            if position.shape not in [(4,), (6,)]:
-                raise ValueError(f"Размерность вектора position должна быть равна 4 или 6")
-        if attitude is None:
-            attitude = np.zeros(6)
         self.ip = ip
         self.mavlink_port = mavlink_port
         self.connection_method = connection_method
         self.combine_system = combine_system
         self.count_of_checking_points = count_of_checking_points
         self.t0 = time.time()
-        # Создание объекта Point3D
-        self.simulation_objects = np.array([Point(mass, position[0:self.dimension],
-                                                  position[self.dimension:self.dimension * 2])])
+
         self.position_pid_matrix = np.array([
             [1.0] * self.dimension,
             [0.0] * self.dimension,
@@ -61,16 +54,7 @@ class Spion(Simulator, Pio):
             [0.1] * self.dimension
         ], dtype=np.float64)
         Simulator.__init__(self, self.simulation_objects, dt=dt, dimension=self.dimension)
-        Pio.__init__(self)  # Pio
-        # Инициализация дополнительных параметров, специфичных для дрона
-        self.name = name
-        self.mass = mass
-        # Вектор, подобный LOCAL_POSITION_NED из mavlink
-        self._position = position
-        # Вектор, подобный ATTITUDE из mavlink
-        self._attitude = attitude
-        # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw]
-        self.t_speed = np.zeros(self.dimension + 1)
+
         self.max_speed = 2
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
