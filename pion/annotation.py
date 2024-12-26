@@ -1,5 +1,6 @@
 from numpy.typing import NDArray
-from typing import Annotated, Any
+from typing import Annotated, Any, List, Union
+
 # Аннотации для векторов различных размеров
 Array7 = Annotated[NDArray[Any], (7,)]
 Array6 = Annotated[NDArray[Any], (6,)] 
