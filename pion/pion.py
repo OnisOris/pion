@@ -4,14 +4,17 @@ import select
 from pion.cython_pid import PIDController  
 from typing import Union, Optional
 from .functions import *
-from .pio import Pio
+from .pio import DroneBase
+from .annotation import *
 
 
-class Pion(Pio):
+class Pion(DroneBase):
     def __init__(self,
                  ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
                  connection_method: str = 'udpout',
+                 position: Union[Array6, Array4, None] = None,
+                 attitude: Union[Array6, Array4, None] = None,
                  combine_system: int = 0,
                  count_of_checking_points: int = 20,
                  name: str = "Pion",
@@ -42,8 +45,9 @@ class Pion(Pio):
         :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах во избежание ошибок.
         :type checking_components: bool
         """
-        self.checking_components = checking_components
         self.dimension = 3
+        DroneBase.__init__(self, name, mass, self.dimension, position, attitude, count_of_checking_points, logger)  # Pio
+        self.checking_components = checking_components
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag = True
         # Флаг для запуска и остановки сохранения координат
@@ -59,11 +63,11 @@ class Pion(Pio):
                                                 ip=ip, port=mavlink_port)
         self._heartbeat_timeout = 1
         self._mavlink_send_number = 10
-        self._heartbeat_send_time = time.time() - self._heartbeat_timeout
         self.__is_socket_open = threading.Event()
         self.__is_socket_open.set()
-        self._attitude = np.zeros(6)
-        self._position = np.zeros(6)        # Список потоков
+        # self._attitude = np.zeros(6)
+        # self._position = np.zeros(6)
+        # Список потоков
         self.threads = []
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
         self.t_speed = np.zeros(4)
@@ -86,8 +90,6 @@ class Pion(Pio):
             self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,))
             self._message_handler_thread.daemon = True
             self._message_handler_thread.start()
-        self.name = name
-        self.mass = mass
         self.position_pid_matrix = np.array([
             [0.5] * self.dimension,
             [0.] * self.dimension,
@@ -428,7 +430,8 @@ class Pion(Pio):
         :type mavlink_send_number: int
         :return: None
         """
-        print(f"_send_command_long --> {command_name}")
+        if self.logger:
+            print(f"_send_command_long --> {command_name}")
         if target_system is None:
             target_system = self.mavlink_socket.target_system
         if target_component is None:
@@ -517,13 +520,6 @@ class Pion(Pio):
         elif msg.get_type() == "BATTERY_STATUS":
             self.battery_voltage = msg.voltages[0] / 100
 
-    def heartbeat(self) -> None:
-        """
-        Функция проверки heartbeat дрона
-        :return: None
-        """
-        if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
-            self._send_heartbeat()
 
     def v_while(self) -> None:
         """
@@ -532,7 +528,6 @@ class Pion(Pio):
         """
         while self.speed_flag:
             t_speed = self.t_speed
-            # print(f"v_while: {t_speed}")
             self.send_speed(t_speed[0], t_speed[1], t_speed[2], t_speed[3])
             time.sleep(self.period_send_speed)
 
