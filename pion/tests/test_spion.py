@@ -37,6 +37,7 @@ class TestSpion:
                                                 np.array([0.1, 0.1, 0.1], dtype=np.float64))
         # Создание экземпляра Spion с отключенным message_handler
         spion = Spion(start_message_handler_from_init=False)
+        spion._pid_velocity_controller = PIDController(*spion.velocity_pid_matrix)
         # Присвоем spion целевую скорость
         spion.t_speed = t_speed
         # Один шаг моделирования симулятора Spion
@@ -65,7 +66,10 @@ class TestSpion:
                                                 np.array([0., 0., 0.], dtype=np.float64))
         # Создание экземпляра Spion с отключенным message_handler
         spion = Spion(start_message_handler_from_init=False)
+        spion._pid_velocity_controller = PIDController(*spion.velocity_pid_matrix)
+        spion._pid_position_controller = PIDController(*spion.position_pid_matrix)
         spion.max_speed = float("inf")
+
         spion.position_controller(target_xyz)
         # Один шаг моделирования симулятора Spion
         spion._step_messege_handler()
