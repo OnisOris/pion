@@ -21,6 +21,9 @@ class Spion(Simulator, DroneBase):
                  attitude: Union[Array6, Array4, None] = None,
                  dt: float = 0.1,
                  logger: bool = False,
+                 checking_components: bool = True,
+                 accuracy: float = 2e-5,
+                 max_speed: float = 2.,
                  start_message_handler_from_init: bool = True,
                  dimension: int = 3) -> None:
         """
@@ -30,8 +33,20 @@ class Spion(Simulator, DroneBase):
         :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy].
         Поле position имеет координаты и скорость, подобно сообщению LOCAL_POSITION_NED в mavlink.
         """
-        DroneBase.__init__(self, ip, mavlink_port, name, mass, dimension, position, attitude, count_of_checking_points,
-                           logger, dt=dt)  # Pio
+        DroneBase.__init__(self,
+                           ip=ip,
+                           mavlink_port=mavlink_port,
+                           name=name,
+                           mass=mass,
+                           dimension=dimension,
+                           position=position,
+                           attitude=attitude,
+                           count_of_checking_points=count_of_checking_points,
+                           logger=logger,
+                           checking_components=checking_components,
+                           accuracy=accuracy,
+                           dt=dt,
+                           max_speed=max_speed)
         # Создание объекта Point3D
         self.simulation_objects = np.array([Point(mass, self._position[0:self.dimension],
                                                   self._position[self.dimension:self.dimension * 2])])
@@ -56,7 +71,6 @@ class Spion(Simulator, DroneBase):
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         self.speed_flag = True
-        self._pid_position_controller = None
         self._pid_velocity_controller = None
         self.battery_voltage = 8
         self._heartbeat_send_time = time.time()
@@ -193,7 +207,7 @@ class Spion(Simulator, DroneBase):
              y: Union[float, int],
              z: Union[float, int],
              yaw: Union[float, int],
-             accuracy: Union[float, int] = 5e-2) -> None:
+             accuracy: Union[float, int] = None) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в
         управление t_speed.
@@ -215,7 +229,8 @@ class Spion(Simulator, DroneBase):
             target_point = [x, y]
         else:
             target_point = [x, y, z]
-
+        if accuracy is None:
+            accuracy = self.accuracy
         with self._handler_lock:  # Захватываем управление
             last_time = time.time()
             self.point_reached = False

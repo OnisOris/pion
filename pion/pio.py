@@ -51,7 +51,8 @@ class DroneBase(Pio, ABC):
                  logger: bool = False,
                  checking_components: bool = True,
                  accuracy: float = 5e-2,
-                 dt: float = 0.1):
+                 dt: float = 0.1,
+                 max_speed: float = 2.):
         # Время создания экземпляра
         self.t0 = time.time()
         self.ip = ip
@@ -62,6 +63,8 @@ class DroneBase(Pio, ABC):
         self.dt = dt
         self.logger = logger
         self.checking_components = checking_components
+        self.dimension = dimension
+        self._pid_position_controller = None
         if position is None:
             position = np.zeros(self.dimension * 2)
         else:
@@ -73,6 +76,7 @@ class DroneBase(Pio, ABC):
         self._position = position
         # Вектор, подобный ATTITUDE из mavlink
         self._attitude = attitude
+        # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
         self.t_speed = np.zeros(self.dimension + 1)  # [vx, vy, vz, yaw_rate]
         self.position_pid_matrix = np.array([
             [0.5] * self.dimension,
@@ -93,9 +97,11 @@ class DroneBase(Pio, ABC):
         # если размерность 2, то z составляющая убирается из траектории и размерность вектора равна 14, а не 17
         self.trajectory = np.zeros((2, self._position.shape[0] + self._attitude.shape[0] + self.t_speed.shape[0] + 1))
         self.accuracy = accuracy
+        self.point_reached = False
+        self.max_speed = max_speed
 
     @property
-    def position(self) -> np.ndarray:
+    def position(self) -> Union[Array6, Array4]:
         """
         Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
         :return: np.ndarray
@@ -103,13 +109,27 @@ class DroneBase(Pio, ABC):
         return self._position
 
     @position.setter
-    def position(self, position) -> None:
+    def position(self, position: Union[Array6, Array4]) -> None:
         """
         Сеттер для _position
         :return: None
         """
         self._position = position
+    @property
+    def xyz(self) -> Union[Array3, Array2]:
+        """
+        Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
+        :return: np.ndarray
+        """
+        return self.position[0:self.dimension]
 
+    @xyz.setter
+    def xyz(self, position: Union[Array3, Array2]) -> None:
+        """
+        Сеттер для _position
+        :return: None
+        """
+        self.position[0:self.dimension] = position
     @property
     def yaw(self) -> np.ndarray:
         """
@@ -119,7 +139,7 @@ class DroneBase(Pio, ABC):
         return self.attitude[2]
 
     @property
-    def attitude(self) -> np.ndarray:
+    def attitude(self) -> Union[Array6, Array4]:
         """
         Функция вернет ndarray (6,) с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
         :return: np.ndarray
@@ -127,7 +147,7 @@ class DroneBase(Pio, ABC):
         return self._attitude
 
     @attitude.setter
-    def attitude(self, attitude) -> None:
+    def attitude(self, attitude: Union[Array6, Array4]) -> None:
         """
         Сеттер для _attitude
         :return: None
@@ -142,7 +162,7 @@ class DroneBase(Pio, ABC):
         if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
             self._send_heartbeat()
 
-    def _send_heartbeat(self):
+    def _send_heartbeat(self) -> None:
         """
         Отправляет сообщение HEARTBEAT для поддержания активного соединения с дроном.
         :return: None
@@ -232,12 +252,19 @@ class DroneBase(Pio, ABC):
         if not np.all(np.equal(stack[:-1], self.trajectory[-2, :-1])):
             self.trajectory = np.vstack([self.trajectory, stack])
 
-    def set_v(self,
-              ampl: Union[float, int] = 1) -> None:
+    def set_v(self) -> None:
         """
         Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
-        :param ampl: Амплитуда усиления вектора скорости
-        :type ampl: float | int
         :return: None
         """
         pass
+
+    def position_controller(self, position_xyz: Union[Array3, Array2]):
+        signal = np.clip(
+            self._pid_position_controller.compute_control(
+                target_position=np.array(position_xyz, dtype=np.float64),
+                current_position=self.xyz,
+                dt=self.dt),
+            -self.max_speed,
+            self.max_speed)
+        self.t_speed = np.hstack([signal, 0])
