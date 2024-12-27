@@ -31,12 +31,11 @@ class TestSpion:
         current_position = np.array(np.array([0, 0, 0]), dtype=np.float64)
         # Отдельно запишем целевую скорость
         target_speed = t_speed[0:3]
-        # Создание отдельного объекта ПИД
-        pid_velocity_controller = PIDController(np.array([3., 3., 3.], dtype=np.float64),
-                                                np.array([0., 0., 0.], dtype=np.float64),
-                                                np.array([0.1, 0.1, 0.1], dtype=np.float64))
+
         # Создание экземпляра Spion с отключенным message_handler
         spion = Spion(start_message_handler_from_init=False)
+        # Создание отдельного объекта ПИД
+        pid_velocity_controller = PIDController(*spion.velocity_pid_matrix)
         spion._pid_velocity_controller = PIDController(*spion.velocity_pid_matrix)
         # Присвоем spion целевую скорость
         spion.t_speed = t_speed
@@ -60,16 +59,14 @@ class TestSpion:
         target_xyz = np.array([1, 2, 3], dtype=np.float64)
         # Назначение текущей позиции
         current_position = np.array(np.array([0, 0, 0]), dtype=np.float64)
-        # Создание отдельного объекта ПИД
-        pid_position_controller = PIDController(np.array([1., 1., 1.], dtype=np.float64),
-                                                np.array([0., 0., 0.], dtype=np.float64),
-                                                np.array([0., 0., 0.], dtype=np.float64))
+
         # Создание экземпляра Spion с отключенным message_handler
         spion = Spion(start_message_handler_from_init=False)
+        # Создание отдельного объекта ПИД
+        pid_position_controller = PIDController(*spion.position_pid_matrix)
         spion._pid_velocity_controller = PIDController(*spion.velocity_pid_matrix)
         spion._pid_position_controller = PIDController(*spion.position_pid_matrix)
         spion.max_speed = float("inf")
-
         spion.position_controller(target_xyz)
         # Один шаг моделирования симулятора Spion
         spion._step_messege_handler()
