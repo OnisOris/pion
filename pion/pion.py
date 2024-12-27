@@ -24,7 +24,8 @@ class Pion(DroneBase):
                  start_message_handler_from_init: bool = True,
                  checking_components: bool = True,
                  accuracy: float = 2e-5,
-                 max_speed: float = 2.):
+                 max_speed: float = 2.,
+                 dimension: int = 3):
         """
         Инициализация класса Pion, устанавливающего MAVLink соединение с дроном 
         и управляющего взаимодействием по передаче и приему данных.
@@ -53,7 +54,7 @@ class Pion(DroneBase):
                            mavlink_port=mavlink_port,
                            name=name,
                            mass=mass,
-                           dimension=self.dimension,
+                           dimension=dimension,
                            position=position,
                            attitude=attitude,
                            count_of_checking_points=count_of_checking_points,
@@ -86,7 +87,7 @@ class Pion(DroneBase):
         self.connection_lost = False
         self.max_speed = 1
         # Используется для хранения последних count_of_checking_points данных в виде [x, y, z, yaw] для верификации достижения таргетной точки
-        self.last_points = np.zeros((count_of_checking_points, self.dimension))
+        self.last_points = np.zeros((count_of_checking_points, self.dimension + 1))
         if start_message_handler_from_init:
             self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,))
             self._message_handler_thread.daemon = True
@@ -101,6 +102,14 @@ class Pion(DroneBase):
             [0] * 1,
             [1] * 1
         ], dtype=np.float64)
+
+    @property
+    def speed(self) -> Union[Array2, Array3]:
+        """
+        Функция вернет скорость [vx, vy, vz]
+        :return: Union[Array2, Array3]
+        """
+        return self._position[self.dimension:self.dimension*2]
 
 
     def arm(self) -> None:
@@ -457,7 +466,7 @@ class Pion(DroneBase):
             if not self.__is_socket_open.is_set():
                 break
             if self.logger:
-                print(f"xyz = {self.position[0:3]}, speed = {self.position[3:6]}, t_speed = {self.t_speed}")
+                print(f"xyz = {self.xyz}, speed = {self.speed}, t_speed = {self.t_speed}")
 
             self.heartbeat()
             # Проверка, доступно ли новое сообщение для чтения
@@ -485,10 +494,10 @@ class Pion(DroneBase):
                 return
         if msg.get_type() == "LOCAL_POSITION_NED":
             self.position = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
-            self.last_points = update_array(self.last_points, np.hstack([self.position[0:3], self.attitude[2]]))
+            self.last_points = update_array(self.last_points, np.hstack([self.position[0:self.dimension], self.yaw]))
         elif msg.get_type() == "ATTITUDE":
             self.attitude = np.array([msg.roll, msg.pitch, msg.yaw, msg.rollspeed, msg.pitchspeed, msg.yawspeed])
-            self.last_points = update_array(self.last_points, np.hstack([self.position[0:3], self.attitude[2]]))
+            self.last_points = update_array(self.last_points, np.hstack([self.position[0:self.dimension], self.yaw]))
         elif msg.get_type() == "BATTERY_STATUS":
             self.battery_voltage = msg.voltages[0] / 100
 
@@ -499,8 +508,18 @@ class Pion(DroneBase):
         """
         while self.speed_flag:
             t_speed = self.t_speed
-            self.send_speed(t_speed[0], t_speed[1], t_speed[2], t_speed[3])
+            self.send_speed(*t_speed)
             time.sleep(self.period_send_speed)
+    def v_while2d(self) -> None:
+        """
+        Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
+        :return: None
+        """
+        while self.speed_flag:
+            t_speed = self.t_speed
+            self.send_speed(*t_speed, 0)
+            time.sleep(self.period_send_speed)
+
 
     def set_v(self) -> None:
         """
@@ -508,7 +527,13 @@ class Pion(DroneBase):
         :return: None
         """
         self.speed_flag = True
-        self.threads.append(threading.Thread(target=self.v_while))
+        if self.dimension == 3:
+            target = self.v_while
+        elif self.dimension == 2:
+            target = self.v_while2d
+        else:
+            return
+        self.threads.append(threading.Thread(target=target))
         self.threads[-1].start()
 
     def reboot_board(self) -> None:
