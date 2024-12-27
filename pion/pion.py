@@ -1,7 +1,7 @@
 import time
 import threading
 import select
-from pion.cython_pid import PIDController  
+from pion.cython_pid import PIDController
 from typing import Union, Optional
 from .functions import *
 from .pio import DroneBase
@@ -46,27 +46,32 @@ class Pion(DroneBase):
         :type checking_components: bool
         """
         self.dimension = 3
-        DroneBase.__init__(self, name, mass, self.dimension, position, attitude, count_of_checking_points, logger)  # Pio
-        self.checking_components = checking_components
+        DroneBase.__init__(self,
+                           ip,
+                           mavlink_port,
+                           name,
+                           mass,
+                           self.dimension,
+                           position,
+                           attitude,
+                           count_of_checking_points,
+                           logger,
+                           checking_components)
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag = True
-        # Флаг для запуска и остановки сохранения координат
-        self.check_attitude_flag = False
         # Флаг для остановки цикла в _message_handler
         self.message_handler_flag = True
         self.mavlink_port = mavlink_port
         # Последнее сообщение из _message_handler()
         self._msg = None
-        # Напряжение батареи дрона (Вольты)
-        self.battery_voltage = None
+
         self.mavlink_socket = create_connection(connection_method=connection_method,
-                                                ip=ip, port=mavlink_port)
+                                                ip=ip,
+                                                port=mavlink_port)
         self._heartbeat_timeout = 1
         self._mavlink_send_number = 10
         self.__is_socket_open = threading.Event()
         self.__is_socket_open.set()
-        # self._attitude = np.zeros(6)
-        # self._position = np.zeros(6)
         # Список потоков
         self.threads = []
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
@@ -75,13 +80,6 @@ class Pion(DroneBase):
         self.period_send_speed = 0.05
         # Период приема всех сообщений с дрона
         self.period_message_handler = dt
-        # Информация, включающая
-        # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
-        # которая складывается в матрицу (n, 17), где n - число измерений
-        self.trajectory = np.zeros((2, 17))
-        # Время создания экземпляра
-        self.t0 = time.time()
-        self.ip = ip
         self.connection_lost = False
         self.max_speed = 1
         # Используется для хранения последних count_of_checking_points данных в виде [x, y, z, yaw] для верификации достижения таргетной точки
@@ -101,7 +99,6 @@ class Pion(DroneBase):
             [1] * 1
         ], dtype=np.float64)
 
-
     @property
     def position(self) -> np.ndarray:
         """
@@ -117,7 +114,7 @@ class Pion(DroneBase):
         :return: None
         """
         self._position = position
-        
+
     @property
     def yaw(self) -> np.ndarray:
         """
@@ -125,23 +122,6 @@ class Pion(DroneBase):
         :return: np.ndarray
         """
         return self.attitude[2]
-
-
-    @property
-    def attitude(self) -> np.ndarray:
-        """
-        Функция вернет ndarray (6,) с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
-        :return: np.ndarray
-        """
-        return self._attitude
-
-    @attitude.setter
-    def attitude(self, attitude) -> None:
-        """
-        Сеттер для _attitude
-        :return: None
-        """
-        self._attitude = attitude
 
     def arm(self) -> None:
         """
@@ -241,8 +221,9 @@ class Pion(DroneBase):
             dt = time.time() - dt
             print(self.position[0:3])
             point_reached = vector_reached([x, y, z], self.position[0:3], accuracy=accuracy)
-            self.t_speed = np.hstack([np.clip(pid_controller.compute_control(np.array([x, y, z], dtype=np.float64), self.position[0:3], dt),
-                                              -self.max_speed, self.max_speed), 0])
+            self.t_speed = np.hstack(
+                [np.clip(pid_controller.compute_control(np.array([x, y, z], dtype=np.float64), self.position[0:3], dt),
+                         -self.max_speed, self.max_speed), 0])
             time.sleep(self.period_send_speed)
         self.t_speed = np.array([0, 0, 0, 0])
 
@@ -259,7 +240,7 @@ class Pion(DroneBase):
         :type: Union[float, int] 
         :return: None
         """
-        
+
         pid_controller = PIDController(*self.yaw_pid_matrix)
         point_reached = False
         dt = time.time()
@@ -269,9 +250,10 @@ class Pion(DroneBase):
             point_reached = vector_reached([yaw], current_yaw, accuracy=accuracy)
             self.t_speed = np.array([0, 0, 0,
                                      -np.clip(pid_controller.compute_control(np.array([yaw], dtype=np.float64),
-                                                                             np.array([self.attitude[2]], dtype=np.float64),
+                                                                             np.array([self.attitude[2]],
+                                                                                      dtype=np.float64),
                                                                              dt=dt)[0],
-                                                                             -self.max_speed, self.max_speed)])
+                                              -self.max_speed, self.max_speed)])
             time.sleep(self.period_send_speed)
         self.t_speed = np.array([0, 0, 0, 0])
 
@@ -520,7 +502,6 @@ class Pion(DroneBase):
         elif msg.get_type() == "BATTERY_STATUS":
             self.battery_voltage = msg.voltages[0] / 100
 
-
     def v_while(self) -> None:
         """
         Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
@@ -551,30 +532,14 @@ class Pion(DroneBase):
                                 param1=1,
                                 mavlink_send_number=self._mavlink_send_number)
 
-    def attitude_write(self) -> None:
+    def stop(self) -> None:
         """
-        Функция для записи траектории в numpy массив. Записывается только уникальная координата
-        :return:
-        """
-        t = time.time() - self.t0
-        stack = np.hstack([self.position, self.attitude, self.t_speed, [t]])
-        if not np.all(np.equal(stack[:-1], self.trajectory[-2, :-1])):
-            self.trajectory = np.vstack([self.trajectory, stack])
-
-    def save_data(self,
-                  file_name: str = 'data.npy',
-                  path: str = '') -> None:
-        """
-        Функция для сохранения траектории в файл
-        columns=['x', 'y', 'z', 'yaw', 'Vx', 'Vy', 'Vz', 'Vy_yaw', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
-        :param file_name: название файла
-        :type: str
-        :param path: путь сохранения
-        :type: str
+        Останавливает все потоки внутри приложения
         :return: None
         """
         self.speed_flag = False
-        np.save(f'{path}{file_name}', self.trajectory[2:])
+        self.check_attitude_flag = False
+        self.message_handler_flag = False
 
     def led_control(self,
                     led_id=255,
@@ -604,26 +569,3 @@ class Pion(DroneBase):
                 f"Arguments 'r', 'g', 'b' must have value in [0, 255]. But your values is r={r}, g={g}, b={b}.")
         self._send_command_long(command_name='LED', command=mavutil.mavlink.MAV_CMD_USER_1,
                                 param1=led_id, param2=r, param3=g, param4=b)
-
-    def check_battery(self) -> None:
-        """
-        Проверяет статус батареи
-        :return: None
-        """
-        voltage = self.battery_voltage
-        if voltage is not None:
-            if voltage < 6.9:
-                print(f">>>>>>>>>>>>>>>>>>Аккумулятор разряжен<<<<<<<<<<<<<<<<<<<<<<\nvoltage = {voltage}")
-            else:
-                print(f"voltage = {voltage}")
-        else:
-            print("Сообщение о статусе батареи еще не пришло")
-
-    def stop(self) -> None:
-        """
-        Останавливает все потоки внутри приложения
-        :return: None
-        """
-        self.speed_flag = False
-        self.check_attitude_flag = False
-        self.message_handler_flag = False

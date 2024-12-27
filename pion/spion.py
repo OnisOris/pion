@@ -30,17 +30,14 @@ class Spion(Simulator, DroneBase):
         :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy].
         Поле position имеет координаты и скорость, подобно сообщению LOCAL_POSITION_NED в mavlink.
         """
-        DroneBase.__init__(self, name, mass, dimension, position, attitude, count_of_checking_points, logger)  # Pio
+        DroneBase.__init__(self, ip, mavlink_port, name, mass, dimension, position, attitude, count_of_checking_points,
+                           logger)  # Pio
         # Создание объекта Point3D
         self.simulation_objects = np.array([Point(mass, self._position[0:self.dimension],
                                                   self._position[self.dimension:self.dimension * 2])])
-        self.dimension = dimension
-        self.ip = ip
-        self.mavlink_port = mavlink_port
         self.connection_method = connection_method
         self.combine_system = combine_system
         self.count_of_checking_points = count_of_checking_points
-        self.t0 = time.time()
 
         self.position_pid_matrix = np.array([
             [1.0] * self.dimension,
@@ -59,21 +56,16 @@ class Spion(Simulator, DroneBase):
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
         self.speed_flag = True
-        self._pid_position_controller = None 
+        self._pid_position_controller = None
         self._pid_velocity_controller = None
         self.battery_voltage = 8
         self._heartbeat_send_time = time.time()
         self._heartbeat_timeout = 3
-        # Информация, включающая
-        # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
-        # которая складывается в матрицу (n, 17/14), где n - число точек в траектории
-        # если размерность 2, то z составляющая убирается из траектории и размерность вектора равна 14, а не 17
-        self.trajectory = np.zeros((2, self._position.shape[0] + self._attitude.shape[0] + self.t_speed.shape[0] + 1))
         # Границы симуляции
         self.lower_bound = np.array([-5.5, -5.5, 0])
         self.upper_bound = np.array([5.5, 5.5, 4])
         self.point_reached = False
-        self.check_attitude_flag = True
+
         self._message_thread = None  # Поток для _message_handler
         self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
         self.last_points = np.zeros((count_of_checking_points, self.dimension))
@@ -104,22 +96,6 @@ class Spion(Simulator, DroneBase):
         :return: Union[Array2, Array3]
         """
         return self.simulation_objects[0].speed
-
-    @property
-    def attitude(self) -> Array6:
-        """
-        Функция вернет ndarray (6,) или () с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
-        :return: np.ndarray
-        """
-        return self._attitude
-
-    @attitude.setter
-    def attitude(self, attitude: Array6) -> None:
-        """
-        Сеттер для _attitude
-        :return: None
-        """
-        self._attitude = attitude
 
     def start_message_handler(self) -> None:
         """
@@ -293,27 +269,6 @@ class Spion(Simulator, DroneBase):
         """
         self.goto(x, y, z, yaw, accuracy)
 
-    def set_v(self,
-              ampl: Union[float, int] = 1) -> None:
-        """
-        (Имитация)
-        Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
-        :param ampl: Амплитуда усиления вектора скорости
-        :type ampl: float | int
-        :return: None
-        """
-        pass
-
-    def attitude_write(self) -> None:
-        """
-        Функция для записи траектории в numpy массив. Записывается только уникальная координата
-        :return:
-        """
-        t = time.time() - self.t0
-        stack = np.hstack([self.position, self.attitude, self.t_speed, [t]])
-        if not np.all(np.equal(stack[:-1], self.trajectory[-2, :-1])):
-            self.trajectory = np.vstack([self.trajectory, stack])
-
     def stop(self):
         """
         Останавливает все потоки, завершает симуляцию
@@ -334,8 +289,7 @@ class Spion(Simulator, DroneBase):
         :type: str
         :return: None
         """
-        self.speed_flag = False
-        self.simulation_turn_on = False
+        self.stop()
         np.save(f'{path}{file_name}', self.trajectory[2:])
 
     def borders(self) -> None:
@@ -360,49 +314,3 @@ class Spion(Simulator, DroneBase):
 
         # Применение ограничения с np.clip
         self.simulation_objects[0].position = np.clip(position, self.lower_bound, self.upper_bound)
-
-    def led_control(self,
-                    led_id=255,
-                    r=0,
-                    g=0,
-                    b=0) -> None:
-        """
-        Функция имитация.
-        Управление светодиодами на дроне.
-
-        :param led_id: Идентификатор светодиода, который нужно управлять. Допустимые значения: 0, 1, 2, 3, 255.
-        255 — для управления всеми светодиодами одновременно.
-        :type led_id: int
-        :param r: Значение интенсивности красного канала (от 0 до 255).
-        :type r: int
-        :param g: Значение интенсивности зеленого канала (от 0 до 255).
-        :type g: int
-        :param b: Значение интенсивности синего канала (от 0 до 255).
-        :type b: int
-        :raises ValueError: Если переданы недопустимые значения для параметра led_id или для значений r, g, b.
-        :return: None
-            """
-        return None
-
-    def goto_yaw(self,
-                 yaw: Union[float, int] = 0,
-                 accuracy: Union[float, int] = 0.087) -> None:
-        """
-        Функция пробка.
-        Берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
-        Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
-        Максимальная скорость обрезается np.clip по полю self.max_speed.
-        :param yaw:  координата по yaw (радианы)
-        :type: Union[float, int]
-        :param accuracy: Погрешность целевой точки
-        :type: Union[float, int] 
-        :return: None
-        """
-        return None
-
-    def _send_heartbeat(self):
-        """
-        Отправляет сообщение HEARTBEAT для поддержания активного соединения с дроном.
-        :return: None
-        """
-        pass
