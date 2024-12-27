@@ -31,7 +31,7 @@ class Spion(Simulator, DroneBase):
         Поле position имеет координаты и скорость, подобно сообщению LOCAL_POSITION_NED в mavlink.
         """
         DroneBase.__init__(self, ip, mavlink_port, name, mass, dimension, position, attitude, count_of_checking_points,
-                           logger)  # Pio
+                           logger, dt=dt)  # Pio
         # Создание объекта Point3D
         self.simulation_objects = np.array([Point(mass, self._position[0:self.dimension],
                                                   self._position[self.dimension:self.dimension * 2])])

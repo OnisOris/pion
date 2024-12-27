@@ -22,7 +22,8 @@ class Pion(DroneBase):
                  dt: float = 0.,
                  logger: bool = False,
                  start_message_handler_from_init: bool = True,
-                 checking_components: bool = True):
+                 checking_components: bool = True,
+                 accuracy: float = 2e-5):
         """
         Инициализация класса Pion, устанавливающего MAVLink соединение с дроном 
         и управляющего взаимодействием по передаче и приему данных.
@@ -47,16 +48,17 @@ class Pion(DroneBase):
         """
         self.dimension = 3
         DroneBase.__init__(self,
-                           ip,
-                           mavlink_port,
-                           name,
-                           mass,
-                           self.dimension,
-                           position,
-                           attitude,
-                           count_of_checking_points,
-                           logger,
-                           checking_components)
+                           ip=ip,
+                           mavlink_port=mavlink_port,
+                           name=name,
+                           mass=mass,
+                           dimension=self.dimension,
+                           position=position,
+                           attitude=attitude,
+                           count_of_checking_points=count_of_checking_points,
+                           logger=logger,
+                           checking_components=checking_components,
+                           accuracy=accuracy)
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag = True
         # Флаг для остановки цикла в _message_handler
@@ -90,7 +92,7 @@ class Pion(DroneBase):
             self._message_handler_thread.start()
         self.position_pid_matrix = np.array([
             [0.5] * self.dimension,
-            [0.] * self.dimension,
+            [0.0] * self.dimension,
             [2.] * self.dimension
         ], dtype=np.float64)
         self.yaw_pid_matrix = np.array([
@@ -196,7 +198,7 @@ class Pion(DroneBase):
                           y: Union[float, int],
                           z: Union[float, int],
                           yaw: Union[float, int],
-                          accuracy: Union[float, int] = 5e-2) -> None:
+                          accuracy: Union[float, int, None] = None) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
@@ -213,16 +215,22 @@ class Pion(DroneBase):
         :type: Union[float, int]
         :return: None
         """
+        if accuracy is None:
+            accuracy = self.accuracy
         self.goto_yaw(yaw)
         pid_controller = PIDController(*self.position_pid_matrix)
         point_reached = False
-        dt = time.time()
+        last_time = time.time()
         while not point_reached:
-            dt = time.time() - dt
-            print(self.position[0:3])
+            current_time = time.time()
+            dt = current_time - last_time  # Вычисляем разницу времени
+            last_time = current_time  # Обновляем время для следующей итерации
+            print(f"dt = {dt}")
             point_reached = vector_reached([x, y, z], self.position[0:3], accuracy=accuracy)
+            signal = pid_controller.compute_control(np.array([x, y, z], dtype=np.float64), self.position[0:3], dt)
+            print(f"signal = {signal}")
             self.t_speed = np.hstack(
-                [np.clip(pid_controller.compute_control(np.array([x, y, z], dtype=np.float64), self.position[0:3], dt),
+                [np.clip(signal,
                          -self.max_speed, self.max_speed), 0])
             time.sleep(self.period_send_speed)
         self.t_speed = np.array([0, 0, 0, 0])
@@ -243,9 +251,10 @@ class Pion(DroneBase):
 
         pid_controller = PIDController(*self.yaw_pid_matrix)
         point_reached = False
-        dt = time.time()
+        last_time = time.time()
         while not point_reached:
-            dt = time.time() - dt
+            current_time = time.time()
+            dt = current_time - last_time  
             current_yaw = [self.attitude[2]]
             point_reached = vector_reached([yaw], current_yaw, accuracy=accuracy)
             self.t_speed = np.array([0, 0, 0,
@@ -468,6 +477,8 @@ class Pion(DroneBase):
         while self.message_handler_flag:
             if not self.__is_socket_open.is_set():
                 break
+            if self.logger:
+                print(f"xyz = {self.position[0:3]}, speed = {self.position[3:6]}, t_speed = {self.t_speed}")
 
             self.heartbeat()
             # Проверка, доступно ли новое сообщение для чтения

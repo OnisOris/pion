@@ -49,7 +49,9 @@ class DroneBase(Pio, ABC):
                  attitude: Union[Array6, Array4, None] = None,
                  count_of_checking_points: int = 20,
                  logger: bool = False,
-                 checking_components: bool = True):
+                 checking_components: bool = True,
+                 accuracy: float = 5e-2,
+                 dt: float = 0.1):
         # Время создания экземпляра
         self.t0 = time.time()
         self.ip = ip
@@ -57,6 +59,7 @@ class DroneBase(Pio, ABC):
         self.name = name
         self.mass = mass
         self.dimension = dimension
+        self.dt = dt
         self.logger = logger
         self.checking_components = checking_components
         if position is None:
@@ -89,6 +92,7 @@ class DroneBase(Pio, ABC):
         # которая складывается в матрицу (n, 17/14), где n - число точек в траектории
         # если размерность 2, то z составляющая убирается из траектории и размерность вектора равна 14, а не 17
         self.trajectory = np.zeros((2, self._position.shape[0] + self._attitude.shape[0] + self.t_speed.shape[0] + 1))
+        self.accuracy = accuracy
 
     @property
     def position(self) -> np.ndarray:
