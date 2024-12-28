@@ -214,14 +214,15 @@ class Pion(DroneBase):
         last_time = time.time()
         while not point_reached:
             current_time = time.time()
-            self.dt = current_time - last_time  # Вычисляем разницу времени
-            last_time = current_time  # Обновляем время для следующей итерации
+            self.dt = current_time - last_time 
+            last_time = current_time 
             self.point_reached = vector_reached(target_point,
                                                 self.last_points,
                                                 accuracy=accuracy)
             self.position_controller(target_point)
             time.sleep(self.period_send_speed)
-        self.t_speed = np.zeros(self.dimension + 1)
+        self.t_speed = np.zeros(4)
+
 
     def goto_yaw(self,
                  yaw: Union[float, int] = 0,
@@ -509,16 +510,6 @@ class Pion(DroneBase):
         while self.speed_flag:
             t_speed = self.t_speed
             self.send_speed(*t_speed)
-            time.sleep(self.period_send_speed)
-    def v_while2d(self) -> None:
-        """
-        Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
-        :return: None
-        """
-        while self.speed_flag:
-            t_speed = self.t_speed
-            self.send_speed(*t_speed, 0)
-            time.sleep(self.period_send_speed)
 
 
     def set_v(self) -> None:
@@ -527,13 +518,7 @@ class Pion(DroneBase):
         :return: None
         """
         self.speed_flag = True
-        if self.dimension == 3:
-            target = self.v_while
-        elif self.dimension == 2:
-            target = self.v_while2d
-        else:
-            return
-        self.threads.append(threading.Thread(target=target))
+        self.threads.append(threading.Thread(target=self.v_while))
         self.threads[-1].start()
 
     def reboot_board(self) -> None:

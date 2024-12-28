@@ -77,7 +77,7 @@ class DroneBase(Pio, ABC):
         # Вектор, подобный ATTITUDE из mavlink
         self._attitude = attitude
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
-        self.t_speed = np.zeros(self.dimension + 1)  # [vx, vy, vz, yaw_rate]
+        self.t_speed = np.zeros(4)  # [vx, vy, vz, yaw_rate]
         self.position_pid_matrix = np.array([
             [0.5] * self.dimension,
             [0.] * self.dimension,
@@ -267,4 +267,4 @@ class DroneBase(Pio, ABC):
                 dt=self.dt),
             -self.max_speed,
             self.max_speed)
-        self.t_speed = np.hstack([signal, 0])
+        self.t_speed = np.hstack([signal, np.array([0]*(4-self.dimension))])
