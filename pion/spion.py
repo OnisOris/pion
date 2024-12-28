@@ -181,7 +181,7 @@ class Spion(Simulator, DroneBase):
                 dt=self.dt),
             -self.max_speed,
             self.max_speed)
-        self.t_speed = np.hstack([signal, 0])
+        self.t_speed = np.hstack([signal, np.array([0]*(4-self.dimension))])
 
     # Реализация обязательных методов абстрактного класса Pio
     def arm(self):

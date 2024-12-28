@@ -259,12 +259,12 @@ class DroneBase(Pio, ABC):
         """
         pass
 
-    def position_controller(self, position_xyz: Union[Array3, Array2]):
+    def position_controller(self, position_xyz: Union[Array3, Array2], dt: float):
         signal = np.clip(
             self._pid_position_controller.compute_control(
                 target_position=np.array(position_xyz, dtype=np.float64),
                 current_position=self.xyz,
-                dt=self.dt),
+                dt=dt),
             -self.max_speed,
             self.max_speed)
         self.t_speed = np.hstack([signal, np.array([0]*(4-self.dimension))])

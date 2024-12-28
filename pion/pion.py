@@ -86,8 +86,9 @@ class Pion(DroneBase):
         self.period_message_handler = dt
         self.connection_lost = False
         self.max_speed = 1
-        # Используется для хранения последних count_of_checking_points данных в виде [x, y, z, yaw] для верификации достижения таргетной точки
-        self.last_points = np.zeros((count_of_checking_points, self.dimension + 1))
+        # Используется для хранения последних count_of_checking_points данных в виде [x, y, z] для верификации достижения таргетной точки
+        self.last_points = np.zeros((count_of_checking_points, self.dimension))
+        self.last_angles = np.zeros(20)
         if start_message_handler_from_init:
             self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,))
             self._message_handler_thread.daemon = True
@@ -98,7 +99,7 @@ class Pion(DroneBase):
             [2.] * self.dimension
         ], dtype=np.float64)
         self.yaw_pid_matrix = np.array([
-            [1] * 1,
+            [0.01] * 1,
             [0] * 1,
             [1] * 1
         ], dtype=np.float64)
@@ -208,25 +209,27 @@ class Pion(DroneBase):
             target_point = [x, y, z]
         if accuracy is None:
             accuracy = self.accuracy
+        # print("prev_goto_yaw")
         self.goto_yaw(yaw)
         self._pid_position_controller = PIDController(*self.position_pid_matrix)
         point_reached = False
         last_time = time.time()
+        time.sleep(self.period_send_speed)
         while not point_reached:
             current_time = time.time()
-            self.dt = current_time - last_time 
+            dt = current_time - last_time 
             last_time = current_time 
             self.point_reached = vector_reached(target_point,
                                                 self.last_points,
                                                 accuracy=accuracy)
-            self.position_controller(target_point)
+            self.position_controller(target_point, dt)
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
 
 
     def goto_yaw(self,
                  yaw: Union[float, int] = 0,
-                 accuracy: Union[float, int] = 0.087) -> None:
+                 accuracy: Union[float, int] = 0.057) -> None:
         """
         Функция берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
@@ -241,19 +244,26 @@ class Pion(DroneBase):
         pid_controller = PIDController(*self.yaw_pid_matrix)
         point_reached = False
         last_time = time.time()
+        time.sleep(self.period_send_speed)
         while not point_reached:
             current_time = time.time()
-            self.dt = current_time - last_time
-            current_yaw = [self.attitude[2]]
-            point_reached = vector_reached([yaw], current_yaw, accuracy=accuracy)
-            self.t_speed = np.array([*np.zeros(self.dimension),
-                                     -np.clip(pid_controller.compute_control(np.array([yaw], dtype=np.float64),
+            dt = current_time - last_time
+            last_time = current_time 
+            # print(dt)
+            # current_yaw = [self.yaw]
+            point_reached = scalar_reached(yaw, self.last_angles, accuracy=accuracy)             
+            # print(f"point_reached = {point_reached}")
+
+            signal = -pid_controller.compute_control(np.array([yaw], dtype=np.float64),
                                                                              np.array([self.yaw],
                                                                                       dtype=np.float64),
-                                                                             dt=self.dt)[0],
+                                                                             dt=dt)[0]
+            # print(f"real_signal = {signal}")
+            self.t_speed = np.array([*np.zeros(3),np.clip(signal,
                                               -self.max_speed, self.max_speed)])
+            print(f"t_ speef = {self.t_speed}, [yaw] = {[yaw]}, self.yaw = {self.yaw}")
             time.sleep(self.period_send_speed)
-        self.t_speed = np.zeros(self.dimension + 1)
+        self.t_speed = np.zeros(4)
 
     def send_speed(self, vx: Union[float, int],
                    vy: Union[float, int],
@@ -467,7 +477,7 @@ class Pion(DroneBase):
             if not self.__is_socket_open.is_set():
                 break
             if self.logger:
-                print(f"xyz = {self.xyz}, speed = {self.speed}, t_speed = {self.t_speed}")
+                print(f"xyz = {self.xyz}, yaw = {self.yaw}, speed = {self.speed}, t_speed = {self.t_speed}")
 
             self.heartbeat()
             # Проверка, доступно ли новое сообщение для чтения
@@ -494,11 +504,14 @@ class Pion(DroneBase):
             if src_component is not None and msg._header.srcComponent != src_component:
                 return
         if msg.get_type() == "LOCAL_POSITION_NED":
-            self.position = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
-            self.last_points = update_array(self.last_points, np.hstack([self.position[0:self.dimension], self.yaw]))
+            if self.dimension == 3:
+                self.position = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
+            else:
+                self.position = np.array([msg.x, msg.y, msg.vx, msg.vy])
+            self.last_points = update_array(self.last_points, self.position[0:self.dimension])
         elif msg.get_type() == "ATTITUDE":
             self.attitude = np.array([msg.roll, msg.pitch, msg.yaw, msg.rollspeed, msg.pitchspeed, msg.yawspeed])
-            self.last_points = update_array(self.last_points, np.hstack([self.position[0:self.dimension], self.yaw]))
+            self.last_angles = update_vector(self.last_angles, self.yaw)
         elif msg.get_type() == "BATTERY_STATUS":
             self.battery_voltage = msg.voltages[0] / 100
 

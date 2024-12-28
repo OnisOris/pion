@@ -46,10 +46,36 @@ def update_array(
     :return: Обновлённый массив с новым значением в начале.
     :rtype: Union[list, npt.NDArray[np.float64]]
     """
-
     arr = np.roll(arr, 1, axis=0)
     arr[0] = new_value
     return arr
+
+def update_vector(
+        vector: Union[list, npt.NDArray[np.float64]],
+        new_value: float
+) -> npt.NDArray[np.float64]:
+    """
+    Сдвигает элементы вектора и вставляет новое значение (скаляр) в начало.
+
+    :param vector: Входной вектор для обновления. Может быть списком или numpy-массивом с числами типа float.
+    :type vector: Union[list, npt.NDArray[np.float64]]
+
+    :param new_value: Скалярное значение, которое будет помещено в начало вектора.
+    :type new_value: float
+
+    :return: Обновлённый вектор с новым значением в начале.
+    :rtype: npt.NDArray[np.float64]
+    """
+    # Преобразуем входные данные в numpy-массив, если это список
+    vector = np.asarray(vector, dtype=np.float64)
+    
+    # Сдвигаем вектор на 1 позицию вправо
+    vector = np.roll(vector, 1)
+    
+    # Вставляем новое значение в начало
+    vector[0] = new_value
+    
+    return vector
 
 
 def compare_with_first_row(
@@ -84,7 +110,30 @@ def vector_reached(target_vector: Union[list, npt.NDArray[np.float64]],
     :type: Union[int, float]
     :return: bool
     """
+    print(f"target_vector = {target_vector}")
+    print(f"current = {current_point_matrix}")
     matrix = np.vstack([target_vector, current_point_matrix])
+    if compare_with_first_row(matrix, accuracy):
+        return True
+    else:
+        return False
+
+def scalar_reached(target_vector: Union[list, npt.NDArray[np.float64]],
+                   current_point_matrix: Union[list, npt.NDArray[np.ndarray]],
+                   accuracy: Union[int, float] = 5e-2) -> bool:
+    """
+    Функция сравнивает текующую позицию с целевой позицией, возвращает True в пределах погрешности accuracy
+    :param target_vector: целевой вектор
+    :type: Union[list, npt.NDArray[np.float64]]
+    :param current_point_matrix: текущий вектор состояния дрона
+    :type: Union[list, npt.NDArray[np.ndarray]]
+    :param accuracy: Погрешность целевой точки
+    :type: Union[int, float]
+    :return: bool
+    """
+    print(f"target_vector = {target_vector}")
+    print(f"current = {current_point_matrix}")
+    matrix = np.hstack([target_vector, current_point_matrix])
     if compare_with_first_row(matrix, accuracy):
         return True
     else:
