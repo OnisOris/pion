@@ -188,5 +188,5 @@ pion/html/
 pion/latex/
 pion/rtf/
 test2.py
-./img/*.gv
+*.gv
 
