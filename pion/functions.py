@@ -50,6 +50,7 @@ def update_array(
     arr[0] = new_value
     return arr
 
+
 def update_vector(
         vector: Union[list, npt.NDArray[np.float64]],
         new_value: float
@@ -68,13 +69,13 @@ def update_vector(
     """
     # Преобразуем входные данные в numpy-массив, если это список
     vector = np.asarray(vector, dtype=np.float64)
-    
+
     # Сдвигаем вектор на 1 позицию вправо
     vector = np.roll(vector, 1)
-    
+
     # Вставляем новое значение в начало
     vector[0] = new_value
-    
+
     return vector
 
 
@@ -110,13 +111,12 @@ def vector_reached(target_vector: Union[list, npt.NDArray[np.float64]],
     :type: Union[int, float]
     :return: bool
     """
-    print(f"target_vector = {target_vector}")
-    print(f"current = {current_point_matrix}")
     matrix = np.vstack([target_vector, current_point_matrix])
     if compare_with_first_row(matrix, accuracy):
         return True
     else:
         return False
+
 
 def scalar_reached(target_vector: Union[list, npt.NDArray[np.float64]],
                    current_point_matrix: Union[list, npt.NDArray[np.ndarray]],
@@ -131,8 +131,6 @@ def scalar_reached(target_vector: Union[list, npt.NDArray[np.float64]],
     :type: Union[int, float]
     :return: bool
     """
-    print(f"target_vector = {target_vector}")
-    print(f"current = {current_point_matrix}")
     matrix = np.hstack([target_vector, current_point_matrix])
     if compare_with_first_row(matrix, accuracy):
         return True
