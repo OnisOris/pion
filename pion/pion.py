@@ -9,6 +9,11 @@ from .annotation import *
 
 
 class Pion(DroneBase):
+    """
+    Класс Pion предназначен для управления дроном через протокол MAVLink. Он включает функционал для инициализации
+    соединения, отправки команд дрону, обработки сообщений, и управления движением. Pion также поддерживает
+    многопоточность для выполнения различных задач параллельно.
+    """
     def __init__(self,
                  ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
@@ -44,7 +49,22 @@ class Pion(DroneBase):
         
         :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
         :type count_of_checking_points: int
-
+                         count_of_checking_points: int = 20,
+                 name: str = "Pion",
+                 mass: float = 0.3,
+                 dt: float = 0.,
+                 logger: bool = False,
+                 start_message_handler_from_init: bool = True,
+                 checking_components: bool = True,
+                 accuracy: float = 2e-5,
+                 max_speed: float = 2.,
+                 dimension: int = 3):
+        :param name: Название экземпляра
+        :type name: str
+        :param mass: Масса дрона
+        :type mass: float
+        :param dt: Период приема всех сообщений с дрона
+        :type dt:
         :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах
         во избежание ошибок.
         :type checking_components: bool
