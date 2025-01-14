@@ -45,7 +45,8 @@ class Pion(DroneBase):
         :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
         :type count_of_checking_points: int
 
-        :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах во избежание ошибок.
+        :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах
+        во избежание ошибок.
         :type checking_components: bool
         """
 
@@ -110,8 +111,7 @@ class Pion(DroneBase):
         Функция вернет скорость [vx, vy, vz]
         :return: Union[Array2, Array3]
         """
-        return self._position[self.dimension:self.dimension*2]
-
+        return self._position[self.dimension:self.dimension * 2]
 
     def arm(self) -> None:
         """
@@ -217,15 +217,14 @@ class Pion(DroneBase):
         time.sleep(self.period_send_speed)
         while not point_reached:
             current_time = time.time()
-            dt = current_time - last_time 
-            last_time = current_time 
+            dt = current_time - last_time
+            last_time = current_time
             self.point_reached = vector_reached(target_point,
                                                 self.last_points,
                                                 accuracy=accuracy)
             self.position_controller(target_point, dt)
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
-
 
     def goto_yaw(self,
                  yaw: Union[float, int] = 0,
@@ -248,19 +247,19 @@ class Pion(DroneBase):
         while not point_reached:
             current_time = time.time()
             dt = current_time - last_time
-            last_time = current_time 
+            last_time = current_time
             # print(dt)
             # current_yaw = [self.yaw]
-            point_reached = scalar_reached(yaw, self.last_angles, accuracy=accuracy)             
+            point_reached = scalar_reached(yaw, self.last_angles, accuracy=accuracy)
             # print(f"point_reached = {point_reached}")
 
             signal = -pid_controller.compute_control(np.array([yaw], dtype=np.float64),
-                                                                             np.array([self.yaw],
-                                                                                      dtype=np.float64),
-                                                                             dt=dt)[0]
+                                                     np.array([self.yaw],
+                                                              dtype=np.float64),
+                                                     dt=dt)[0]
             # print(f"real_signal = {signal}")
-            self.t_speed = np.array([*np.zeros(3),np.clip(signal,
-                                              -self.max_speed, self.max_speed)])
+            self.t_speed = np.array([*np.zeros(3), np.clip(signal,
+                                                           -self.max_speed, self.max_speed)])
             print(f"t_ speef = {self.t_speed}, [yaw] = {[yaw]}, self.yaw = {self.yaw}")
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
@@ -524,7 +523,6 @@ class Pion(DroneBase):
             t_speed = self.t_speed
             self.send_speed(*t_speed)
 
-
     def set_v(self) -> None:
         """
         Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
@@ -582,3 +580,4 @@ class Pion(DroneBase):
                 f"Arguments 'r', 'g', 'b' must have value in [0, 255]. But your values is r={r}, g={g}, b={b}.")
         self._send_command_long(command_name='LED', command=mavutil.mavlink.MAV_CMD_USER_1,
                                 param1=led_id, param2=r, param3=g, param4=b)
+
