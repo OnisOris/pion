@@ -26,13 +26,12 @@ sudo apt install build-essential
 
 Необходимо поставить следующие пакеты:
 ```shell
-pip install numpy matplotlib pymavlink cython 
+pip install numpy matplotlib pymavlink cython setuptools
 ```
 Далее необходимо собрать cython модуль:
 ```
 python setup.py build_ext --inplace
 ```
-
 
 # Подключение
 Для подключения к дрону достаточно создать экземпляр класса Pion
@@ -43,23 +42,18 @@ port = 8000
 drone = Pion(ip=ip, mavlink_port=port)
 ```
 
-При отключении от дрона можно создать новое подключение:
-```commandline
-drone.mavlink_socket.close()
-drone.mavlink_socket = create_connection("udpout", ip, port)
-```
 
 # Подробное описание с примерами
 
-- [Pion](./discription/pion.md) - класс управления реальными дронами
+- [Pion](./description/pion.md) - класс управления реальными дронами
 
-- [Spion](./discription/spion.md) - класс дрона-симулятора
+- [Spion](./description/spion.md) - класс дрона-симулятора
 
-- [Apion](./discription/apion.md) - Класс с реализацией асинхронного управления
+- [Apion](./description/apion.md) - Класс с реализацией асинхронного управления
 
-- [Simulator](./discription/simulator.md) - Классы симуляторов
+- [Simulator](./description/simulator.md) - Классы симуляторов
 
-- [Pio](./discription/pio.md) - Асбстрактные классы
+- [Pio](./description/pio.md) - Асбстрактные классы
 
 
 
