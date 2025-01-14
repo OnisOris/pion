@@ -5,7 +5,8 @@ import select
 from .controller import PIDController
 from typing import Union
 import asyncio
-from .pion import Pion, vector_reached
+from .pion import Pion
+from .functions import *
 
 
 class Apion(Pion):
