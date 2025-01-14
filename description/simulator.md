@@ -2,8 +2,6 @@
 
 ## Описание
 
-### Module
-
 ### Class: Point
 
 ### Method: Point.__init__

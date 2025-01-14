@@ -2,8 +2,6 @@
 
 ## Описание
 
-### Module
-
 ### Function: create_connection
 
 **Описание:** Создаёт MAVLink соединение.

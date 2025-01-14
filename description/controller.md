@@ -2,8 +2,6 @@
 
 ## Описание
 
-### Module
-
 ### Class: PIDController
 
 ### Method: PIDController.__init__

@@ -7,14 +7,31 @@ from os.path import isdir
 import shutil
 import sys
 import code2flow
+import re
 
 def parse_restructuredtext(docstring):
     """
     Парсит docstring в формате reStructuredText и возвращает структурированные данные.
     """
-    lines = docstring.strip().split("\n", 1)
-    description = lines[0].strip() if lines else ""
-    rest = lines[1] if len(lines) > 1 else ""
+    if not docstring:
+        return {}
+
+    lines = docstring.strip().split("\n")
+
+    description_lines = []
+    rest_lines = []
+    in_description = True
+
+    for line in lines:
+        if in_description and re.match(r":\w+\s+\w+:|\.\.\s+\w+::", line):
+            in_description = False
+        if in_description:
+            description_lines.append(line)
+        else:
+            rest_lines.append(line)
+
+    description = " ".join(description_lines).strip()
+    rest = "\n".join(rest_lines)
 
     params = []
     attributes = []
@@ -35,11 +52,11 @@ def parse_restructuredtext(docstring):
     raises_pattern = re.compile(r":raises\s+(\w+):\s+(.*?)\n")
     attr_pattern = re.compile(r":ivar\s+(\w+):\s+(.*?)\n")
     attr_type_pattern = re.compile(r":vartype\s+(\w+):\s+(.*?)\n")
-    deprecated_pattern = re.compile(r"\.\. deprecated::\s+(.*?)\n(.*?)$", re.DOTALL)
-    note_pattern = re.compile(r"\.\. note::\s+(.*?)(?=\n\n|$)", re.DOTALL)
-    warning_pattern = re.compile(r"\.\. warning::\s+(.*?)(?=\n\n|$)", re.DOTALL)
-    example_pattern = re.compile(r"\.\. example::\s+(.*?)(?=\n\n|$)", re.DOTALL)
-    see_also_pattern = re.compile(r"\.\. seealso::\s+(.*?)(?=\n\n|$)", re.DOTALL)
+    deprecated_pattern = re.compile(r"\.\.\s+deprecated::\s+(.*?)\n(.*?)$", re.DOTALL)
+    note_pattern = re.compile(r"\.\.\s+note::\s+(.*?)(?=\n\n|$)", re.DOTALL)
+    warning_pattern = re.compile(r"\.\.\s+warning::\s+(.*?)(?=\n\n|$)", re.DOTALL)
+    example_pattern = re.compile(r"\.\.\s+example::\s+(.*?)(?=\n\n|$)", re.DOTALL)
+    see_also_pattern = re.compile(r"\.\.\s+seealso::\s+(.*?)(?=\n\n|$)", re.DOTALL)
 
     # Параметры
     for match in param_pattern.finditer(rest):
@@ -111,7 +128,6 @@ def parse_restructuredtext(docstring):
     }
 
 
-
 def extract_docstrings(file_path):
     """
     Извлекает docstrings из Python файла.
@@ -121,8 +137,6 @@ def extract_docstrings(file_path):
 
     docstrings = {}
     for node in ast.walk(tree):
-        # if isinstance(node, ast.Module):
-        #     docstrings["Module"] = parse_restructuredtext(ast.get_docstring(node) or "")
         if isinstance(node, ast.ClassDef):
             class_doc = parse_restructuredtext(ast.get_docstring(node) or "")
             docstrings[f"Class: {node.name}"] = class_doc
@@ -141,23 +155,23 @@ def create_readme(docstrings, output_path, article):
     """
     Создает README файл на основе извлеченных docstrings.
     """
-    content = [f"# {article}", "\n## Описание\n"]
+    content = [f"# {article.capitalize()}", "\n## Описание\n"]
     for key, doc in docstrings.items():
         content.append(f"### {key}\n")
-        if doc["description"]:
+        if "description" in doc and doc["description"]:
             content.append(f"**Описание:** {doc['description']}\n")
-        if doc["params"]:
+        if "params" in doc and doc["params"]:
             content.append("#### Параметры:\n")
             for param in doc["params"]:
                 param_type = f" ({param['type']})" if param["type"] else ""
                 content.append(f"- **{param['name']}**{param_type}: {param['description']}")
-        if doc["returns"]:
+        if "returns" in doc and doc["returns"]:
             content.append(f"\n#### Возвращает:\n- {doc['returns']}")
-        if doc["notes"]:
+        if "notes" in doc and doc["notes"]:
             content.append(f"\n#### Заметка:\n{textwrap.indent(doc['notes'], '    ')}")
 
-        content.append("\n Диаграмма потока")
-
+    content.append("\n Диаграмма потока")
+    content.append(f"\n ![Диаграмма потока](../img/graph_{article}.png)")
     readme_content = "\n".join(content)
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as file:
@@ -220,6 +234,6 @@ if __name__ == "__main__":
                  file not in ['__init__.py', 'annotation.py'])]
     for file in files:
         path_until_md = f'./description/{file[:-3]}.md'
-        main(path + file, f'./description/{file[:-3]}.md', file[:-3].capitalize())
+        main(path + file, f'./description/{file[:-3]}.md', file[:-3])
 
 

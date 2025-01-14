@@ -2,8 +2,6 @@
 
 ## Описание
 
-### Module
-
 ### Class: Spion
 
 ### Method: Spion.__init__

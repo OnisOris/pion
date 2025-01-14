@@ -2,8 +2,6 @@
 
 ## Описание
 
-### Module
-
 ### Class: Pio
 
 ### Method: Pio.arm
