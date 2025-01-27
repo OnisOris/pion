@@ -6,11 +6,18 @@ args = sys.argv
 
 number_drone = sys.argv[1]
 drone = Pion(ip=f"10.1.100.{number_drone}", mavlink_port=5656, logger=True)
-drone.speed_flag = False
 if '-c' in args:
+    drone.led_control(255, 0, 255, 0)
     while True:
         print(drone.attitude)
         time.sleep(0)
+        time.sleep(0.2)
+if '-l' in args:
+    drone.led_control(255, 0, 0, 0)
+    drone.land()
+if '-r' in args:
+    drone.reboot_board()
+
 else:
     print("---")
     drone.land()
