@@ -5,6 +5,9 @@ import time
 
 
 class Pio(ABC):
+    """
+    Абстрактный класс Pio с важными методами для дрона
+    """
     @abstractmethod
     def arm(self):
         pass
