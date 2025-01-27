@@ -10,7 +10,6 @@ if '-c' in args:
     drone.led_control(255, 0, 255, 0)
     while True:
         print(drone.attitude)
-        time.sleep(0)
         time.sleep(0.2)
 if '-l' in args:
     drone.led_control(255, 0, 0, 0)
