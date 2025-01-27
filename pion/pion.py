@@ -49,22 +49,12 @@ class Pion(DroneBase):
         
         :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
         :type count_of_checking_points: int
-                         count_of_checking_points: int = 20,
-                 name: str = "Pion",
-                 mass: float = 0.3,
-                 dt: float = 0.,
-                 logger: bool = False,
-                 start_message_handler_from_init: bool = True,
-                 checking_components: bool = True,
-                 accuracy: float = 2e-5,
-                 max_speed: float = 2.,
-                 dimension: int = 3):
         :param name: Название экземпляра
         :type name: str
         :param mass: Масса дрона
         :type mass: float
         :param dt: Период приема всех сообщений с дрона
-        :type dt:
+        :type dt: float
         :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах
         во избежание ошибок.
         :type checking_components: bool
@@ -214,13 +204,13 @@ class Pion(DroneBase):
         :param x: координата по x
         :type x: Union[float, int]
         :param y: координата по y
-        :type: Union[float, int]
-        :param z:  координата по z
-        :type: Union[float, int]
-        :param yaw:  координата по yaw
-        :type: Union[float, int]
-        :param accuracy: Погрешность целевой точки 
-        :type: Union[float, int]
+        :type y: Union[float, int]
+        :param z: координата по z
+        :type z: Union[float, int]
+        :param yaw: координата по yaw
+        :type yaw: Union[float, int]
+        :param accuracy: Погрешность целевой точки
+        :type accuracy: Union[float, int, None]
         :return: None
         """
         if self.dimension == 2:
@@ -254,9 +244,9 @@ class Pion(DroneBase):
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed.
         :param yaw:  координата по yaw (радианы)
-        :type: Union[float, int]
+        :type yaw: Union[float, int]
         :param accuracy: Погрешность целевой точки
-        :type: Union[float, int] 
+        :type accuracy: Union[float, int]
         :return: None
         """
 
@@ -291,13 +281,13 @@ class Pion(DroneBase):
         """
         Функция задает вектор скорости дрону. Отсылать необходимо в цикле.
         :param vx: скорость по оси x (м/с)
-        :type: Union[float, int]
+        :type vx: Union[float, int]
         :param vy: скорость по оси y (м/с)
-        :type: Union[float, int]
+        :type vy: Union[float, int]
         :param vz:  скорость по оси z (м/с)
-        :type: Union[float, int]
+        :type vz: Union[float, int]
         :param yaw_rate:  скорость поворота по оси z (рад/с)
-        :type: Union[float, int]
+        :type yaw_rate: Union[float, int]
         :return: None
         """
         # _ _ _ _ yaw_rate yaw   force_set   afz afy afx   vz vy vx   z y x
