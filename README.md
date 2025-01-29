@@ -18,12 +18,22 @@ pip install git+https://github.com/OnisOris/pion
 ```shell
 git clone https://github.com/OnisOris/pion
 ```
-Вам необходимо установить build-essential:
+### Ubuntu
+
+Вам необходимо установить build-essential и sudo apt install python3.[ВАША ВЕРСИЯ]-dev, например 
+3.12:
 ```shell
 sudo apt update
 sudo apt install build-essential
+sudo apt install python3-dev
+sudo apt install python3.12-dev
 ```
-
+### Arch linux
+```
+sudo pacman -S python
+sudo pacman -S base-devel
+```
+### Сборка
 Необходимо поставить следующие пакеты:
 ```shell
 pip install numpy matplotlib pymavlink cython setuptools
