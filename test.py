@@ -1,16 +1,17 @@
 from pion import Pion
 import sys
 import time
-
+import numpy as np
+np.set_printoptions(suppress=True)  # Отключить экспоненциальный формат
 args = sys.argv
 
 number_drone = sys.argv[1]
-drone = Pion(ip=f"10.1.100.{number_drone}", mavlink_port=5656, logger=True)
+drone = Pion(ip=f"10.1.100.{number_drone}", mavlink_port=5656, logger=False, dt=0.)
 if '-c' in args:
     drone.led_control(255, 0, 255, 0)
     while True:
-        print(drone.attitude)
-        time.sleep(0.2)
+        print(np.round(drone.position, 4))
+        time.sleep(0.02)
 if '-l' in args:
     drone.led_control(255, 0, 0, 0)
     drone.land()
@@ -22,7 +23,7 @@ else:
     drone.land()
     drone.arm()
     drone.takeoff()
-    time.sleep(5)
+    time.sleep(8)
     drone.set_v()
     drone.goto_from_outside(float(args[2]), float(args[3]), float(args[4]), float(args[5]))
     drone.stop()
