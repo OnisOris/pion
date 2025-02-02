@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 from .annotation import *
 import time
+from collections import deque
+from rich.console import Console
+from rich.table import Table
 
 
 class Pio(ABC):
@@ -65,6 +68,7 @@ class DroneBase(Pio, ABC):
         self.dimension = dimension
         self.dt = dt
         self.logger = logger
+        self.logs = {}
         self.checking_components = checking_components
         self.dimension = dimension
         self._pid_position_controller = None
@@ -102,6 +106,8 @@ class DroneBase(Pio, ABC):
         self.accuracy = accuracy
         self.point_reached = False
         self.max_speed = max_speed
+        self._console = Console()
+
 
     @property
     def position(self) -> Union[Array6, Array4]:
@@ -156,6 +162,24 @@ class DroneBase(Pio, ABC):
         :return: None
         """
         self._attitude = attitude
+    # Реализация обязательных методов абстрактного класса Pio
+    def arm(self):
+        if self.logger:
+            self.logs.update({"Status": f"{self.name} is armed \n"})
+
+    def disarm(self):
+        if self.logger:
+            self.logs.update({"Status": f"{self.name} is disarmed \n"})
+
+    def takeoff(self):
+        if self.logger:
+            self.logs.update({"Status": f"{self.name} is take off \n"})
+
+    def land(self):
+        if self.logger:
+            self.logs.update({"Status": f"{self.name} is landing \n"})
+
+
 
     def heartbeat(self) -> None:
         """
@@ -214,7 +238,7 @@ class DroneBase(Pio, ABC):
                   path: str = '') -> None:
         """
         Функция для сохранения траектории в файл
-        columns=['x', 'y', 'z', 'yaw', 'Vx', 'Vy', 'Vz', 'Vy_yaw', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
+        columns=['x', 'y', 'z', 'vx', 'vy', 'yaw', 'pitch', 'roll','Vyaw', 'Vpitch', 'Vroll', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
         :param file_name: название файла
         :type: str
         :param path: путь сохранения
@@ -271,3 +295,28 @@ class DroneBase(Pio, ABC):
             -self.max_speed,
             self.max_speed)
         self.t_speed = np.hstack([signal, np.array([0]*(4-self.dimension))])
+
+    def print_information(self) -> None:
+        """
+
+        """
+        self._console.clear()
+        self.logs.update({"xyz":  f"{np.round(self.position[0:self.dimension], 3)} \n",
+                         f"speed": f"{np.round(self.position[self.dimension:self.dimension * 2], 3)} \n",
+                         f"t_speed": f"{np.round(self.t_speed, 3)} \n"})
+        self.print_latest_logs(self.logs, 5, "Таблица с сообщениями")
+  
+    def print_latest_logs(self, log_dict: dict, n: int = 5, name: str = "Название"):
+        # Берем последние n записей из словаря
+        latest_logs = deque(log_dict.items(), maxlen=n)
+
+        # Создаем таблицу для красивого вывода
+        table = Table(title=f"{name}")
+
+        table.add_column("ID", style="cyan", justify="right")
+        table.add_column("Сообщение", style="green")
+
+        for log_id, message in latest_logs:
+            table.add_row(str(log_id), message)
+
+        self._console.print(table)
