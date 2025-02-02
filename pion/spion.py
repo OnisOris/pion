@@ -6,6 +6,7 @@ from .annotation import *
 import numpy as np
 import time
 import threading
+import os
 
 
 class Spion(Simulator, DroneBase):
@@ -111,6 +112,16 @@ class Spion(Simulator, DroneBase):
         """
         return self.simulation_objects[0].speed
 
+    def takeoff(self):
+        super().takeoff()
+        self.goto(self.position[0], self.position[1], 1.5, 0)
+
+
+    def land(self):
+        super().land()
+        self.goto(self.position[0], self.position[1], 0, 0)
+
+
     def start_message_handler(self) -> None:
         """
         Запуск потока _message_handler.
@@ -120,7 +131,7 @@ class Spion(Simulator, DroneBase):
             self._message_thread = threading.Thread(target=self._message_handler)
             self._message_thread.start()
             if self.logger:
-                print("Message handler started.")
+                self.logs.update({"Status": "Message handler started"})
 
     def stop_message_handler(self) -> None:
         """
@@ -131,17 +142,20 @@ class Spion(Simulator, DroneBase):
             if self._message_thread:
                 self._message_thread.join()
             if self.logger:
-                print("Message handler stopped.")
+                self.logs.update({"Status": "Message handler stopped"})
 
-    def _step_messege_handler(self):
+
+    def _step_messege_handler(self) -> None:
+        """
+
+        """
         self.velocity_controller()
         for object_channel, simulation_object in enumerate(self.simulation_objects):
             self.step(simulation_object, object_channel)
         self.last_points = update_array(self.last_points, self.position[0:self.dimension])
         if self.logger:
-            print(f"xyz = {self.position[0:self.dimension]}, "
-                  f"speed = {self.position[self.dimension:self.dimension * 2]}, "
-                  f"t_speed = {self.t_speed}")
+            self.print_information()
+
 
     def _message_handler(self, *args):
         """
@@ -163,7 +177,6 @@ class Spion(Simulator, DroneBase):
                     self.position[self.dimension:self.dimension * 2] = self.simulation_objects[0].speed
                     if self.check_attitude_flag:
                         self.attitude_write()
-
             time.sleep(0.01)
 
     def velocity_controller(self):
@@ -182,25 +195,6 @@ class Spion(Simulator, DroneBase):
             -self.max_speed,
             self.max_speed)
         self.t_speed = np.hstack([signal, np.array([0]*(4-self.dimension))])
-
-    # Реализация обязательных методов абстрактного класса Pio
-    def arm(self):
-        if self.logger:
-            print(f"{self.name} is armed.")
-
-    def disarm(self):
-        if self.logger:
-            print(f"{self.name} is disarmed.")
-
-    def takeoff(self):
-        self.goto(self.position[0], self.position[1], 1.5, 0)
-        if self.logger:
-            print(f"{self.name} is taking off.")
-
-    def land(self):
-        self.goto(self.position[0], self.position[1], 0, 0)
-        if self.logger:
-            print(f"{self.name} is landing.")
 
     def goto(self,
              x: Union[float, int],
@@ -254,12 +248,10 @@ class Spion(Simulator, DroneBase):
                     for object_channel, simulation_object in enumerate(self.simulation_objects):
                         self.step(simulation_object, object_channel)
                     if self.logger:
-                        print(f"xyz = {self.position[0:self.dimension]}, "
-                              f"speed = {self.position[self.dimension:self.dimension * 2]}, "
-                              f"t_speed = {self.t_speed}")
+                        self.print_information()
                 time.sleep(0.01)  # Даем CPU немного отдохнуть
             if self.logger:
-                print(f"Точка {target_point} достигнута")
+                self.logs.update({"Регулятор положения": f"Точка {target_point} достигнута"})
             self.t_speed = np.zeros(self.dimension + 1)
 
     def goto_from_outside(self,
