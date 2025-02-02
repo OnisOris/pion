@@ -1,7 +1,7 @@
 import time
 import threading
 import select
-from pion.cython_pid import PIDController
+from pion.cython_pid import PIDController, AdaptiveController
 from typing import Union, Optional
 from .functions import *
 from .pio import DroneBase
@@ -92,7 +92,7 @@ class Pion(DroneBase):
         # Список потоков
         self.threads = []
         # Период отправления следующего вектора скорости
-        self.period_send_speed = 0.05
+        self.period_send_speed = 0.
         # Период приема всех сообщений с дрона
         self.period_message_handler = dt
         self.connection_lost = False
@@ -105,9 +105,9 @@ class Pion(DroneBase):
             self._message_handler_thread.daemon = True
             self._message_handler_thread.start()
         self.position_pid_matrix = np.array([
-            [0.5] * self.dimension,
+            [0.01] * self.dimension,
             [0.0] * self.dimension,
-            [2.] * self.dimension
+            [0.01] * self.dimension
         ], dtype=np.float64)
         self.yaw_pid_matrix = np.array([
             [0.01] * 1,
@@ -128,6 +128,7 @@ class Pion(DroneBase):
         Включает двигатели
         :return: None
         """
+        super().arm()
         self._send_command_long(command_name='ARM',
                                 command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                                 param1=1,
@@ -138,6 +139,7 @@ class Pion(DroneBase):
         Отключает двигатели
         :return: None
         """
+        super().disarm()
         self._send_command_long(command_name='DISARM',
                                 command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                                 param1=0,
@@ -148,6 +150,7 @@ class Pion(DroneBase):
         Взлет дрона
         :return: None
         """
+        super().takeoff()
         self._send_command_long(command_name='TAKEOFF',
                                 command=mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
                                 mavlink_send_number=self._mavlink_send_number)
@@ -157,6 +160,7 @@ class Pion(DroneBase):
         Посадка дрона
         :return: None
         """
+        super().land()
         self._send_command_long(command_name='LAND',
                                 command=mavutil.mavlink.MAV_CMD_NAV_LAND,
                                 mavlink_send_number=self._mavlink_send_number)
@@ -214,14 +218,14 @@ class Pion(DroneBase):
         :return: None
         """
         if self.dimension == 2:
-            target_point = [x, y]
+            target_point = np.array([x, y])
         else:
-            target_point = [x, y, z]
+            target_point = np.array([x, y, z])
         if accuracy is None:
             accuracy = self.accuracy
-        # print("prev_goto_yaw")
-        self.goto_yaw(yaw)
-        self._pid_position_controller = PIDController(*self.position_pid_matrix)
+        self._pid_position_controller = AdaptiveController(*self.position_pid_matrix, 
+                                                           learning_rate=0.01,  # Скорость адаптации
+                                                           max_adjustment=0.1)
         point_reached = False
         last_time = time.time()
         time.sleep(self.period_send_speed)
