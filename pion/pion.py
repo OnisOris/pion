@@ -28,7 +28,7 @@ class Pion(DroneBase):
                  logger: bool = False,
                  start_message_handler_from_init: bool = True,
                  checking_components: bool = True,
-                 accuracy: float = 2e-5,
+                 accuracy: float = 5e-2,
                  max_speed: float = 2.,
                  dimension: int = 3):
         """
@@ -92,7 +92,7 @@ class Pion(DroneBase):
         # Список потоков
         self.threads = []
         # Период отправления следующего вектора скорости
-        self.period_send_speed = 0.
+        self.period_send_speed = 0.05
         # Период приема всех сообщений с дрона
         self.period_message_handler = dt
         self.connection_lost = False
@@ -105,9 +105,9 @@ class Pion(DroneBase):
             self._message_handler_thread.daemon = True
             self._message_handler_thread.start()
         self.position_pid_matrix = np.array([
-            [0.01] * self.dimension,
+            [0.5] * self.dimension,
             [0.0] * self.dimension,
-            [0.01] * self.dimension
+            [0.7] * self.dimension
         ], dtype=np.float64)
         self.yaw_pid_matrix = np.array([
             [0.01] * 1,
@@ -223,13 +223,11 @@ class Pion(DroneBase):
             target_point = np.array([x, y, z])
         if accuracy is None:
             accuracy = self.accuracy
-        self._pid_position_controller = AdaptiveController(*self.position_pid_matrix, 
-                                                           learning_rate=0.01,  # Скорость адаптации
-                                                           max_adjustment=0.1)
-        point_reached = False
+        self._pid_position_controller = PIDController(*self.position_pid_matrix) 
+        self.point_reached = False
         last_time = time.time()
         time.sleep(self.period_send_speed)
-        while not point_reached:
+        while not self.point_reached:
             current_time = time.time()
             dt = current_time - last_time
             last_time = current_time
@@ -489,9 +487,9 @@ class Pion(DroneBase):
         while self.message_handler_flag:
             if not self.__is_socket_open.is_set():
                 break
-            if self.logger:
-                print(f"xyz = {self.xyz}, yaw = {self.yaw}, speed = {self.speed}, t_speed = {self.t_speed}")
-
+            # if self.logger:
+            #     print(f"xyz = {self.xyz}, yaw = {self.yaw}, speed = {self.speed}, t_speed = {self.t_speed}")
+            #
             self.heartbeat()
             # Проверка, доступно ли новое сообщение для чтения
             rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
@@ -501,6 +499,8 @@ class Pion(DroneBase):
                     self._process_message(self._msg, src_component)
             if self.check_attitude_flag:
                 self.attitude_write()
+            if self.logger:
+                self.print_information()
             time.sleep(self.period_message_handler)
 
     def _process_message(self,
@@ -536,6 +536,7 @@ class Pion(DroneBase):
         while self.speed_flag:
             t_speed = self.t_speed
             self.send_speed(*t_speed)
+            time.sleep(self.period_send_speed)
 
     def set_v(self) -> None:
         """

@@ -81,7 +81,7 @@ def update_vector(
 
 def compare_with_first_row(
         matrix: Union[list, npt.NDArray[np.float64]],
-        atol: float = 1e-2) -> bool:
+        atol: float = 8e-2) -> bool:
     """
     Проверяет, являются ли все строки матрицы близкими к первой строке в пределах допуска.
 

@@ -6,7 +6,7 @@ np.set_printoptions(suppress=True)  # Отключить экспоненциа�
 args = sys.argv
 
 number_drone = sys.argv[1]
-drone = Pion(ip=f"10.1.100.{number_drone}", mavlink_port=5656, logger=False, dt=0.)
+drone = Pion(ip=f"10.1.100.{number_drone}", mavlink_port=5656, logger=False, dt=0., count_of_checking_points=15)
 if '-c' in args:
     drone.led_control(255, 0, 255, 0)
     while True:
@@ -20,7 +20,6 @@ if '-r' in args:
 
 else:
     print("---")
-    drone.land()
     drone.arm()
     drone.takeoff()
     time.sleep(8)
