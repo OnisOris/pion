@@ -6,7 +6,6 @@ from .annotation import *
 import numpy as np
 import time
 import threading
-import os
 
 
 class Spion(Simulator, DroneBase):
