@@ -49,15 +49,28 @@ class Pion(DroneBase):
         
         :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
         :type count_of_checking_points: int
+
         :param name: Название экземпляра
         :type name: str
+
         :param mass: Масса дрона
         :type mass: float
+
         :param dt: Период приема всех сообщений с дрона
         :type dt: float
+
         :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах
         во избежание ошибок.
         :type checking_components: bool
+
+        :param accuracy: Максимальное отклонение от целевой позиции для функции goto_from_outside
+        :type accuracy: float
+
+        :param max_speed: Максимальная скорость дрона в режиме управления по скорости
+        :type max_speed: float
+
+        :param dimension: Размерность дрона, возможные значения: 2, 3
+        :type dimension: int
         """
 
         DroneBase.__init__(self,
@@ -110,7 +123,7 @@ class Pion(DroneBase):
             [0.7] * self.dimension
         ], dtype=np.float64)
         self.yaw_pid_matrix = np.array([
-            [0.01] * 1,
+            [1] * 1,
             [0] * 1,
             [1] * 1
         ], dtype=np.float64)
@@ -260,19 +273,13 @@ class Pion(DroneBase):
             current_time = time.time()
             dt = current_time - last_time
             last_time = current_time
-            # print(dt)
-            # current_yaw = [self.yaw]
             point_reached = scalar_reached(yaw, self.last_angles, accuracy=accuracy)
-            # print(f"point_reached = {point_reached}")
-
             signal = -pid_controller.compute_control(np.array([yaw], dtype=np.float64),
                                                      np.array([self.yaw],
                                                               dtype=np.float64),
                                                      dt=dt)[0]
-            # print(f"real_signal = {signal}")
             self.t_speed = np.array([*np.zeros(3), np.clip(signal,
                                                            -self.max_speed, self.max_speed)])
-            print(f"t_ speef = {self.t_speed}, [yaw] = {[yaw]}, self.yaw = {self.yaw}")
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
 
@@ -487,9 +494,6 @@ class Pion(DroneBase):
         while self.message_handler_flag:
             if not self.__is_socket_open.is_set():
                 break
-            # if self.logger:
-            #     print(f"xyz = {self.xyz}, yaw = {self.yaw}, speed = {self.speed}, t_speed = {self.t_speed}")
-            #
             self.heartbeat()
             # Проверка, доступно ли новое сообщение для чтения
             rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
