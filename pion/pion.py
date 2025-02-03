@@ -1,7 +1,7 @@
 import time
 import threading
 import select
-from pion.cython_pid import PIDController
+from pion.cython_pid import PIDController, AdaptiveController
 from typing import Union, Optional
 from .functions import *
 from .pio import DroneBase
@@ -28,7 +28,7 @@ class Pion(DroneBase):
                  logger: bool = False,
                  start_message_handler_from_init: bool = True,
                  checking_components: bool = True,
-                 accuracy: float = 2e-5,
+                 accuracy: float = 5e-2,
                  max_speed: float = 2.,
                  dimension: int = 3):
         """
@@ -107,7 +107,7 @@ class Pion(DroneBase):
         self.position_pid_matrix = np.array([
             [0.5] * self.dimension,
             [0.0] * self.dimension,
-            [2.] * self.dimension
+            [0.7] * self.dimension
         ], dtype=np.float64)
         self.yaw_pid_matrix = np.array([
             [0.01] * 1,
@@ -128,6 +128,7 @@ class Pion(DroneBase):
         Включает двигатели
         :return: None
         """
+        super().arm()
         self._send_command_long(command_name='ARM',
                                 command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                                 param1=1,
@@ -138,6 +139,7 @@ class Pion(DroneBase):
         Отключает двигатели
         :return: None
         """
+        super().disarm()
         self._send_command_long(command_name='DISARM',
                                 command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                                 param1=0,
@@ -148,6 +150,7 @@ class Pion(DroneBase):
         Взлет дрона
         :return: None
         """
+        super().takeoff()
         self._send_command_long(command_name='TAKEOFF',
                                 command=mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
                                 mavlink_send_number=self._mavlink_send_number)
@@ -157,6 +160,7 @@ class Pion(DroneBase):
         Посадка дрона
         :return: None
         """
+        super().land()
         self._send_command_long(command_name='LAND',
                                 command=mavutil.mavlink.MAV_CMD_NAV_LAND,
                                 mavlink_send_number=self._mavlink_send_number)
@@ -214,18 +218,16 @@ class Pion(DroneBase):
         :return: None
         """
         if self.dimension == 2:
-            target_point = [x, y]
+            target_point = np.array([x, y])
         else:
-            target_point = [x, y, z]
+            target_point = np.array([x, y, z])
         if accuracy is None:
             accuracy = self.accuracy
-        # print("prev_goto_yaw")
-        self.goto_yaw(yaw)
-        self._pid_position_controller = PIDController(*self.position_pid_matrix)
-        point_reached = False
+        self._pid_position_controller = PIDController(*self.position_pid_matrix) 
+        self.point_reached = False
         last_time = time.time()
         time.sleep(self.period_send_speed)
-        while not point_reached:
+        while not self.point_reached:
             current_time = time.time()
             dt = current_time - last_time
             last_time = current_time
@@ -485,9 +487,9 @@ class Pion(DroneBase):
         while self.message_handler_flag:
             if not self.__is_socket_open.is_set():
                 break
-            if self.logger:
-                print(f"xyz = {self.xyz}, yaw = {self.yaw}, speed = {self.speed}, t_speed = {self.t_speed}")
-
+            # if self.logger:
+            #     print(f"xyz = {self.xyz}, yaw = {self.yaw}, speed = {self.speed}, t_speed = {self.t_speed}")
+            #
             self.heartbeat()
             # Проверка, доступно ли новое сообщение для чтения
             rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
@@ -497,6 +499,8 @@ class Pion(DroneBase):
                     self._process_message(self._msg, src_component)
             if self.check_attitude_flag:
                 self.attitude_write()
+            if self.logger:
+                self.print_information()
             time.sleep(self.period_message_handler)
 
     def _process_message(self,
@@ -532,6 +536,7 @@ class Pion(DroneBase):
         while self.speed_flag:
             t_speed = self.t_speed
             self.send_speed(*t_speed)
+            time.sleep(self.period_send_speed)
 
     def set_v(self) -> None:
         """
