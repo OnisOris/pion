@@ -497,8 +497,8 @@ class Pion(DroneBase):
         }
         src_component = src_component_map.get(combine_system)
 
-        with self._handler_lock:  # Захватываем управление
-            while self.message_handler_flag:
+        while self.message_handler_flag:
+            with self._handler_lock:  # Захватываем управление
                 if not self.__is_socket_open.is_set():
                     break
                 self.heartbeat()
