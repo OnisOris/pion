@@ -5,6 +5,7 @@ import time
 from collections import deque
 from rich.console import Console
 from rich.table import Table
+import threading
 
 
 class Pio(ABC):
@@ -107,6 +108,7 @@ class DroneBase(Pio, ABC):
         self.point_reached = False
         self.max_speed = max_speed
         self._console = Console()
+        self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
 
 
     @property
