@@ -497,21 +497,22 @@ class Pion(DroneBase):
         }
         src_component = src_component_map.get(combine_system)
 
-        while self.message_handler_flag:
-            if not self.__is_socket_open.is_set():
-                break
-            self.heartbeat()
-            # Проверка, доступно ли новое сообщение для чтения
-            rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
-            if rlist:
-                self._msg = self.mavlink_socket.recv_msg()
-                if self._msg is not None:
-                    self._process_message(self._msg, src_component)
-            if self.check_attitude_flag:
-                self.attitude_write()
-            if self.logger:
-                self.print_information()
-            time.sleep(self.period_message_handler)
+        with self._handler_lock:  # Захватываем управление
+            while self.message_handler_flag:
+                if not self.__is_socket_open.is_set():
+                    break
+                self.heartbeat()
+                # Проверка, доступно ли новое сообщение для чтения
+                rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
+                if rlist:
+                    self._msg = self.mavlink_socket.recv_msg()
+                    if self._msg is not None:
+                        self._process_message(self._msg, src_component)
+                if self.check_attitude_flag:
+                    self.attitude_write()
+                if self.logger:
+                    self.print_information()
+                time.sleep(self.period_message_handler)
 
     def _process_message(self,
                          msg,
