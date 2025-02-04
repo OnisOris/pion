@@ -12,7 +12,7 @@ class Pion(DroneBase):
     """
     Класс Pion предназначен для управления дроном через протокол MAVLink. Он включает функционал для инициализации
     соединения, отправки команд дрону, обработки сообщений, и управления движением. Pion также поддерживает
-    многопоточность для выполнения различных задач параллельно.
+    многопоточность для выполнения различных параллельных задач
     """
     def __init__(self,
                  ip: str = '10.1.100.114',
@@ -35,7 +35,7 @@ class Pion(DroneBase):
         Инициализация класса Pion, устанавливающего MAVLink соединение с дроном 
         и управляющего взаимодействием по передаче и приему данных.
 
-        :param ip: IP-адрес для подключения к дрону.
+        :param ip: IP-адрес для подключения к дрону
         :type ip: str
         
         :param mavlink_port: Порт для MAVLink соединения.
@@ -49,7 +49,7 @@ class Pion(DroneBase):
         
         :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
         :type count_of_checking_points: int
-
+        
         :param name: Название экземпляра
         :type name: str
 
@@ -59,8 +59,14 @@ class Pion(DroneBase):
         :param dt: Период приема всех сообщений с дрона
         :type dt: float
 
+        :param logger: Включить логирование
+        :type logger: bool
+
+        :param start_message_handler_from_init: Старт message handler при создании объекта
+        :type start_message_handler_from_init: bool
+
         :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах
-        во избежание ошибок.
+         во избежание ошибок.
         :type checking_components: bool
 
         :param accuracy: Максимальное отклонение от целевой позиции для функции goto_from_outside
@@ -217,7 +223,7 @@ class Pion(DroneBase):
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
-        Максимальная скорость обрезается np.clip по полю self.max_speed.
+        Максимальная скорость обрезается np.clip по полю self.max_speed
         :param x: координата по x
         :type x: Union[float, int]
         :param y: координата по y
@@ -257,7 +263,7 @@ class Pion(DroneBase):
         """
         Функция берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
-        Максимальная скорость обрезается np.clip по полю self.max_speed.
+        Максимальная скорость обрезается np.clip по полю self.max_speed
         :param yaw:  координата по yaw (радианы)
         :type yaw: Union[float, int]
         :param accuracy: Погрешность целевой точки
@@ -332,7 +338,7 @@ class Pion(DroneBase):
         или скорости в локальной системе координат NED (North, East, Down). 
         Параметры включают систему координат, маску для указания активных полей,
         координаты (x, y, z), скорости (vx, vy, vz), ускорения и скорость поворота
-        по оси yaw.
+        по оси yaw
         :param coordinate_system: Система координат (например, NED).
         :type coordinate_system: int
 
@@ -411,7 +417,7 @@ class Pion(DroneBase):
                            target_component=None,
                            mavlink_send_number: int = 1) -> None:
         """
-        Отправляет команду типа COMMAND_LONG через MAVLink.
+        Отправляет команду типа COMMAND_LONG через MAVLink
         :param command_name: Имя команды для логирования.
         :type command_name: str
         :param command: Команда MAVLink.
@@ -463,7 +469,7 @@ class Pion(DroneBase):
 
     def _send_heartbeat(self) -> None:
         """
-        Отправляет сообщение HEARTBEAT для поддержания активного соединения с дроном.
+        Отправляет сообщение HEARTBEAT для поддержания активного соединения с дроном
         :return: None
         """
         self.mavlink_socket.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
@@ -476,7 +482,7 @@ class Pion(DroneBase):
     def _message_handler(self,
                          combine_system: int = 0) -> None:
         """   
-        Обрабатывает сообщения от дрона и отправляет heartbeat, обновляя координаты дрона.
+        Обрабатывает сообщения от дрона и отправляет heartbeat, обновляя координаты дрона
         :param combine_system: Определяет, с каких источников будут считываться данные:
                                 0 — только локус, 1 — локус и оптика, 2 — только оптика.
         :type combine_system: int
@@ -511,7 +517,7 @@ class Pion(DroneBase):
                          msg,
                          src_component: Optional[int] = None) -> None:
         """
-        Обрабатывает одно сообщение и обновляет данные (позиция, ориентация, батарея).
+        Обрабатывает одно сообщение и обновляет данные (позиция, ориентация, батарея)
         :param msg: Сообщение MAVLink
         :param src_component: Источник данных, по которому фильтруется сообщение.
         :return: None
@@ -577,7 +583,7 @@ class Pion(DroneBase):
                     g=0,
                     b=0) -> None:
         """
-        Управление светодиодами на дроне.
+        Управление светодиодами на дроне
 
         :param led_id: Идентификатор светодиода, который нужно управлять. Допустимые значения: 0, 1, 2, 3, 255.
         255 — для управления всеми светодиодами одновременно.
