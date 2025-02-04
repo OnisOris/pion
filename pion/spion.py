@@ -129,7 +129,6 @@ class Spion(Simulator, DroneBase):
         self.point_reached = False
 
         self._message_thread = None  # Поток для _message_handler
-        self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
         self.last_points = np.zeros((count_of_checking_points, self.dimension))
         if start_message_handler_from_init:
             self.start_message_handler()
