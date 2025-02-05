@@ -545,9 +545,10 @@ class Pion(DroneBase):
         :return: None
         """
         while self.speed_flag:
-            t_speed = self.t_speed
-            self.send_speed(*t_speed)
-            time.sleep(self.period_send_speed)
+            with self._speed_control_lock:  # Захватываем управление
+                t_speed = self.t_speed
+                self.send_speed(*t_speed)
+                time.sleep(self.period_send_speed)
 
     def set_v(self) -> None:
         """
