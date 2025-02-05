@@ -108,8 +108,8 @@ class DroneBase(Pio, ABC):
         self.point_reached = False
         self.max_speed = max_speed
         self._console = Console()
-        self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
-
+        self._handler_lock = threading.Lock()
+        self._speed_control_lock = threading.Lock()
 
     @property
     def position(self) -> Union[Array6, Array4]:
