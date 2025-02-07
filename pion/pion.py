@@ -558,9 +558,10 @@ class Pion(DroneBase):
         Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
         :return: None
         """
-        self.speed_flag = True
-        self.threads.append(threading.Thread(target=self.v_while))
-        self.threads[-1].start()
+        if not self.set_v_check_flag:
+            self.speed_flag = True
+            self.threads.append(threading.Thread(target=self.v_while))
+            self.threads[-1].start()
 
     def reboot_board(self) -> None:
         """
