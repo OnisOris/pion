@@ -338,3 +338,11 @@ class DroneBase(Pio, ABC):
             table.add_row(str(log_id), message)
 
         self._console.print(table)
+    
+    def detect(self) -> None:
+        """
+        Метод детектирования (чего-либо)
+        """
+        pass
+
+
