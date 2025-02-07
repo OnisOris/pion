@@ -238,6 +238,7 @@ class Pion(DroneBase):
         :return: None
         """
         self.set_v()
+        self.goto_yaw(yaw)
         if self.dimension == 2:
             target_point = np.array([x, y])
         else:
@@ -272,7 +273,7 @@ class Pion(DroneBase):
         :type accuracy: Union[float, int]
         :return: None
         """
-
+        self.set_v()
         pid_controller = PIDController(*self.yaw_pid_matrix)
         point_reached = False
         last_time = time.time()
