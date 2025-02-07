@@ -237,6 +237,7 @@ class Pion(DroneBase):
         :type accuracy: Union[float, int, None]
         :return: None
         """
+        self.set_v()
         if self.dimension == 2:
             target_point = np.array([x, y])
         else:
