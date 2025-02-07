@@ -7,7 +7,7 @@ args = sys.argv
 number_drone = sys.argv[1]
 drone = Pion(ip=f"10.1.100.{number_drone}", 
              mavlink_port=5656, 
-             logger=False, dt=0., 
+             logger=True, dt=0., 
              count_of_checking_points=5)
 if '-c' in args:
     drone.led_control(255, 0, 255, 0)

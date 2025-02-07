@@ -133,6 +133,7 @@ class Pion(DroneBase):
             [0] * 1,
             [1] * 1
         ], dtype=np.float64)
+        self.set_v_check_flag = False
 
     @property
     def speed(self) -> Union[Array2, Array3]:
@@ -544,11 +545,13 @@ class Pion(DroneBase):
         Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
         :return: None
         """
+        self.set_v_check_flag = True
         while self.speed_flag:
             with self._speed_control_lock:  # Захватываем управление
                 t_speed = self.t_speed
                 self.send_speed(*t_speed)
                 time.sleep(self.period_send_speed)
+        self.set_v_check_flag = False
 
     def set_v(self) -> None:
         """
