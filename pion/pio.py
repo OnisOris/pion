@@ -5,6 +5,7 @@ import time
 from collections import deque
 from rich.console import Console
 from rich.table import Table
+import threading
 
 
 class Pio(ABC):
@@ -52,7 +53,7 @@ class DroneBase(Pio, ABC):
                  mass: float = 0.3,
                  dimension: int = 3,
                  position: Union[Array6, Array4, None] = None,
-                 attitude: Union[Array6, Array4, None] = None,
+                 attitude: Union[Array6, None] = None,
                  count_of_checking_points: int = 20,
                  logger: bool = False,
                  checking_components: bool = True,
@@ -107,7 +108,8 @@ class DroneBase(Pio, ABC):
         self.point_reached = False
         self.max_speed = max_speed
         self._console = Console()
-
+        self._handler_lock = threading.Lock()
+        self._speed_control_lock = threading.Lock()
 
     @property
     def position(self) -> Union[Array6, Array4]:
@@ -163,19 +165,35 @@ class DroneBase(Pio, ABC):
         """
         self._attitude = attitude
     # Реализация обязательных методов абстрактного класса Pio
-    def arm(self):
+    def arm(self) -> None:
+        """
+        Включает двигатели
+        :return: None
+        """
         if self.logger:
             self.logs.update({"Status": f"{self.name} is armed \n"})
 
-    def disarm(self):
+    def disarm(self) -> None:
+        """
+        Отключает двигатели
+        :return: None
+        """
         if self.logger:
             self.logs.update({"Status": f"{self.name} is disarmed \n"})
 
-    def takeoff(self):
+    def takeoff(self) -> None:
+        """
+        Взлет дрона
+        :return: None
+        """
         if self.logger:
             self.logs.update({"Status": f"{self.name} is take off \n"})
 
-    def land(self):
+    def land(self) -> None:
+        """
+        Посадка дрона
+        :return: None
+        """
         if self.logger:
             self.logs.update({"Status": f"{self.name} is landing \n"})
 
@@ -320,3 +338,11 @@ class DroneBase(Pio, ABC):
             table.add_row(str(log_id), message)
 
         self._console.print(table)
+    
+    def detect(self) -> None:
+        """
+        Метод детектирования (чего-либо)
+        """
+        pass
+
+

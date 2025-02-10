@@ -262,7 +262,6 @@ class Simulator_realtime(Simulator):
                     last_time = current_time
                     for object_channel, simulation_object in enumerate(self.simulation_objects):
                         self.step(simulation_object, object_channel)
-                # print(simulation_object.position)
         elif type_of_cycle == 'for':
             for _ in range(steps):
                 current_time = time.time()

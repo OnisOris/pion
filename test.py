@@ -4,23 +4,21 @@ import time
 import numpy as np
 np.set_printoptions(suppress=True)  # Отключить экспоненциальный формат
 args = sys.argv
-
 number_drone = sys.argv[1]
 drone = Pion(ip=f"10.1.100.{number_drone}", 
              mavlink_port=5656, 
-             logger=False, dt=0., 
-             count_of_checking_points=15)
+             logger=True, dt=0., 
+             count_of_checking_points=5)
 if '-c' in args:
     drone.led_control(255, 0, 255, 0)
     while True:
         print(np.round(drone.position, 4))
         time.sleep(0.02)
-if '-l' in args:
+elif '-l' in args:
     drone.led_control(255, 0, 0, 0)
     drone.land()
-if '-r' in args:
+elif '-r' in args:
     drone.reboot_board()
-
 else:
     print("---")
     drone.arm()
