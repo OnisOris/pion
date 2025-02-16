@@ -1,0 +1,48 @@
+name: CI Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ubuntu:
+    name: Test on Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Run setup_all.py on Ubuntu
+        run: |
+          sudo python3 setup_all.py
+
+  windows:
+    name: Test on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Run setup_all.py on Windows
+        run: |
+          python setup_all.py
+
+  arch:
+    name: Test on Arch Linux (Docker)
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies on Arch Linux
+        run: |
+          pacman -Syu --noconfirm python python-pip git
+      - name: Run setup_all.py on Arch Linux
+        run: |
+          python setup_all.py
