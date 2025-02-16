@@ -11,12 +11,21 @@ drone = Pion(ip=f"10.1.100.{number_drone}",
              count_of_checking_points=5)
 if '-c' in args:
     drone.led_control(255, 0, 255, 0)
+    drone.logger = True
     while True:
-        print(np.round(drone.position, 4))
         time.sleep(0.02)
 elif '-l' in args:
     drone.led_control(255, 0, 0, 0)
     drone.land()
+
+elif '-d' in args:
+    drone.led_control(255, 255, 0, 0)
+    drone.disarm()
+    drone.led_control(255, 0, 0, 0)
+elif '-at' in args:
+    drone.led_control(255, 255, 0, 0)
+    drone.arm()
+    drone.takeoff()
 elif '-r' in args:
     drone.reboot_board()
 else:
