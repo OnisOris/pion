@@ -9,16 +9,19 @@ import threading
 
 
 class Spion(Simulator, DroneBase):
+    """
+    Класс симулятор, повторяющий действия Pion в симуляции математической модели точки
+    """
     def __init__(self,
                  ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
                  connection_method: str = 'udpout',
+                 position: Union[Array6, Array4, None] = None,
+                 attitude: Union[Array6, None] = None,
                  combine_system: int = 0,
                  count_of_checking_points: int = 20,
                  name: str = 'simulator',
                  mass: float = 0.3,
-                 position: Union[Array6, Array4, None] = None,
-                 attitude: Union[Array6, Array4, None] = None,
                  dt: float = 0.1,
                  logger: bool = False,
                  checking_components: bool = True,
@@ -27,11 +30,56 @@ class Spion(Simulator, DroneBase):
                  start_message_handler_from_init: bool = True,
                  dimension: int = 3) -> None:
         """
-        Конструктор дочернего класса, наследующегося от Pio и Simulator.
-        :param name: Имя дрона.
-        :param mass: Масса дрона.
-        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy].
-        Поле position имеет координаты и скорость, подобно сообщению LOCAL_POSITION_NED в mavlink.
+        Конструктор дочернего класса, наследующегося от Pio и Simulator
+        
+        :param ip: IP-адрес для подключения к дрону
+        :type ip: str
+        
+        :param mavlink_port: Порт для MAVLink соединения
+        :type mavlink_port: int
+        
+        :param connection_method: Метод соединения, например, 'udpout' для MAVLink.
+        :type connection_method: str
+
+        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy]
+        :type position: Union[Array6, Array4, None]
+
+        :param attitude: Начальное состояние дрона вида [roll, pitch, yaw, v_roll, v_pitch, v_yaw]
+        :type attitude: Union[Array6, None]
+        
+        :param combine_system: Системный код для комбинированной системы управления: 1, 2, 3
+        :type combine_system: int
+        
+        :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
+        :type count_of_checking_points: int
+
+        :param name: Название экземпляра
+        :type name: str
+
+        :param mass: Масса дрона
+        :type mass: float
+            
+        :param dt: Период приема всех сообщений с дрона
+        :type dt: float
+
+        :param logger: Включить логирование
+        :type logger: bool
+
+        :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах
+         во избежание ошибок
+        :type checking_components: bool
+
+        :param accuracy: Максимальное отклонение от целевой позиции для функции goto_from_outside
+        :type accuracy: float
+
+        :param max_speed: Максимальная скорость дрона в режиме управления по скорости
+        :type max_speed: float
+
+        :param start_message_handler_from_init: Старт message handler при создании объекта
+        :type start_message_handler_from_init: bool
+
+        :param dimension: Размерность дрона, возможные значения: 2, 3
+        :type dimension: int
         """
         DroneBase.__init__(self,
                            ip=ip,
@@ -81,7 +129,6 @@ class Spion(Simulator, DroneBase):
         self.point_reached = False
 
         self._message_thread = None  # Поток для _message_handler
-        self._handler_lock = threading.Lock()  # Мьютекс для синхронизации
         self.last_points = np.zeros((count_of_checking_points, self.dimension))
         if start_message_handler_from_init:
             self.start_message_handler()
@@ -111,37 +158,50 @@ class Spion(Simulator, DroneBase):
         """
         return self.simulation_objects[0].speed
 
+    def takeoff(self):
+        super().takeoff()
+        self.goto(self.position[0], self.position[1], 1.5, 0)
+
+
+    def land(self):
+        super().land()
+        self.goto(self.position[0], self.position[1], 0, 0)
+
+
     def start_message_handler(self) -> None:
         """
-        Запуск потока _message_handler.
+        Запуск потока _message_handler
         """
         if not self.simulation_turn_on:
             self.simulation_turn_on = True
             self._message_thread = threading.Thread(target=self._message_handler)
             self._message_thread.start()
             if self.logger:
-                print("Message handler started.")
+                self.logs.update({"Status": "Message handler started"})
 
     def stop_message_handler(self) -> None:
         """
-        Остановка потока _message_handler.
+        Остановка потока _message_handler
         """
         if self.simulation_turn_on:
             self.simulation_turn_on = False
             if self._message_thread:
                 self._message_thread.join()
             if self.logger:
-                print("Message handler stopped.")
+                self.logs.update({"Status": "Message handler stopped"})
 
-    def _step_messege_handler(self):
+
+    def _step_messege_handler(self) -> None:
+        """
+
+        """
         self.velocity_controller()
         for object_channel, simulation_object in enumerate(self.simulation_objects):
             self.step(simulation_object, object_channel)
         self.last_points = update_array(self.last_points, self.position[0:self.dimension])
         if self.logger:
-            print(f"xyz = {self.position[0:self.dimension]}, "
-                  f"speed = {self.position[self.dimension:self.dimension * 2]}, "
-                  f"t_speed = {self.t_speed}")
+            self.print_information()
+
 
     def _message_handler(self, *args):
         """
@@ -163,7 +223,6 @@ class Spion(Simulator, DroneBase):
                     self.position[self.dimension:self.dimension * 2] = self.simulation_objects[0].speed
                     if self.check_attitude_flag:
                         self.attitude_write()
-
             time.sleep(0.01)
 
     def velocity_controller(self):
@@ -183,25 +242,6 @@ class Spion(Simulator, DroneBase):
             self.max_speed)
         self.t_speed = np.hstack([signal, np.array([0]*(4-self.dimension))])
 
-    # Реализация обязательных методов абстрактного класса Pio
-    def arm(self):
-        if self.logger:
-            print(f"{self.name} is armed.")
-
-    def disarm(self):
-        if self.logger:
-            print(f"{self.name} is disarmed.")
-
-    def takeoff(self):
-        self.goto(self.position[0], self.position[1], 1.5, 0)
-        if self.logger:
-            print(f"{self.name} is taking off.")
-
-    def land(self):
-        self.goto(self.position[0], self.position[1], 0, 0)
-        if self.logger:
-            print(f"{self.name} is landing.")
-
     def goto(self,
              x: Union[float, int],
              y: Union[float, int],
@@ -212,7 +252,7 @@ class Spion(Simulator, DroneBase):
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в
         управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
-        Максимальная скорость обрезается np.clip по полю self.max_speed.
+        Максимальная скорость обрезается np.clip по полю self.max_speed
         :param x: координата по x
         :type x: Union[float, int]
         :param y: координата по y
@@ -254,12 +294,10 @@ class Spion(Simulator, DroneBase):
                     for object_channel, simulation_object in enumerate(self.simulation_objects):
                         self.step(simulation_object, object_channel)
                     if self.logger:
-                        print(f"xyz = {self.position[0:self.dimension]}, "
-                              f"speed = {self.position[self.dimension:self.dimension * 2]}, "
-                              f"t_speed = {self.t_speed}")
+                        self.print_information()
                 time.sleep(0.01)  # Даем CPU немного отдохнуть
             if self.logger:
-                print(f"Точка {target_point} достигнута")
+                self.logs.update({"Регулятор положения": f"Точка {target_point} достигнута"})
             self.t_speed = np.zeros(self.dimension + 1)
 
     def goto_from_outside(self,

@@ -1,7 +1,7 @@
 import time
 import threading
 import select
-from pion.cython_pid import PIDController
+from pion.cython_pid import PIDController, AdaptiveController
 from typing import Union, Optional
 from .functions import *
 from .pio import DroneBase
@@ -12,7 +12,7 @@ class Pion(DroneBase):
     """
     Класс Pion предназначен для управления дроном через протокол MAVLink. Он включает функционал для инициализации
     соединения, отправки команд дрону, обработки сообщений, и управления движением. Pion также поддерживает
-    многопоточность для выполнения различных задач параллельно.
+    многопоточность для выполнения различных параллельных задач
     """
     def __init__(self,
                  ip: str = '10.1.100.114',
@@ -28,14 +28,14 @@ class Pion(DroneBase):
                  logger: bool = False,
                  start_message_handler_from_init: bool = True,
                  checking_components: bool = True,
-                 accuracy: float = 2e-5,
+                 accuracy: float = 5e-2,
                  max_speed: float = 2.,
                  dimension: int = 3):
         """
         Инициализация класса Pion, устанавливающего MAVLink соединение с дроном 
         и управляющего взаимодействием по передаче и приему данных.
 
-        :param ip: IP-адрес для подключения к дрону.
+        :param ip: IP-адрес для подключения к дрону
         :type ip: str
         
         :param mavlink_port: Порт для MAVLink соединения.
@@ -49,15 +49,34 @@ class Pion(DroneBase):
         
         :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
         :type count_of_checking_points: int
+        
         :param name: Название экземпляра
         :type name: str
+
         :param mass: Масса дрона
         :type mass: float
+
         :param dt: Период приема всех сообщений с дрона
         :type dt: float
+
+        :param logger: Включить логирование
+        :type logger: bool
+
+        :param start_message_handler_from_init: Старт message handler при создании объекта
+        :type start_message_handler_from_init: bool
+
         :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах
-        во избежание ошибок.
+         во избежание ошибок.
         :type checking_components: bool
+
+        :param accuracy: Максимальное отклонение от целевой позиции для функции goto_from_outside
+        :type accuracy: float
+
+        :param max_speed: Максимальная скорость дрона в режиме управления по скорости
+        :type max_speed: float
+
+        :param dimension: Размерность дрона, возможные значения: 2, 3
+        :type dimension: int
         """
 
         DroneBase.__init__(self,
@@ -107,13 +126,14 @@ class Pion(DroneBase):
         self.position_pid_matrix = np.array([
             [0.5] * self.dimension,
             [0.0] * self.dimension,
-            [2.] * self.dimension
+            [0.7] * self.dimension
         ], dtype=np.float64)
         self.yaw_pid_matrix = np.array([
-            [0.01] * 1,
+            [1] * 1,
             [0] * 1,
             [1] * 1
         ], dtype=np.float64)
+        self.set_v_check_flag = False
 
     @property
     def speed(self) -> Union[Array2, Array3]:
@@ -128,6 +148,7 @@ class Pion(DroneBase):
         Включает двигатели
         :return: None
         """
+        super().arm()
         self._send_command_long(command_name='ARM',
                                 command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                                 param1=1,
@@ -138,6 +159,7 @@ class Pion(DroneBase):
         Отключает двигатели
         :return: None
         """
+        super().disarm()
         self._send_command_long(command_name='DISARM',
                                 command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                                 param1=0,
@@ -148,6 +170,7 @@ class Pion(DroneBase):
         Взлет дрона
         :return: None
         """
+        super().takeoff()
         self._send_command_long(command_name='TAKEOFF',
                                 command=mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
                                 mavlink_send_number=self._mavlink_send_number)
@@ -157,6 +180,7 @@ class Pion(DroneBase):
         Посадка дрона
         :return: None
         """
+        super().land()
         self._send_command_long(command_name='LAND',
                                 command=mavutil.mavlink.MAV_CMD_NAV_LAND,
                                 mavlink_send_number=self._mavlink_send_number)
@@ -200,7 +224,7 @@ class Pion(DroneBase):
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
-        Максимальная скорость обрезается np.clip по полю self.max_speed.
+        Максимальная скорость обрезается np.clip по полю self.max_speed
         :param x: координата по x
         :type x: Union[float, int]
         :param y: координата по y
@@ -213,19 +237,19 @@ class Pion(DroneBase):
         :type accuracy: Union[float, int, None]
         :return: None
         """
+        self.set_v()
+        self.goto_yaw(yaw)
         if self.dimension == 2:
-            target_point = [x, y]
+            target_point = np.array([x, y])
         else:
-            target_point = [x, y, z]
+            target_point = np.array([x, y, z])
         if accuracy is None:
             accuracy = self.accuracy
-        # print("prev_goto_yaw")
-        self.goto_yaw(yaw)
-        self._pid_position_controller = PIDController(*self.position_pid_matrix)
-        point_reached = False
+        self._pid_position_controller = PIDController(*self.position_pid_matrix) 
+        self.point_reached = False
         last_time = time.time()
         time.sleep(self.period_send_speed)
-        while not point_reached:
+        while not self.point_reached:
             current_time = time.time()
             dt = current_time - last_time
             last_time = current_time
@@ -242,14 +266,14 @@ class Pion(DroneBase):
         """
         Функция берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
-        Максимальная скорость обрезается np.clip по полю self.max_speed.
+        Максимальная скорость обрезается np.clip по полю self.max_speed
         :param yaw:  координата по yaw (радианы)
         :type yaw: Union[float, int]
         :param accuracy: Погрешность целевой точки
         :type accuracy: Union[float, int]
         :return: None
         """
-
+        self.set_v()
         pid_controller = PIDController(*self.yaw_pid_matrix)
         point_reached = False
         last_time = time.time()
@@ -258,19 +282,13 @@ class Pion(DroneBase):
             current_time = time.time()
             dt = current_time - last_time
             last_time = current_time
-            # print(dt)
-            # current_yaw = [self.yaw]
             point_reached = scalar_reached(yaw, self.last_angles, accuracy=accuracy)
-            # print(f"point_reached = {point_reached}")
-
             signal = -pid_controller.compute_control(np.array([yaw], dtype=np.float64),
                                                      np.array([self.yaw],
                                                               dtype=np.float64),
                                                      dt=dt)[0]
-            # print(f"real_signal = {signal}")
             self.t_speed = np.array([*np.zeros(3), np.clip(signal,
                                                            -self.max_speed, self.max_speed)])
-            print(f"t_ speef = {self.t_speed}, [yaw] = {[yaw]}, self.yaw = {self.yaw}")
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
 
@@ -323,7 +341,7 @@ class Pion(DroneBase):
         или скорости в локальной системе координат NED (North, East, Down). 
         Параметры включают систему координат, маску для указания активных полей,
         координаты (x, y, z), скорости (vx, vy, vz), ускорения и скорость поворота
-        по оси yaw.
+        по оси yaw
         :param coordinate_system: Система координат (например, NED).
         :type coordinate_system: int
 
@@ -402,7 +420,7 @@ class Pion(DroneBase):
                            target_component=None,
                            mavlink_send_number: int = 1) -> None:
         """
-        Отправляет команду типа COMMAND_LONG через MAVLink.
+        Отправляет команду типа COMMAND_LONG через MAVLink
         :param command_name: Имя команды для логирования.
         :type command_name: str
         :param command: Команда MAVLink.
@@ -454,7 +472,7 @@ class Pion(DroneBase):
 
     def _send_heartbeat(self) -> None:
         """
-        Отправляет сообщение HEARTBEAT для поддержания активного соединения с дроном.
+        Отправляет сообщение HEARTBEAT для поддержания активного соединения с дроном
         :return: None
         """
         self.mavlink_socket.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
@@ -467,7 +485,7 @@ class Pion(DroneBase):
     def _message_handler(self,
                          combine_system: int = 0) -> None:
         """   
-        Обрабатывает сообщения от дрона и отправляет heartbeat, обновляя координаты дрона.
+        Обрабатывает сообщения от дрона и отправляет heartbeat, обновляя координаты дрона
         :param combine_system: Определяет, с каких источников будут считываться данные:
                                 0 — только локус, 1 — локус и оптика, 2 — только оптика.
         :type combine_system: int
@@ -483,27 +501,27 @@ class Pion(DroneBase):
         src_component = src_component_map.get(combine_system)
 
         while self.message_handler_flag:
-            if not self.__is_socket_open.is_set():
-                break
-            if self.logger:
-                print(f"xyz = {self.xyz}, yaw = {self.yaw}, speed = {self.speed}, t_speed = {self.t_speed}")
-
-            self.heartbeat()
-            # Проверка, доступно ли новое сообщение для чтения
-            rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
-            if rlist:
-                self._msg = self.mavlink_socket.recv_msg()
-                if self._msg is not None:
-                    self._process_message(self._msg, src_component)
-            if self.check_attitude_flag:
-                self.attitude_write()
-            time.sleep(self.period_message_handler)
+            with self._handler_lock:  # Захватываем управление
+                if not self.__is_socket_open.is_set():
+                    break
+                self.heartbeat()
+                # Проверка, доступно ли новое сообщение для чтения
+                rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
+                if rlist:
+                    self._msg = self.mavlink_socket.recv_msg()
+                    if self._msg is not None:
+                        self._process_message(self._msg, src_component)
+                if self.check_attitude_flag:
+                    self.attitude_write()
+                if self.logger:
+                    self.print_information()
+                time.sleep(self.period_message_handler)
 
     def _process_message(self,
                          msg,
                          src_component: Optional[int] = None) -> None:
         """
-        Обрабатывает одно сообщение и обновляет данные (позиция, ориентация, батарея).
+        Обрабатывает одно сообщение и обновляет данные (позиция, ориентация, батарея)
         :param msg: Сообщение MAVLink
         :param src_component: Источник данных, по которому фильтруется сообщение.
         :return: None
@@ -529,18 +547,23 @@ class Pion(DroneBase):
         Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
         :return: None
         """
+        self.set_v_check_flag = True
         while self.speed_flag:
-            t_speed = self.t_speed
-            self.send_speed(*t_speed)
+            with self._speed_control_lock:  # Захватываем управление
+                t_speed = self.t_speed
+                self.send_speed(*t_speed)
+                time.sleep(self.period_send_speed)
+        self.set_v_check_flag = False
 
     def set_v(self) -> None:
         """
         Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
         :return: None
         """
-        self.speed_flag = True
-        self.threads.append(threading.Thread(target=self.v_while))
-        self.threads[-1].start()
+        if not self.set_v_check_flag:
+            self.speed_flag = True
+            self.threads.append(threading.Thread(target=self.v_while))
+            self.threads[-1].start()
 
     def reboot_board(self) -> None:
         """
@@ -568,7 +591,7 @@ class Pion(DroneBase):
                     g=0,
                     b=0) -> None:
         """
-        Управление светодиодами на дроне.
+        Управление светодиодами на дроне
 
         :param led_id: Идентификатор светодиода, который нужно управлять. Допустимые значения: 0, 1, 2, 3, 255.
         255 — для управления всеми светодиодами одновременно.

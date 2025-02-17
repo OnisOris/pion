@@ -2,6 +2,10 @@ from abc import ABC, abstractmethod
 import numpy as np
 from .annotation import *
 import time
+from collections import deque
+from rich.table import Table
+from rich.live import Live
+import threading
 
 
 class Pio(ABC):
@@ -42,6 +46,9 @@ class Pio(ABC):
 
 
 class DroneBase(Pio, ABC):
+    """
+    Абстрактный класс с частичной реализацией методов, служит для сокращения кода в дочерних классах
+    """
     def __init__(self,
                  ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
@@ -49,13 +56,56 @@ class DroneBase(Pio, ABC):
                  mass: float = 0.3,
                  dimension: int = 3,
                  position: Union[Array6, Array4, None] = None,
-                 attitude: Union[Array6, Array4, None] = None,
+                 attitude: Union[Array6, None] = None,
                  count_of_checking_points: int = 20,
                  logger: bool = False,
                  checking_components: bool = True,
                  accuracy: float = 5e-2,
                  dt: float = 0.1,
                  max_speed: float = 2.):
+        """
+        :param ip: IP-адрес для подключения к дрону
+        :type ip: str
+        
+        :param mavlink_port: Порт для MAVLink соединения.
+        :type mavlink_port: int
+                
+        :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
+        :type count_of_checking_points: int
+        
+        :param name: Название экземпляра
+        :type name: str
+
+        :param mass: Масса дрона
+        :type mass: float
+
+        :param dimension: Размерность дрона, возможные значения: 2, 3
+        :type dimension: int
+
+        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy]
+        :type position: Union[Array6, Array4, None]
+
+        :param attitude: Начальное состояние дрона вида [roll, pitch, yaw, v_roll, v_pitch, v_yaw]
+        :type attitude: Union[Array6, None]
+
+        :param dt: Период приема всех сообщений с дрона или шаг времени в симуляции в Spion
+        :type dt: float
+
+        :param logger: Включить логирование
+        :type logger: bool
+
+        :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах
+         во избежание ошибок.
+        :type checking_components: bool
+
+        :param accuracy: Максимальное отклонение от целевой позиции для функции goto_from_outside
+        :type accuracy: float
+
+        :param max_speed: Максимальная скорость дрона в режиме управления по скорости
+        :type max_speed: float
+        """
+
+ 
         # Время создания экземпляра
         self.t0 = time.time()
         self.ip = ip
@@ -65,6 +115,7 @@ class DroneBase(Pio, ABC):
         self.dimension = dimension
         self.dt = dt
         self.logger = logger
+        self.logs = {}
         self.checking_components = checking_components
         self.dimension = dimension
         self._pid_position_controller = None
@@ -102,6 +153,10 @@ class DroneBase(Pio, ABC):
         self.accuracy = accuracy
         self.point_reached = False
         self.max_speed = max_speed
+        self._handler_lock = threading.Lock()
+        self._speed_control_lock = threading.Lock()
+        self._live = None
+        self._table = None
 
     @property
     def position(self) -> Union[Array6, Array4]:
@@ -156,6 +211,40 @@ class DroneBase(Pio, ABC):
         :return: None
         """
         self._attitude = attitude
+    # Реализация обязательных методов абстрактного класса Pio
+    def arm(self) -> None:
+        """
+        Включает двигатели
+        :return: None
+        """
+        if self.logger:
+            self.logs.update({"Status": f"{self.name} is armed \n"})
+
+    def disarm(self) -> None:
+        """
+        Отключает двигатели
+        :return: None
+        """
+        if self.logger:
+            self.logs.update({"Status": f"{self.name} is disarmed \n"})
+
+    def takeoff(self) -> None:
+        """
+        Взлет дрона
+        :return: None
+        """
+        if self.logger:
+            self.logs.update({"Status": f"{self.name} is take off \n"})
+
+    def land(self) -> None:
+        """
+        Посадка дрона
+        :return: None
+        """
+        if self.logger:
+            self.logs.update({"Status": f"{self.name} is landing \n"})
+
+
 
     def heartbeat(self) -> None:
         """
@@ -214,7 +303,7 @@ class DroneBase(Pio, ABC):
                   path: str = '') -> None:
         """
         Функция для сохранения траектории в файл
-        columns=['x', 'y', 'z', 'yaw', 'Vx', 'Vy', 'Vz', 'Vy_yaw', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
+        columns=['x', 'y', 'z', 'vx', 'vy', 'yaw', 'pitch', 'roll','Vyaw', 'Vpitch', 'Vroll', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
         :param file_name: название файла
         :type: str
         :param path: путь сохранения
@@ -262,7 +351,20 @@ class DroneBase(Pio, ABC):
         """
         pass
 
-    def position_controller(self, position_xyz: Union[Array3, Array2], dt: float):
+    def position_controller(self,
+                            position_xyz: Union[Array3, Array2],
+                            dt: float) -> None:
+        """
+        Фнкция формирования управляющего сигнала в сторону position_xyz
+        :param position_xyz: Целевая координата
+        :type position_xyz: Union[Array3, Array2]
+
+        :param dt: шаг времени расчета
+        :type dt: float
+
+        :return: None
+        :rtype: None
+        """
         signal = np.clip(
             self._pid_position_controller.compute_control(
                 target_position=np.array(position_xyz, dtype=np.float64),
@@ -271,3 +373,55 @@ class DroneBase(Pio, ABC):
             -self.max_speed,
             self.max_speed)
         self.t_speed = np.hstack([signal, np.array([0]*(4-self.dimension))])
+
+    def print_information(self) -> None:
+        """
+        Функция обновляет словарь с логами self.logs
+        :return: None
+        """
+        self.logs.update({"xyz":  f"{np.round(self.position[0:self.dimension], 3)} \n",
+                         f"speed": f"{np.round(self.position[self.dimension:self.dimension * 2], 3)} \n",
+                         f"t_speed": f"{np.round(self.t_speed, 3)} \n"})
+        self.print_latest_logs(self.logs, 5, "Таблица с сообщениями")
+
+
+    def print_latest_logs(self,
+                          log_dict: dict,
+                          n: int = 5,
+                          name: str = "Название") -> None:
+        """
+        Функция обновляет результаты в таблице логов
+        :param log_dict: Словарь с логами заполнения таблицы
+        :type log_dict: dict
+
+        :param n: Количество логов из словаря, которые попадут в таблицу
+        :type n: int
+
+        :param name: Заголовок таблицы
+        :type name: str
+
+        :return: None
+        """
+        latest_logs = deque(log_dict.items(), maxlen=n)
+        # Создаем новую таблицу при каждом обновлении
+        table = Table(title=name)
+        table.add_column("ID", style="cyan", justify="right")
+        table.add_column("Сообщение", style="green")
+        
+        for log_id, message in latest_logs:
+            table.add_row(str(log_id), message.strip())  # Убираем лишние переносы
+        
+        # Инициализируем Live один раз
+        if self._live is None:
+            self._live = Live(table, refresh_per_second=20, transient=False)
+            self._live.start()
+        else:
+            self._live.update(table)
+
+    def detect(self) -> None:
+        """
+        Метод детектирования (чего-либо)
+        """
+        pass
+
+

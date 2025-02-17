@@ -5,42 +5,100 @@ SDK для управления дронами [geoscan pioneer base](https://ge
 Дроны с модификацией ультразвуковой системы навигации [локус](https://www.geoscan.ru/ru/products/pioneer/locus) и
 с raspberry pi zero 2w (модификация "Арена").
 
-# Установка
+Перед установкой, убедитесь, что у вас установлен git:
 
-## Через pip
+- [Git](https://git-scm.com/downloads)
+
+# Установка на Linux
+
+Вам необходимо установить build-essential:
+```shell
+sudo apt update
+sudo apt install build-essential
+```
+
+Установка пакетов для расширений на C/C++:
+```commandline
+python3-dev
+```
+
+Если вы используете несистемный python, то вы должны поставить пакет для вашей версии python:
+```commandline
+python3.[номер версии]-dev
+```
+
+К примеру:
+```commandline
+python3.13-dev
+```
+
+
+## Через pip (на windows и linux)
 
 ```shell
 pip install git+https://github.com/OnisOris/pion
 ```
 
 ## Установка клонированием
+Данный способ вам нужен, если вы хотите модифицировать моудль, для использования вам это не нужно, 
+устанавливайте через pip.
+
 Клонируем репозиторий:
 ```shell
 git clone https://github.com/OnisOris/pion
 ```
-### Ubuntu
 
-Вам необходимо установить build-essential и sudo apt install python3.[ВАША ВЕРСИЯ]-dev, например 
-3.12:
-```shell
-sudo apt update
-sudo apt install build-essential
-sudo apt install python3-dev
-sudo apt install python3.12-dev
-```
-### Arch linux
-```
-sudo pacman -S python
-sudo pacman -S base-devel
-```
-### Сборка
-Необходимо поставить следующие пакеты:
+
+Необходимо поставить следующие пакеты (при установленном и активированным виртуальном окружении по инструкции ниже
+эти команды сработают для windows):
 ```shell
 pip install numpy matplotlib pymavlink cython setuptools
 ```
 Далее необходимо собрать cython модуль:
 ```
 python setup.py build_ext --inplace
+```
+
+# Установка на windows
+Установите python. Тесты проводились на версиях 3.9-3.13, но рекомендую ставить >3.13.
+Важно, если у вас установлен python, проверьте, что необходимые библиотеки у вас есть, если же вы не уверены, переустановите 
+python по инструкции.
+- [Последняя версия python](https://www.python.org/downloads/)
+
+Далее при установке поставьте галки, как на картинках, а также перейдите в Customize installation.
+
+ ![окно установки 1](./img/python_install.jpg)
+
+Доставьте все галки в "Advanced Options"
+
+
+ ![окно установки 2](./img/python_install2.jpg)
+
+Здесь тоже доставьте галки
+
+
+ ![окно установки 3](./img/python_install3.jpg)
+
+Проверьте, что у вас установлен vs build tools с нужными пакетами:
+
+![vsbt](./img/windows_vsbt.jpg)
+
+## Создание вирутального окружения
+В терминале перейдите в ваш проект и выполните команду:
+
+```commandline
+python -m venv venv
+```
+
+После этого активируйте виртуальное окружение:
+```commandline
+venv\Scripts\activate.bat
+```
+
+## Установка pion
+
+```shell
+pip install git+https://github.com/OnisOris/pion
 ```
 
 # Подключение
