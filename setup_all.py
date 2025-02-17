@@ -70,14 +70,33 @@ def install_windows_dependencies():
 
 
 def install_python_package():
-    """Устанавливаем пакет pion через pip"""
+    """Устанавливаем пакет pion через pip или в виртуальном окружении для Arch Linux"""
     print("Устанавливаем пакет pion через pip...")
-    try:
-        subprocess.run(["pip", "install", "git+https://github.com/OnisOris/pion"], check=True)
-        print("Пакет pion успешно установлен.")
-    except subprocess.CalledProcessError as e:
-        print("Ошибка установки пакета pion:", e)
-        sys.exit(1)
+    # Если это Arch Linux, создаем виртуальное окружение, чтобы обойти ограничение PEP 668
+    if os.path.exists("/etc/arch-release"):
+        venv_dir = "pion_venv"
+        if not os.path.exists(venv_dir):
+            print("Создаем виртуальное окружение для Arch Linux...")
+            try:
+                subprocess.run(["python", "-m", "venv", venv_dir], check=True)
+            except subprocess.CalledProcessError as e:
+                print("Ошибка создания виртуального окружения:", e)
+                sys.exit(1)
+        # Определяем путь к pip в виртуальном окружении
+        pip_executable = os.path.join(venv_dir, "bin", "pip")
+        try:
+            subprocess.run([pip_executable, "install", "git+https://github.com/OnisOris/pion"], check=True)
+            print("Пакет pion успешно установлен в виртуальном окружении.")
+        except subprocess.CalledProcessError as e:
+            print("Ошибка установки пакета pion в виртуальном окружении:", e)
+            sys.exit(1)
+    else:
+        try:
+            subprocess.run(["pip", "install", "git+https://github.com/OnisOris/pion"], check=True)
+            print("Пакет pion успешно установлен.")
+        except subprocess.CalledProcessError as e:
+            print("Ошибка установки пакета pion:", e)
+            sys.exit(1)
 
 
 def main():
