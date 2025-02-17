@@ -4,6 +4,10 @@ import os
 import platform
 import subprocess
 import shutil
+import io
+
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')
 
 
 def is_admin():
@@ -27,6 +31,17 @@ def install_ubuntu_dependencies():
         print("Системные зависимости успешно установлены.")
     except subprocess.CalledProcessError as e:
         print("Ошибка установки зависимостей на Ubuntu:", e)
+        sys.exit(1)
+
+
+def install_arch_dependencies():
+    """Устанавливаем системные зависимости для Arch Linux"""
+    print("Arch Linux: Обновляем пакеты и устанавливаем base-devel и git...")
+    try:
+        subprocess.run(["pacman", "-Syu", "--noconfirm", "base-devel", "git"], check=True)
+        print("Системные зависимости для Arch Linux успешно установлены.")
+    except subprocess.CalledProcessError as e:
+        print("Ошибка установки зависимостей на Arch Linux:", e)
         sys.exit(1)
 
 
@@ -74,8 +89,11 @@ def main():
         sys.exit(1)
 
     if current_os == "Linux":
-        # Предполагается, что это Ubuntu или совместимый дистрибутив (используем apt)
-        install_ubuntu_dependencies()
+        # Если это Arch Linux, то файл /etc/arch-release существует
+        if os.path.exists("/etc/arch-release"):
+            install_arch_dependencies()
+        else:
+            install_ubuntu_dependencies()
     elif current_os == "Windows":
         install_windows_dependencies()
     else:
