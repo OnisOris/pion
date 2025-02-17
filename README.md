@@ -52,7 +52,7 @@ git clone https://github.com/OnisOris/pion
 Необходимо поставить следующие пакеты (при установленном и активированным виртуальном окружении по инструкции ниже
 эти команды сработают для windows):
 ```shell
-pip install numpy matplotlib pymavlink cython setuptools
+pip install numpy matplotlib pymavlink cython setuptools rich
 ```
 Далее необходимо собрать cython модуль:
 ```
