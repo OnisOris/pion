@@ -6,9 +6,9 @@ import subprocess
 import shutil
 import io
 
+# Обеспечиваем вывод в UTF-8
 if sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')
-
 
 def is_admin():
     """Проверка наличия прав администратора"""
@@ -21,7 +21,6 @@ def is_admin():
     else:
         return os.getuid() == 0
 
-
 def install_ubuntu_dependencies():
     """Устанавливаем системные зависимости для Ubuntu"""
     print("Ubuntu: Обновляем списки пакетов и устанавливаем build-essential и python3-dev...")
@@ -33,7 +32,6 @@ def install_ubuntu_dependencies():
         print("Ошибка установки зависимостей на Ubuntu:", e)
         sys.exit(1)
 
-
 def install_arch_dependencies():
     """Устанавливаем системные зависимости для Arch Linux"""
     print("Arch Linux: Обновляем пакеты и устанавливаем base-devel и git...")
@@ -43,7 +41,6 @@ def install_arch_dependencies():
     except subprocess.CalledProcessError as e:
         print("Ошибка установки зависимостей на Arch Linux:", e)
         sys.exit(1)
-
 
 def install_windows_dependencies():
     """Проверяем и устанавливаем Visual Studio Build Tools для Windows через Chocolatey"""
@@ -61,7 +58,6 @@ def install_windows_dependencies():
         else:
             print("Chocolatey найден. Пытаемся установить Visual Studio Build Tools...")
             try:
-                # Устанавливаем Visual Studio 2022 Build Tools
                 result = subprocess.run(
                     ["choco", "install", "visualstudio2022buildtools", "-y"],
                     check=False
@@ -78,36 +74,32 @@ def install_windows_dependencies():
                 print("Ошибка установки Visual Studio Build Tools через Chocolatey:", e)
                 sys.exit(1)
 
-
 def install_python_package():
-    """Устанавливаем пакет pion через pip или в виртуальном окружении для Arch Linux"""
-    print("Устанавливаем пакет pion через pip...")
-    # Если это Arch Linux, создаем виртуальное окружение, чтобы обойти ограничение PEP 668
-    if os.path.exists("/etc/arch-release"):
-        venv_dir = "pion_venv"
-        if not os.path.exists(venv_dir):
-            print("Создаем виртуальное окружение для Arch Linux...")
-            try:
-                subprocess.run(["python", "-m", "venv", venv_dir], check=True)
-            except subprocess.CalledProcessError as e:
-                print("Ошибка создания виртуального окружения:", e)
-                sys.exit(1)
-        # Определяем путь к pip в виртуальном окружении
-        pip_executable = os.path.join(venv_dir, "bin", "pip")
+    """Создаем виртуальное окружение (.venv) в папке проекта и устанавливаем пакет pion через pip в него"""
+    venv_dir = ".venv"
+    if not os.path.exists(venv_dir):
+        print("Создаем виртуальное окружение в папке проекта...")
         try:
-            subprocess.run([pip_executable, "install", "git+https://github.com/OnisOris/pion"], check=True)
-            print("Пакет pion успешно установлен в виртуальном окружении.")
+            subprocess.run(["python", "-m", "venv", venv_dir], check=True)
         except subprocess.CalledProcessError as e:
-            print("Ошибка установки пакета pion в виртуальном окружении:", e)
+            print("Ошибка создания виртуального окружения:", e)
             sys.exit(1)
     else:
-        try:
-            subprocess.run(["pip", "install", "git+https://github.com/OnisOris/pion"], check=True)
-            print("Пакет pion успешно установлен.")
-        except subprocess.CalledProcessError as e:
-            print("Ошибка установки пакета pion:", e)
-            sys.exit(1)
+        print("Виртуальное окружение уже существует.")
 
+    # Определяем путь к pip в виртуальном окружении (учитываем различия между ОС)
+    if platform.system() == "Windows":
+        pip_executable = os.path.join(venv_dir, "Scripts", "pip.exe")
+    else:
+        pip_executable = os.path.join(venv_dir, "bin", "pip")
+
+    print("Устанавливаем пакет pion через pip в виртуальном окружении...")
+    try:
+        subprocess.run([pip_executable, "install", "git+https://github.com/OnisOris/pion"], check=True)
+        print("Пакет pion успешно установлен в виртуальном окружении.")
+    except subprocess.CalledProcessError as e:
+        print("Ошибка установки пакета pion в виртуальном окружении:", e)
+        sys.exit(1)
 
 def main():
     current_os = platform.system()
@@ -118,7 +110,6 @@ def main():
         sys.exit(1)
 
     if current_os == "Linux":
-        # Если это Arch Linux, то файл /etc/arch-release существует
         if os.path.exists("/etc/arch-release"):
             install_arch_dependencies()
         else:
@@ -130,7 +121,6 @@ def main():
         sys.exit(1)
 
     install_python_package()
-
 
 if __name__ == "__main__":
     main()
