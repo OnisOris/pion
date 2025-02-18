@@ -61,9 +61,19 @@ def install_windows_dependencies():
         else:
             print("Chocolatey найден. Пытаемся установить Visual Studio Build Tools...")
             try:
-                # Устанавливаем Visual Studio 2022 Build Tools. Этот процесс может занять некоторое время.
-                subprocess.run(["choco", "install", "visualstudio2022buildtools", "-y"], check=True)
-                print("Visual Studio Build Tools установлены.")
+                # Устанавливаем Visual Studio 2022 Build Tools
+                result = subprocess.run(
+                    ["choco", "install", "visualstudio2022buildtools", "-y"],
+                    check=False
+                )
+                if result.returncode in (0, 3010):
+                    if result.returncode == 3010:
+                        print("Visual Studio Build Tools установлены, но требуется перезагрузка.")
+                    else:
+                        print("Visual Studio Build Tools установлены.")
+                else:
+                    print("Ошибка установки Visual Studio Build Tools через Chocolatey: Return code", result.returncode)
+                    sys.exit(1)
             except subprocess.CalledProcessError as e:
                 print("Ошибка установки Visual Studio Build Tools через Chocolatey:", e)
                 sys.exit(1)
