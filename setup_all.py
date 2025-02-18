@@ -74,20 +74,27 @@ def install_windows_dependencies():
                 print("Ошибка установки Visual Studio Build Tools через Chocolatey:", e)
                 sys.exit(1)
 
+
 def install_python_package():
     """Создаем виртуальное окружение (.venv) в папке проекта и устанавливаем пакет pion через pip в него"""
     venv_dir = ".venv"
+    python_executable = shutil.which("python") or shutil.which("python3")
+
+    if not python_executable:
+        print("Ошибка: Python не найден. Пожалуйста, установите Python.")
+        sys.exit(1)
+
     if not os.path.exists(venv_dir):
         print("Создаем виртуальное окружение в папке проекта...")
         try:
-            subprocess.run(["python", "-m", "venv", venv_dir], check=True)
+            subprocess.run([python_executable, "-m", "venv", venv_dir], check=True)
         except subprocess.CalledProcessError as e:
             print("Ошибка создания виртуального окружения:", e)
             sys.exit(1)
     else:
         print("Виртуальное окружение уже существует.")
 
-    # Определяем путь к pip в виртуальном окружении (учитываем различия между ОС)
+    # Определяем путь к pip в виртуальном окружении
     if platform.system() == "Windows":
         pip_executable = os.path.join(venv_dir, "Scripts", "pip.exe")
     else:
@@ -100,6 +107,7 @@ def install_python_package():
     except subprocess.CalledProcessError as e:
         print("Ошибка установки пакета pion в виртуальном окружении:", e)
         sys.exit(1)
+
 
 def main():
     current_os = platform.system()
