@@ -1,58 +1,58 @@
 @echo off
 cd /d %~dp0
-REM Устанавливаем кодовую страницу UTF-8 для корректного отображения кириллицы
+REM Set the code page to UTF-8 for proper character display
 chcp 65001 >nul
 
-REM Проверяем наличие Python в системе
+REM Check if Python is installed in the system
 where python >nul 2>&1
 if %errorLevel% neq 0 (
-    echo Ошибка: Python не установлен или не добавлен в переменную PATH.
-    echo Установите Python и добавьте его в PATH, затем запустите скрипт снова.
+    echo Error: Python is not installed or not added to PATH.
+    echo Please install Python and add it to PATH, then run the script again.
     pause
     exit /b 1
 )
 
-REM Проверяем, запущен ли скрипт с правами администратора
+REM Check if the script is running with administrator privileges
 net session >nul 2>&1
 if %errorLevel%==0 (
-    echo Скрипт запущен с правами администратора.
+    echo Script is running with administrator privileges.
 ) else (
-    echo Ошибка: скрипт должен быть запущен с правами администратора.
+    echo Error: The script must be run as administrator.
     pause
     exit /b 1
 )
 
-REM Проверяем наличие Chocolatey (для установки зависимостей Windows)
+REM Check for Chocolatey (to install Windows dependencies)
 where choco >nul 2>&1
 if %errorLevel% neq 0 (
-    echo Chocolatey не найден. Устанавливаем Chocolatey...
+    echo Chocolatey not found. Installing Chocolatey...
     powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
 
     timeout /t 5 >nul
     where choco >nul 2>&1
     if %errorLevel% neq 0 (
-        echo Ошибка установки Chocolatey.
+        echo Error installing Chocolatey.
         pause
         exit /b 1
     ) else (
-        echo Chocolatey успешно установлен.
+        echo Chocolatey installed successfully.
     )
 ) else (
-    echo Chocolatey уже установлен.
+    echo Chocolatey is already installed.
 )
 
-REM URL файла setup_all.py
+REM Set the URL for the setup_all.py file
 set "FILE_URL=https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/setup_all.py"
 
-echo Скачиваем setup_all.py...
+echo Downloading setup_all.py...
 curl -O %FILE_URL%
 if errorlevel 1 (
-    echo Ошибка скачивания файла.
+    echo Error downloading the file.
     pause
     exit /b 1
 )
 
-echo Запускаем setup_all.py...
+echo Running setup_all.py...
 python setup_all.py
 
 pause
