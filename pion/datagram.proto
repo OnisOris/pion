@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+message Datagram {
+  int64 token = 1;
+  int64 id = 2;
+  int32 source = 3;
+  int32 command = 4;
+  repeated float data = 5;
+  string hash = 6;
+}
