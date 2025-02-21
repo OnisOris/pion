@@ -9,6 +9,7 @@ class DDatagram:
         self.source = 0
         self.command = 0
         self.data = []
+        self.target_ip = ""  # Новое поле
 
     def to_proto(self):
         """Создаёт protobuf-объект из текущих данных."""
@@ -17,7 +18,8 @@ class DDatagram:
             id=self.id,
             source=self.source,
             command=self.command,
-            data=self.data
+            data=self.data,
+            target_ip=self.target_ip  # передаем новое поле
         )
         proto.hash = self._calculate_hash(proto)  # Добавляем хеш
         return proto
@@ -29,6 +31,7 @@ class DDatagram:
         self.source = proto.source
         self.command = proto.command
         self.data = list(proto.data)
+        self.target_ip = proto.target_ip  # читаем новое поле
 
     def export_serialized(self):
         """Сериализация в бинарный формат protobuf с хешем."""
@@ -55,3 +58,4 @@ class DDatagram:
         proto_copy.CopyFrom(proto)
         proto_copy.hash = ""  # Очищаем поле хеша перед вычислением
         return hashlib.md5(proto_copy.SerializeToString()).hexdigest()
+

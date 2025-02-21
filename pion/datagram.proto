@@ -1,10 +1,12 @@
 syntax = "proto3";
+package pion;
 
 message Datagram {
-  int64 token = 1;
+  int32 token = 1;
   int64 id = 2;
   int32 source = 3;
   int32 command = 4;
-  repeated float data = 5;
-  string hash = 6;
+  repeated double data = 5;
+  string target_ip = 6; // Новое поле для адресации
+  string hash = 7;
 }
