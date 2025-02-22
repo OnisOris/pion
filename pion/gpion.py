@@ -3,6 +3,7 @@ import time
 import paramiko 
 from pion.datagram import DDatagram
 from pion.pio import DroneBase  
+import sys
 
 # Определяем UDP-порт и коды команд
 UDP_PORT = 37020
@@ -115,23 +116,97 @@ class Gpion(DroneBase):
         print(f"Подключаемся по SSH к {ssh_host} как {ssh_user}...")
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
         try:
-            ssh.connect(ssh_host, username=ssh_user, password=ssh_password)
-            stdin, stdout, stderr = ssh.exec_command("pgrep -f pion_server.py")
-            result = stdout.read().decode().strip()
-            if result:
-                print("Pion server уже запущен на устройстве.")
-            else:
-                print("Pion server не запущен. Запускаем установку и запуск сервиса...")
-                ssh.exec_command("mkdir -p ~/cope/server")
-                time.sleep(1)
-                ssh.exec_command("sudo curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_linux.sh | sudo bash")
-                time.sleep(5)
-                ssh.exec_command("wget https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/pion_server.py -O ~/cope/server/pion_server.py")
-                time.sleep(2)
-                ssh.exec_command("cd ~/cope/server && .venv/bin/python pion_server.py &")
-                print("Pion server установлен и запущен.")
-            ssh.close()
-        except Exception as e:
-            print(f"Ошибка при SSH-подключении: {e}")
+            ssh.connect(ssh_host, username=ssh_user, password=ssh_password, timeout=10)
+            transport = ssh.get_transport()
+            
+            def exec_command(cmd, timeout=15):
+                chan = transport.open_session()
+                chan.exec_command(cmd)
+                exit_code = chan.recv_exit_status()
+                stdout = chan.makefile('r', -1).read()
+                stderr = chan.makefile_stderr('r', -1).read()
+                return exit_code, stdout, stderr
+            
+            # Проверка существования сервиса
+            exit_code, stdout, stderr = exec_command("sudo systemctl list-unit-files | grep pion_server.service")
+            
+            if exit_code == 0:
+                print("Pion server уже установлен и работает")
+                return
 
+            print("Начинаем установку Pion server...")
+            
+            # Создаем директорию
+            exit_code, _, _ = exec_command("mkdir -p ~/code/server")
+            if exit_code != 0:
+                raise Exception("Ошибка создания директории")
+
+            # Установка зависимостей
+            exit_code, _, _ = exec_command(
+                "sudo curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_linux.sh | sudo bash",
+                timeout=60
+            )
+            if exit_code != 0:
+                raise Exception("Ошибка установки зависимостей")
+
+            # Скачивание серверного файла
+            exit_code, _, _ = exec_command(
+                "wget -q https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/pion_server.py -O ~/code/server/pion_server.py",
+                timeout=30
+            )
+            if exit_code != 0:
+                raise Exception("Ошибка загрузки pion_server.py")
+
+            # Создание systemd service
+            service_content = f'''\
+    [Unit]
+    Description=Pion Server
+    After=network.target
+
+    [Service]
+    User={ssh_host}
+    WorkingDirectory=/home/{ssh_host}/code/server
+    ExecStart=/home/{ssh_host}/code/server/.venv/bin/python /home/{ssh_host}/code/server/pion_server.py
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+    '''
+
+            exit_code, _, _ = exec_command(
+                f"echo '{service_content}' | sudo tee /etc/systemd/system/pion_server.service >/dev/null",
+                timeout=15
+            )
+            if exit_code != 0:
+                raise Exception("Ошибка создания service file")
+
+            # Reload systemd
+            exit_code, _, _ = exec_command("sudo systemctl daemon-reload", timeout=15)
+            if exit_code != 0:
+                raise Exception("Ошибка daemon-reload")
+
+            # Включение сервиса
+            exit_code, _, _ = exec_command("sudo systemctl enable pion_server", timeout=15)
+            if exit_code != 0:
+                raise Exception("Ошибка включения сервиса")
+
+            # Запуск сервиса
+            exit_code, _, _ = exec_command("sudo systemctl start pion_server", timeout=15)
+            if exit_code != 0:
+                raise Exception("Ошибка запуска сервиса")
+
+            print("Pion server успешно установлен и запущен")
+            
+        except Exception as e:
+            print(f"Критическая ошибка: {str(e)}")
+            # Вывод дополнительной информации об ошибках
+            try:
+                _, logs, _ = ssh.exec_command("journalctl -u pion_server -n 20")
+                print("Логи сервиса:\n", logs.read().decode())
+            except:
+                pass
+                
+        finally:
+            ssh.close()
