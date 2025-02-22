@@ -3,15 +3,15 @@ from .datagram_pb2 import *
 import random
 
 class DDatagram:
-    def __init__(self):
+    def __init__(self, id: int = random.randint(0, int(1e12))):
         self.token = -1
-        self.id = random.randint(0, int(1e12))
+        self.id = id         
         self.source = 0
         self.command = 0
         self.data = []
         self.target_ip = ""  # Новое поле
 
-    def to_proto(self):
+    def to_proto(self) -> Datagram:
         """Создаёт protobuf-объект из текущих данных."""
         proto = Datagram(
             token=self.token,

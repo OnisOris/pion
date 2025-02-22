@@ -7,6 +7,6 @@ message Datagram {
   int32 source = 3;
   int32 command = 4;
   repeated double data = 5;
-  string target_ip = 6; // Новое поле для адресации
+  string target_ip = 6;
   string hash = 7;
 }
