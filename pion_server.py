@@ -19,7 +19,7 @@ def main():
     
     # Создаем экземпляр дрона (например, Pion) с заданным IP.
     # Здесь mavlink_port и dt заданы как пример, их можно настроить под свои нужды.
-    drone = Spion(ip=ip, mavlink_port=5656, name=f"Drone_{args.device_number}", dt=0.1)
+    drone = Spion(ip=ip, mavlink_port=5656, name=f"Drone_{args.device_number}", dt=0.01, logger=0)
     
     # Создаем SwarmCommunicator, передавая объект управления под именем control_object
     # (внутри класса SwarmCommunicator вместо self.pion используется self.control_object)

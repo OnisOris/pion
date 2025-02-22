@@ -4,6 +4,8 @@ from .datagram import DDatagram
 from queue import Queue
 import threading
 from typing import Any, Dict, Tuple
+import random
+import numpy as np
 
 # Определим те же коды команд
 CMD_SET_SPEED = 1
@@ -18,8 +20,8 @@ class UDPBroadcastClient:
     """
     Клиент для отправки UDP широковещательных сообщений.
     """
-    def __init__(self, port: int = 37020) -> None:
-        self.encoder: DDatagram = DDatagram()
+    def __init__(self, port: int = 37020, id: int = random.randint(0, int(1e12))) -> None:
+        self.encoder: DDatagram = DDatagram(id=id)
         self.port: int = port
         try:
             self.socket: socket.socket = socket.socket(
@@ -72,9 +74,9 @@ class UDPBroadcastServer:
     """
     Сервер для приема UDP широковещательных сообщений.
     """
-    def __init__(self, server_to_agent_queue: Queue[Any], port: int = 37020) -> None:
-        self.encoder: DDatagram = DDatagram()
-        self.decoder: DDatagram = DDatagram()
+    def __init__(self, server_to_agent_queue: Queue[Any], port: int = 37020, id: int = random.randint(0, int(1e12))) -> None:
+        self.encoder: DDatagram = DDatagram(id=id)
+        self.decoder: DDatagram = DDatagram(id=id)
         self.server_to_agent_queue: Queue[Any] = server_to_agent_queue
         self.port: int = port
         try:
@@ -124,9 +126,11 @@ class SwarmCommunicator:
         self.broadcast_interval = broadcast_interval
         self.broadcast_port = broadcast_port
         self.receive_queue: Queue[Any] = Queue()
-        self.broadcast_client = UDPBroadcastClient(port=self.broadcast_port)
-        self.broadcast_server = UDPBroadcastServer(server_to_agent_queue=self.receive_queue, port=self.broadcast_port)
+        self.broadcast_client = UDPBroadcastClient(port=self.broadcast_port, id=int(self.control_object.ip[-3:]))
+        self.broadcast_server = UDPBroadcastServer(server_to_agent_queue=self.receive_queue, port=self.broadcast_port, id=int(self.control_object.ip[-3:]))
         self.running: bool = True
+        self.env = {}
+        self.safety_radius = 1
 
     def start(self) -> None:
         """
@@ -173,13 +177,6 @@ class SwarmCommunicator:
                 print("Error in receive loop:", error)
             time.sleep(0.1)
 
-    def process_incoming_state(self, state: Any) -> None:
-        """
-        Обрабатывает входящие данные о состоянии другого дрона.
-        
-        :param state: Данные о состоянии (например, protobuf-сообщение или его словарное представление).
-        """
-        print("Received state from swarm node:", state)
 
     def stop(self) -> None:
         """
@@ -188,21 +185,29 @@ class SwarmCommunicator:
         self.running = False
         self.broadcast_server.running = False
     
-    def process_incoming_state(self, state: any) -> None:
+ 
+    def process_incoming_state(self, state: Any) -> None:
         """
         Обрабатывает входящие сообщения.
         Если поле command ненулевое – интерпретирует сообщение как команду управления.
         Если присутствует поле target_ip, команда выполняется только если target_ip совпадает с IP устройства.
+        Если же target_ip не соответствует, данные сохраняются в словарь self.env для будущей обработки.
         """
+        print("V = ", self.compute_swarm_velocity())
+        if not hasattr(self, "env"):
+            self.env = {}  # инициализируем, если ещё не создано
+        print(self.env)
         if hasattr(state, "command") and state.command != 0:
             # Если в сообщении задано поле target_ip (не пустое), фильтруем команду по IP
             if hasattr(state, "target_ip") and state.target_ip:
                 local_ip = self.control_object.ip
                 if state.target_ip != local_ip:
-                    print(f"Команда с target_ip {state.target_ip} не предназначена для этого устройства ({local_ip}). Игнорируется.")
+                    print(f"Команда с target_ip {state.target_ip} не предназначена для этого устройства ({local_ip}). Данные сохранены.")
+                    # Сохраняем данные в словарь self.env, ключом можно использовать, например, state.id
+                    self.env[state.id] = state
                     return
 
-            # Обработка команд
+            # Обработка команд, если target_ip соответствует
             if state.command == CMD_SET_SPEED:
                 try:
                     vx, vy, vz, yaw_rate = state.data
@@ -232,5 +237,89 @@ class SwarmCommunicator:
             else:
                 print("Получена неизвестная команда:", state.command)
         else:
-            pass
-          #  print("Получено обновление состояния:", state)
+            # Если поле command равно 0 – можно сохранить обновление состояния в self.env для роевого алгоритма
+            # Ключ можно сформировать, например, по state.id или другому уникальному идентификатору
+            if hasattr(state, "id"):
+                self.env[state.id] = state
+            # Или, если нет command, можно добавить по IP, если оно есть
+            elif hasattr(state, "ip"):
+                self.env[state.ip] = state
+            # Иначе просто игнорировать
+            #  print("Получено обновление состояния:", state)
+    def compute_swarm_velocity(self) -> np.ndarray:
+        """
+        Вычисляет желаемый вектор скорости для локального дрона на основе информации из self.env.
+        Логика:
+          - Attraction: направлен от текущей позиции к средней позиции остальных дронов.
+          - Repulsion: суммарное отталкивание от дронов, находящихся ближе, чем safety_radius.
+          - Новый вектор = current_velocity + attraction + 4 * repulsion,
+            затем ограничивается по ускорению и по максимальной скорости.
+        Возвращает numpy-массив [vx, vy].
+        """
+        local_pos = self.control_object.position[0:2]
+        current_velocity = self.control_object.position[3:5]  # np.array([vx, vy])
+
+        # Если env пуст, то цель – текущая позиция (нет притяжения)
+        positions = []
+        for state in self.env.values():
+            if len(state.data) >= 3:
+                # Предполагается, что state.data[1] и state.data[2] – x и y
+                positions.append(np.array(state.data[1:3], dtype=float))
+        if positions:
+            # Средняя позиция остальных дронов
+            swarm_goal = np.mean(positions, axis=0)
+        else:
+            swarm_goal = local_pos
+
+        # Attraction force: единичный вектор от текущей позиции к swarm_goal
+        direction = swarm_goal - local_pos
+        norm_dir = np.linalg.norm(direction)
+        if norm_dir != 0:
+            attraction_force = direction / norm_dir
+        else:
+            attraction_force = np.zeros(2)
+
+        # Repulsion force: суммируем вклад от каждого дрона, если расстояние меньше safety_radius
+        repulsion_force = np.zeros(2)
+        for state in self.env.values():
+            if len(state.data) >= 3:
+                other_pos = np.array(state.data[1:3], dtype=float)
+                distance_vector = local_pos - other_pos
+                distance = np.linalg.norm(distance_vector)
+                if 0 < distance < self.safety_radius:
+                    repulsion_force += distance_vector / (distance ** 2)
+        # Вычисляем новый вектор скорости (базовый алгоритм)
+        new_velocity = current_velocity + attraction_force + 4 * repulsion_force
+
+        # Ограничиваем изменение (акселерацию) до max_acceleration (например, 0.15)
+        new_velocity = self._limit_acceleration(current_velocity, new_velocity, max_acceleration=0.15)
+        # Ограничиваем скорость до self.max_speed
+        new_velocity = self._limit_speed(new_velocity)
+        return new_velocity
+
+    def _limit_acceleration(self, current_velocity, target_velocity, max_acceleration):
+        change = target_velocity - current_velocity
+        norm = np.linalg.norm(change)
+        if norm > max_acceleration:
+            change = change / norm * max_acceleration
+        return current_velocity + change
+
+    def _limit_speed(self, velocity):
+        norm = np.linalg.norm(velocity)
+        if 0.03 < norm < 0.45:
+            return velocity / 1.4
+        elif norm < 0.06:
+            return np.zeros_like(velocity)
+        if norm > self.control_object.max_speed:
+            return velocity / norm * self.control_object.max_speed
+        return velocity
+
+    def update_swarm_control(self) -> None:
+        """
+        Вычисляет новый вектор скорости для локального дрона на основе информации из self.env
+        и записывает его в self.control_object.t_speed.
+        """
+        new_vel = self.compute_swarm_velocity()
+        self.control_object.t_speed = new_vel
+        print(f"Swarm control updated t_speed: {new_vel}")
+
