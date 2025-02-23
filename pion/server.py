@@ -3,9 +3,10 @@ import time
 from .datagram import DDatagram  
 from queue import Queue
 import threading
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Union
 import random
 import numpy as np
+from .functions import vector_reached
 
 # Определим те же коды команд
 CMD_SET_SPEED = 1
@@ -116,10 +117,15 @@ class SwarmCommunicator:
     который периодически рассылает своё состояние (position, attitude, ip, id)
     и принимает аналогичные данные от других дронов.
     """
-    def __init__(self, control_object: Any, broadcast_port: int = 37020, broadcast_interval: float = 0.5) -> None:
+    def __init__(self,
+                 control_object: Any,
+                 broadcast_port: int = 37020, 
+                 broadcast_interval: float = 0.5,
+                 safety_radius: float = 1.,
+                 max_speed: float = 1.) -> None:
         """
-        :param pion: Экземпляр дрона (например, объект Pion), из которого берутся данные состояния.
-        :param broadcast_port: Порт для широковещательной рассылки.
+        :param control_object: Экземпляр дрона (например, объект Pion), из которого берутся данные состояния.
+        :param control_object: Порт для широковещательной рассылки.
         :param broadcast_interval: Интервал между отправками состояния.
         """
         self.control_object = control_object
@@ -130,7 +136,8 @@ class SwarmCommunicator:
         self.broadcast_server = UDPBroadcastServer(server_to_agent_queue=self.receive_queue, port=self.broadcast_port, id=int(self.control_object.ip[-3:]))
         self.running: bool = True
         self.env = {}
-        self.safety_radius = 1
+        self.safety_radius = safety_radius
+        self.max_speed = max_speed
 
     def start(self) -> None:
         """
@@ -145,11 +152,11 @@ class SwarmCommunicator:
     def _broadcast_loop(self) -> None:
         """
         Цикл отправки собственного состояния дрона.
+
+        :return: None
         """
         while self.running:
             try:
-                # Собираем данные состояния дрона.
-                # Здесь предполагается, что pion имеет атрибуты name, ip, position и attitude.
                 state: Dict[str, Any] = {
                     "id": self.control_object.name,        # преобразуется в числовой id внутри send()
                     "ip": self.control_object.ip,          # ip-адрес в виде строки
@@ -177,10 +184,10 @@ class SwarmCommunicator:
                 print("Error in receive loop:", error)
             time.sleep(0.1)
 
-
     def stop(self) -> None:
         """
         Останавливает работу коммуникатора.
+        :return: None
         """
         self.running = False
         self.broadcast_server.running = False
@@ -192,6 +199,8 @@ class SwarmCommunicator:
         Если поле command ненулевое – интерпретирует сообщение как команду управления.
         Если присутствует поле target_ip, команда выполняется только если target_ip совпадает с IP устройства.
         Если же target_ip не соответствует, данные сохраняются в словарь self.env для будущей обработки.
+        :param state: 
+        :return: None
         """
         print("V = ", self.compute_swarm_velocity())
         if not hasattr(self, "env"):
@@ -254,7 +263,9 @@ class SwarmCommunicator:
           - Repulsion: суммарное отталкивание от дронов, находящихся ближе, чем safety_radius.
           - Новый вектор = current_velocity + attraction + 4 * repulsion,
             затем ограничивается по ускорению и по максимальной скорости.
-        Возвращает numpy-массив [vx, vy].
+
+        :return: numpy-массив [vx, vy]
+        :rtype: np.ndarray
         """
         local_pos = self.control_object.position[0:2]
         current_velocity = self.control_object.position[3:5]  # np.array([vx, vy])
@@ -278,7 +289,6 @@ class SwarmCommunicator:
             attraction_force = direction / norm_dir
         else:
             attraction_force = np.zeros(2)
-
         # Repulsion force: суммируем вклад от каждого дрона, если расстояние меньше safety_radius
         repulsion_force = np.zeros(2)
         for state in self.env.values():
@@ -297,14 +307,42 @@ class SwarmCommunicator:
         new_velocity = self._limit_speed(new_velocity)
         return new_velocity
 
-    def _limit_acceleration(self, current_velocity, target_velocity, max_acceleration):
+    def _limit_acceleration(self, 
+                            current_velocity: np.ndarray,
+                            target_velocity: np.ndarray,
+                            max_acceleration: float) -> np.ndarray:
+        """
+        Метод ограничения максимального ускорения
+        :param current_velocity: массив скоростей
+        :type current_velocity: np.ndarray
+
+        :param target_velocity: целевая скорость
+        :type target_velocity: np.ndarray
+        :param max_acceleration: предел по максимальному ускорению
+        :type max_acceleration: float
+
+        :return: максимальное изменение скорости
+        :rtype: np.ndarray
+        """
         change = target_velocity - current_velocity
         norm = np.linalg.norm(change)
         if norm > max_acceleration:
             change = change / norm * max_acceleration
         return current_velocity + change
 
-    def _limit_speed(self, velocity):
+    def _limit_speed(self, 
+                     velocity: np.ndarray) -> np.ndarray:
+        """
+        Метод для ограничения скорости.
+        В диапазоне (0.03, 0.45) скорость делится на 1.4.
+        В остальном ограничение идет по self.max_speed.
+        
+        :param velocity: Ограничеваемая скорость
+        :type velocity: np.ndarray
+
+        :return: np.ndarray
+        :rtype: np.ndarray
+        """
         norm = np.linalg.norm(velocity)
         if 0.03 < norm < 0.45:
             return velocity / 1.4
@@ -318,8 +356,51 @@ class SwarmCommunicator:
         """
         Вычисляет новый вектор скорости для локального дрона на основе информации из self.env
         и записывает его в self.control_object.t_speed.
+
+        :return: None
+        :rtype: None
         """
         new_vel = self.compute_swarm_velocity()
-        self.control_object.t_speed = new_vel
+        self.control_object.t_speed = np.array([new_vel[0], new_vel[1], 0, 0])
         print(f"Swarm control updated t_speed: {new_vel}")
+
+    def smart_goto(self,
+                    x: Union[float, int],
+                    y: Union[float, int],
+                    z: Union[float, int],
+                    yaw: Union[float, int] = 0,
+                    accuracy: Union[float, int] = 5e-2) -> None:
+        """
+        Функция, выполняющая перемещение к точке безопасным образом, облетая дроны
+        :param x: координата по x
+        :type x: Union[float, int]
+        :param y: координата по y
+        :type y: Union[float, int]
+        :param z: координата по z (Пока не учавствует в рассчетах)
+        :type z: Union[float, int]
+        :param yaw: координата по yaw
+        :type yaw: Union[float, int]
+        :param accuracy: Погрешность целевой точки
+        :type accuracy: Union[float, int, None]
+        :return: None
+        """
+        self.control_object.set_v()
+        self.control_object.goto_yaw(yaw)
+        target_point = np.array([x, y])
+        self.control_object.point_reached = False
+        # last_time = time.time() # Закоменченное позже понадобится в алгоритмах 
+        time.sleep(self.control_object.period_send_speed)
+        while not self.control_object.point_reached:
+            # current_time = time.time()
+            # dt = current_time - last_time
+            # last_time = current_time
+            self.control_object.point_reached = vector_reached(target_point,
+                                                self.control_object.last_points,
+                                                accuracy=accuracy)
+            self.update_swarm_control()
+            time.sleep(self.control_object.period_send_speed)
+        self.t_speed = np.zeros(4)
+        
+
+
 
