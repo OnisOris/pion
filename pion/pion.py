@@ -134,6 +134,9 @@ class Pion(DroneBase):
             [1] * 1
         ], dtype=np.float64)
         self.set_v_check_flag = False
+        self.target_point: np.ndarray = np.array([0, 0, 2, 0])
+        self.tracking = False
+
 
     @property
     def speed(self) -> Union[Array2, Array3]:
@@ -205,6 +208,7 @@ class Pion(DroneBase):
         :note: Координаты задаются в ENU (East-North-Up) системе координат, но будут автоматически преобразованы 
         в NED (North-East-Down).
         """
+        self.tracking = False
         mask = 0b0000_10_0_111_111_000
         x, y, z = y, x, -z
         self._send_position_target_local_ned(coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
@@ -214,6 +218,34 @@ class Pion(DroneBase):
                                              z=z,
                                              yaw=yaw,
                                              mavlink_send_number=10)
+
+    def start_track_point(self):
+        self.threads.append(threading.Thread(target=self.point_tacking))
+        self.threads[-1].start()
+
+
+    def point_tacking(self):
+        self.set_v()
+        self.goto_yaw(0)
+        self._pid_position_controller = PIDController(*self.position_pid_matrix) 
+        self.point_reached = False
+        last_time = time.time()
+        time.sleep(self.period_send_speed)
+        self.tracking = True
+        print(1)
+        while self.tracking:
+            print("some")
+            current_time = time.time()
+            dt = current_time - last_time
+            last_time = current_time
+            self.position_controller(self.target_point[0:3], dt)
+            time.sleep(self.period_send_speed)
+        self.t_speed = np.zeros(4)
+
+
+
+
+
 
     def goto_from_outside(self,
                           x: Union[float, int],
@@ -237,6 +269,7 @@ class Pion(DroneBase):
         :type accuracy: Union[float, int, None]
         :return: None
         """
+        self.tracking = False
         self.set_v()
         self.goto_yaw(yaw)
         if self.dimension == 2:
@@ -273,6 +306,7 @@ class Pion(DroneBase):
         :type accuracy: Union[float, int]
         :return: None
         """
+        self.tracking = False
         self.set_v()
         pid_controller = PIDController(*self.yaw_pid_matrix)
         point_reached = False
