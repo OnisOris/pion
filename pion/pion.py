@@ -234,7 +234,6 @@ class Pion(DroneBase):
         self.tracking = True
         print(1)
         while self.tracking:
-            print("some")
             current_time = time.time()
             dt = current_time - last_time
             last_time = current_time
