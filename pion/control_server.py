@@ -9,6 +9,7 @@ CMD_TAKEOFF   = 3
 CMD_LAND      = 4
 CMD_ARM       = 5
 CMD_DISARM    = 6
+CMD_SMART_GOTO = 7
 
 class UDPBroadcastClient:
     """
@@ -57,19 +58,13 @@ class ControlServer:
         serialized = dt.export_serialized()
         self.client.socket.sendto(serialized, ("<broadcast>", self.broadcast_port))
         print(f"Команда {command} с данными {data} отправлена для {target}.")
-    # def send_command(self, command: int, data: list, target: str = "<broadcast>") -> None:
-    #     dt = DDatagram()
-    #     dt.command = command
-    #     dt.data = data
-    #     serialized = dt.export_serialized()
-    #     self.client.socket.sendto(serialized, (target, self.broadcast_port))
-    #     print(f"Команда {command} с данными {data} отправлена на {target}.")
+
 
     def console_loop(self):
         print("Запущен консольный интерфейс управления.")
         print("Синтаксис команд: [target] command [параметры]")
         print("  target: 'all' или номер устройства (например, 3 для IP 10.1.100.3)")
-        print("  Команды: set_speed, goto, takeoff, land, arm, disarm")
+        print("  Команды: set_speed, goto, takeoff, land, arm, disarm, smart_goto")
         while True:
             try:
                 line = input("Command> ").strip()
@@ -128,6 +123,9 @@ class ControlServer:
                 self.send_command(CMD_ARM, [], target)
             elif cmd == "disarm":
                 self.send_command(CMD_DISARM, [], target)
+            elif parts[1].lower() == "smart_goto":
+                x, y, z, yaw = map(float, parts[2:6])
+                self.send_command(CMD_SMART_GOTO, [x, y, z, yaw], target=target)
             else:
                 print("Неизвестная команда. Доступны: set_speed, goto, takeoff, land, arm, disarm.")
 
