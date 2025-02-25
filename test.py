@@ -28,6 +28,14 @@ elif '-at' in args:
     drone.takeoff()
 elif '-r' in args:
     drone.reboot_board()
+
+elif '-tr':
+    drone.arm()
+    drone.takeoff()
+    time.sleep(8)
+    drone.start_track_point()
+    while True:
+        time.sleep(1)
 else:
     print("---")
     drone.arm()
