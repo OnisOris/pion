@@ -4,6 +4,39 @@ import numpy.typing as npt
 from pymavlink import mavutil
 
 
+def normalization(vector: np.ndarray, length: float = 1.) -> np.ndarray:
+    """
+    Функция возвращает нормированный вектор заданной длины
+
+    :param vector: Вектор
+    :type vector: ndarray
+
+    :param length: Длина вектора
+    :type length: float
+
+    :return: Нормированный вектор длины length
+    :rtype: np.ndarray
+    """
+    return np.array(vector) / np.linalg.norm(vector) * length
+
+def vector_rotation2(vector: np.ndarray, angle: float) -> np.ndarray:
+    """
+    Вращение вектора по часовой стрелке
+
+    :param vector: Координаты вектора размерностью 2
+    :type vector: np.ndarray
+
+    :param angle: Угол в радианах
+    :type angle: float
+
+    :return: Повернутый вектор на ange градусов
+    :rtype: np.ndarray
+    """
+    matrix_rotation = np.array([[np.cos(angle), np.sin(angle)],
+                                [-np.sin(angle), np.cos(angle)]])
+    new_vector = matrix_rotation.dot(vector)
+    return new_vector
+
 def create_connection(
         connection_method: str,
         ip: str,
