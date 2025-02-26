@@ -6,7 +6,7 @@ import threading
 from typing import Any, Dict, Tuple, Union
 import random
 import numpy as np
-from .functions import vector_reached
+from .functions import vector_reached, vector_rotation2, normalization
 
 # Определим те же коды команд
 CMD_SET_SPEED = 1
@@ -250,9 +250,6 @@ class SwarmCommunicator:
                 self.point_reached = True
                 x, y, z, yaw = state.data
                 self.smart_goto(x, y, z, yaw)
-                print(f"SmartGoto: ({x}, {y}, {z}), yaw={yaw}")
-                # except Exception as e:
-                #     print(f"Ошибка SmartGoto: {str(e)}")
             else:
                 print("Получена неизвестная команда:", state.command)
         else:
@@ -265,7 +262,8 @@ class SwarmCommunicator:
                 self.env[state.ip] = state
             # Иначе просто игнорировать
             #  print("Получено обновление состояния:", state)
-    def compute_swarm_velocity(self, target_point = np.array([0, 0])) -> np.ndarray:
+    def compute_swarm_velocity(self,
+                               target_point: np.ndarray = np.array([0, 0])) -> np.ndarray:
         """
         Вычисляет желаемый вектор скорости для локального дрона на основе информации из self.env.
         Логика:
@@ -273,6 +271,8 @@ class SwarmCommunicator:
           - Repulsion: суммарное отталкивание от дронов, находящихся ближе, чем safety_radius.
           - Новый вектор = current_velocity + attraction + 4 * repulsion,
             затем ограничивается по ускорению и по максимальной скорости.
+        :param target_point: Целевая координата
+        :type target_point: np.ndarray
 
         :return: numpy-массив [vx, vy]
         :rtype: np.ndarray
@@ -288,17 +288,27 @@ class SwarmCommunicator:
             attraction_force = np.zeros(2)
         # Repulsion force: суммируем вклад от каждого дрона, если расстояние меньше safety_radius
         repulsion_force = np.zeros(2)
+
+        # Вектор выведения дрона из равновесия (при стабилизации на границе дрона)
+        unstable_vector = np.zeros(2)
+
         for state in self.env.values():
             if len(state.data) >= 3:
                 other_pos = np.array(state.data[1:3], dtype=float)
+                # print(state.data)
                 distance_vector = local_pos - other_pos
                 distance = np.linalg.norm(distance_vector)
                 if 0 < distance < self.safety_radius:
                     repulsion_force += distance_vector / (distance ** 2)
+                    print(f"+ repulsion_force = {repulsion_force}")
+                if (self.safety_radius - 0.1 < np.linalg.norm(state.data[0:2] - self.control_object.position[0:2]) < self.safety_radius + 0.1 and
+                    np.allclose(np.linalg.norm(self.control_object.position[3:4]), 0, atol=0.1) and
+                        np.linalg.norm(direction) > self.safety_radius + 0.2):
+                    unstable_vector += vector_rotation2(normalization(direction, 0.3), -np.pi / 2)
+
         # Вычисляем новый вектор скорости (базовый алгоритм)
-        new_velocity = current_velocity + attraction_force + 4 * repulsion_force + np.array([np.random.rand() * 0.4,
-                                                                                             np.random.rand() * 0.4])
-        # Ограничиваем изменение (акселерацию) до max_acceleration (например, 0.15)
+        new_velocity = current_velocity + attraction_force + 4 * repulsion_force + unstable_vector
+        # Ограничиваем изменение (акселерацию) до max_acceleration
         new_velocity = self._limit_acceleration(current_velocity, new_velocity, max_acceleration=0.1)
         # Ограничиваем скорость до self.max_speed
         new_velocity = self._limit_speed(new_velocity)
@@ -388,13 +398,15 @@ class SwarmCommunicator:
         # last_time = time.time() # Закоменченное позже понадобится в алгоритмах 
         time.sleep(self.control_object.period_send_speed)
         while not self.control_object.point_reached:
-            self.control_object.point_reached = vector_reached(target_point, #TODO: Сделать остановку по скорости
+            self.control_object.point_reached = vector_reached(target_point,
                                                                self.control_object.last_points[:,:2],
-                                                               accuracy=accuracy) and np.allclose(self.control_object.position[3:6], np.array([0, 0, 0]), atol=1e-4)
+                                                               accuracy=accuracy) and np.allclose(self.control_object.position[3:6],
+                                                                                                  np.array([0, 0, 0]), atol=1e-2)
             self.update_swarm_control(np.array([x, y]))
             time.sleep(self.control_object.period_send_speed)
         print("smart end")
-        self.t_speed = np.zeros(4)
+        time.sleep(0.5)
+        self.control_object.t_speed = np.zeros(4)
         
 
 
