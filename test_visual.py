@@ -179,7 +179,7 @@ class SwarmVisualizer2D:
         ani = FuncAnimation(
             self.fig, 
             self.update_plot, 
-            interval=10,
+            interval=500,
             cache_frame_data=False
         )
         plt.show()
