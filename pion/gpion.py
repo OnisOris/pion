@@ -210,3 +210,123 @@ class Gpion(DroneBase):
                 
         finally:
             ssh.close()
+
+    def check_pion_server_raspb(self, ssh_host: str, ssh_user: str, ssh_password: str) -> None:
+        print(f"Подключаемся по SSH к {ssh_host} как {ssh_user}...")
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        try:
+            ssh.connect(ssh_host, username=ssh_user, password=ssh_password, timeout=10)
+            transport = ssh.get_transport()
+
+            def exec_command(cmd, timeout=15):
+                print(f"\nВыполняется команда: {cmd}")
+                chan = transport.open_session()
+                chan.exec_command(cmd)
+                exit_code = chan.recv_exit_status()
+                stdout = chan.makefile('r', -1).read().strip()
+                stderr = chan.makefile_stderr('r', -1).read().strip()
+                print(f"Код завершения: {exit_code}")
+                if stdout:
+                    print(f"stdout:\n{stdout}")
+                if stderr:
+                    print(f"stderr:\n{stderr}")
+                return exit_code, stdout, stderr
+
+            def exec_command_with_retry(cmd, timeout=15, retries=5, delay=5):
+                for attempt in range(1, retries + 1):
+                    exit_code, stdout, stderr = exec_command(cmd, timeout=timeout)
+                    # Если команда выполнена успешно – возвращаем результат
+                    if exit_code == 0:
+                        return exit_code, stdout, stderr
+                    # Если ошибка связана с блокировкой dpkg – делаем повторную попытку
+                    if "lock" in stderr.lower():
+                        print(
+                            f"Обнаружена блокировка dpkg (попытка {attempt}/{retries}). Повтор через {delay} секунд...")
+                        time.sleep(delay)
+                    else:
+                        break
+                return exit_code, stdout, stderr
+
+            # Проверка, установлен ли уже сервис pion_server
+            exit_code, stdout, stderr = exec_command("sudo systemctl list-unit-files | grep pion_server.service")
+            if exit_code == 0 and stdout:
+                print("Pion server уже установлен и работает. Логи:")
+                print(stdout)
+                return
+
+            print("\nНачинаем установку Pion server для Raspberry Pi Zero 2W...")
+
+            # Создаем директорию для сервера
+            exit_code, _, _ = exec_command("mkdir -p ~/code/server")
+            if exit_code != 0:
+                raise Exception("Ошибка создания директории ~/code/server")
+
+            # Обновляем списки пакетов и устанавливаем зависимости с попытками повтора при блокировке
+            exit_code, _, _ = exec_command_with_retry(
+                "sudo apt-get update && sudo apt-get install -y python3 python3-pip wget curl", timeout=60
+            )
+            if exit_code != 0:
+                raise Exception("Ошибка установки зависимостей через apt-get")
+
+            # Скачиваем серверный файл
+            exit_code, _, _ = exec_command(
+                "wget -q https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/pion_server.py -O ~/code/server/pion_server.py",
+                timeout=30)
+            if exit_code != 0:
+                raise Exception("Ошибка загрузки файла pion_server.py")
+
+            # Создаем systemd unit для Pion server.
+            # Используем nohup для запуска сервиса в фоне, вывод перенаправляем в лог.
+            service_content = f'''\
+    [Unit]
+    Description=Pion Server
+    After=network.target
+
+    [Service]
+    User={ssh_user}
+    WorkingDirectory=/home/{ssh_user}/code/server
+    ExecStart=/usr/bin/nohup /usr/bin/python3 /home/{ssh_user}/code/server/pion_server.py >> /home/{ssh_user}/code/server/pion_server.log 2>&1
+    Restart=always
+    StandardOutput=null
+    StandardError=null
+
+    [Install]
+    WantedBy=multi-user.target
+    '''
+            exit_code, _, _ = exec_command(
+                f"echo '{service_content}' | sudo tee /etc/systemd/system/pion_server.service >/dev/null", timeout=15)
+            if exit_code != 0:
+                raise Exception("Ошибка создания файла сервиса pion_server.service")
+
+            # Перезагружаем конфигурацию systemd
+            exit_code, _, _ = exec_command("sudo systemctl daemon-reload", timeout=15)
+            if exit_code != 0:
+                raise Exception("Ошибка перезагрузки демона systemd")
+
+            # Включаем сервис (чтобы он запускался при загрузке)
+            exit_code, _, _ = exec_command("sudo systemctl enable pion_server", timeout=15)
+            if exit_code != 0:
+                raise Exception("Ошибка включения сервиса pion_server")
+
+            # Запускаем сервис. Благодаря nohup, команда не будет захватывать вывод запущенного процесса.
+            exit_code, _, _ = exec_command("sudo systemctl start pion_server", timeout=15)
+            if exit_code != 0:
+                raise Exception("Ошибка запуска сервиса pion_server")
+
+            print("\nPion server успешно установлен и запущен на Raspberry Pi Zero 2W")
+
+        except Exception as e:
+            print(f"\nКритическая ошибка: {str(e)}")
+            try:
+                print("\nСбор логов сервиса pion_server:")
+                _, logs, _ = ssh.exec_command("journalctl -u pion_server -n 20")
+                logs_str = logs.read().decode().strip()
+                print("Логи сервиса:\n", logs_str)
+            except Exception as inner_e:
+                print("Не удалось получить логи:", inner_e)
+
+        finally:
+            ssh.close()
+            print("SSH-соединение закрыто.")
