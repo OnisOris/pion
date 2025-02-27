@@ -205,10 +205,8 @@ class SwarmCommunicator:
         :param state: 
         :return: None
         """
-        # print("V = ", self.compute_swarm_velocity())
         if not hasattr(self, "env"):
             self.env = {}  # инициализируем, если ещё не создано
-        # print(self.env)
         if hasattr(state, "command") and state.command != 0:
             # Если в сообщении задано поле target_ip (не пустое), фильтруем команду по IP
             if hasattr(state, "target_ip") and state.target_ip:
@@ -257,11 +255,10 @@ class SwarmCommunicator:
             # Ключ можно сформировать, например, по state.id или другому уникальному идентификатору
             if hasattr(state, "id"):
                 self.env[state.id] = state
-            # Или, если нет command, можно добавить по IP, если оно есть
             elif hasattr(state, "ip"):
                 self.env[state.ip] = state
-            # Иначе просто игнорировать
-            #  print("Получено обновление состояния:", state)
+
+
     def compute_swarm_velocity(self,
                                target_point: np.ndarray = np.array([0, 0])) -> np.ndarray:
         """
@@ -291,11 +288,10 @@ class SwarmCommunicator:
 
         # Вектор выведения дрона из равновесия (при стабилизации на границе дрона)
         unstable_vector = np.zeros(2)
-
+    
         for state in self.env.values():
             if len(state.data) >= 3:
                 other_pos = np.array(state.data[1:3], dtype=float)
-                # print(state.data)
                 distance_vector = local_pos - other_pos
                 distance = np.linalg.norm(distance_vector)
                 if 0 < distance < self.safety_radius:
@@ -395,7 +391,6 @@ class SwarmCommunicator:
         self.control_object.goto_yaw(yaw)
         target_point = np.array([x, y])
         self.control_object.point_reached = False
-        # last_time = time.time() # Закоменченное позже понадобится в алгоритмах 
         time.sleep(self.control_object.period_send_speed)
         while not self.control_object.point_reached:
             self.control_object.point_reached = vector_reached(target_point,
