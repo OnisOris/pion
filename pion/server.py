@@ -179,12 +179,9 @@ class SwarmCommunicator:
         server_thread = threading.Thread(target=self.broadcast_server.start, daemon=True)
         server_thread.start()
         while self.running:
-            # try:
             if not self.receive_queue.empty():
                 incoming_state = self.receive_queue.get(block=False)
                 self.process_incoming_state(incoming_state)
-            # except Exception as error:
-            #     print("Error in receive loop:", error)
             time.sleep(0.05)
 
     def stop(self) -> None:
@@ -297,10 +294,11 @@ class SwarmCommunicator:
                 if 0 < distance < self.safety_radius:
                     repulsion_force += distance_vector / (distance ** 2)
                     print(f"+ repulsion_force = {repulsion_force}")
-                if (self.safety_radius - 0.1 < np.linalg.norm(state.data[0:2] - self.control_object.position[0:2]) < self.safety_radius + 0.1 and
+                if (self.safety_radius - 0.1 < np.linalg.norm(state.data[1:3] - self.control_object.position[1:3]) < self.safety_radius + 0.1 and
                     np.allclose(np.linalg.norm(self.control_object.position[3:4]), 0, atol=0.1) and
                         np.linalg.norm(direction) > self.safety_radius + 0.2):
                     unstable_vector += vector_rotation2(normalization(direction, 0.3), -np.pi / 2)
+                    print(f"+ unstable_vector = {unstable_vector}")
 
         # Вычисляем новый вектор скорости (базовый алгоритм)
         new_velocity = current_velocity + attraction_force + 4 * repulsion_force + unstable_vector
@@ -402,6 +400,7 @@ class SwarmCommunicator:
         print("smart end")
         time.sleep(0.5)
         self.control_object.t_speed = np.zeros(4)
+
         
 
 
