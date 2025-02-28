@@ -6,7 +6,7 @@ import threading
 from typing import Any, Dict, Tuple, Union
 import random
 import numpy as np
-from .functions import vector_reached, vector_rotation2, normalization
+from .functions import vector_reached, vector_rotation2, normalization, limit_acceleration, limit_speed, compute_swarm_velocity
 
 # Определим те же коды команд
 CMD_SET_SPEED = 1
@@ -255,104 +255,6 @@ class SwarmCommunicator:
             elif hasattr(state, "ip"):
                 self.env[state.ip] = state
 
-
-    def compute_swarm_velocity(self,
-                               target_point: np.ndarray = np.array([0, 0])) -> np.ndarray:
-        """
-        Вычисляет желаемый вектор скорости для локального дрона на основе информации из self.env.
-        Логика:
-          - Attraction: направлен от текущей позиции к средней позиции остальных дронов.
-          - Repulsion: суммарное отталкивание от дронов, находящихся ближе, чем safety_radius.
-          - Новый вектор = current_velocity + attraction + 4 * repulsion,
-            затем ограничивается по ускорению и по максимальной скорости.
-        :param target_point: Целевая координата
-        :type target_point: np.ndarray
-
-        :return: numpy-массив [vx, vy]
-        :rtype: np.ndarray
-        """
-        local_pos = self.control_object.position[0:2]
-        current_velocity = self.control_object.position[3:5]  # np.array([vx, vy])
-        # Attraction force: единичный вектор от текущей позиции к swarm_goal
-        direction = target_point - local_pos
-        norm_dir = np.linalg.norm(direction)
-        if norm_dir != 0:
-            attraction_force = direction / norm_dir
-        else:
-            attraction_force = np.zeros(2)
-        # Repulsion force: суммируем вклад от каждого дрона, если расстояние меньше safety_radius
-        repulsion_force = np.zeros(2)
-
-        # Вектор выведения дрона из равновесия (при стабилизации на границе дрона)
-        unstable_vector = np.zeros(2)
-    
-        for state in self.env.values():
-            if len(state.data) >= 3:
-                other_pos = np.array(state.data[1:3], dtype=float)
-                distance_vector = local_pos - other_pos
-                distance = np.linalg.norm(distance_vector)
-                if 0 < distance < self.safety_radius:
-                    repulsion_force += distance_vector / (distance ** 2)
-                    print(f"+ repulsion_force = {repulsion_force}")
-                if (self.safety_radius - 0.1 < np.linalg.norm(state.data[1:3] - self.control_object.position[1:3]) < self.safety_radius + 0.1 and
-                    np.allclose(np.linalg.norm(self.control_object.position[3:4]), 0, atol=0.1) and
-                        np.linalg.norm(direction) > self.safety_radius + 0.2):
-                    unstable_vector += vector_rotation2(normalization(direction, 0.3), -np.pi / 2)
-                    print(f"+ unstable_vector = {unstable_vector}")
-
-        # Вычисляем новый вектор скорости (базовый алгоритм)
-        new_velocity = current_velocity + attraction_force + 4 * repulsion_force + unstable_vector
-        # Ограничиваем изменение (акселерацию) до max_acceleration
-        new_velocity = self._limit_acceleration(current_velocity, new_velocity, max_acceleration=0.1)
-        # Ограничиваем скорость до self.max_speed
-        new_velocity = self._limit_speed(new_velocity)
-        return new_velocity
-
-    def _limit_acceleration(self, 
-                            current_velocity: np.ndarray,
-                            target_velocity: np.ndarray,
-                            max_acceleration: float) -> np.ndarray:
-        """
-        Метод ограничения максимального ускорения
-        :param current_velocity: массив скоростей
-        :type current_velocity: np.ndarray
-
-        :param target_velocity: целевая скорость
-        :type target_velocity: np.ndarray
-        :param max_acceleration: предел по максимальному ускорению
-        :type max_acceleration: float
-
-        :return: максимальное изменение скорости
-        :rtype: np.ndarray
-        """
-        change = target_velocity - current_velocity
-        norm = np.linalg.norm(change)
-        if norm > max_acceleration:
-            change = change / norm * max_acceleration
-        return current_velocity + change
-
-    def _limit_speed(self, 
-                     velocity: np.ndarray) -> np.ndarray:
-        """
-        Метод для ограничения скорости.
-        В диапазоне (0.03, 0.45) скорость делится на 1.4.
-        В остальном ограничение идет по self.max_speed.
-        
-        :param velocity: Ограничеваемая скорость
-        :type velocity: np.ndarray
-
-        :return: np.ndarray
-        :rtype: np.ndarray
-        """
-        norm = np.linalg.norm(velocity)
-        if 0.03 < norm < 0.45:
-            return velocity / 1.4
-        elif norm < 0.06:
-            return np.zeros_like(velocity)
-        if norm > self.control_object.max_speed:
-            return velocity / norm * self.control_object.max_speed
-        return velocity
-
     def update_swarm_control(self, target_point) -> None:
         """
         Вычисляет новый вектор скорости для локального дрона на основе информации из self.env
@@ -361,7 +263,7 @@ class SwarmCommunicator:
         :return: None
         :rtype: None
         """
-        new_vel = self.compute_swarm_velocity(target_point)
+        new_vel = compute_swarm_velocity(self.control_object.position, self.env, target_point, self.safety_radius, self.control_object.max_speed)
         self.control_object.t_speed = np.array([new_vel[0], new_vel[1], 0, 0])
 
     def smart_goto(self,
