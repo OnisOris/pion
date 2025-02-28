@@ -99,7 +99,7 @@ jobs:
           python-version: '3.x'
       - name: Run setup_all.py on macOS
         run: |
-          sudo python3 setup_all.py
+          python3 setup_all.py
       - name: Install dependencies
         run: |
           pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
