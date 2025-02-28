@@ -74,6 +74,25 @@ def install_windows_dependencies():
                 print("Ошибка установки Visual Studio Build Tools через Chocolatey:", e)
                 sys.exit(1)
 
+def install_macos_dependencies():
+    """Устанавливаем системные зависимости для macOS"""
+    print("macOS: Проверяем наличие Homebrew и устанавливаем необходимые зависимости...")
+    brew_path = shutil.which("brew")
+    if not brew_path:
+        print("Homebrew не найден. Пожалуйста, установите Homebrew с https://brew.sh/ и запустите скрипт снова.")
+        sys.exit(1)
+    try:
+        subprocess.run(["brew", "update"], check=True)
+        # Проверка наличия Xcode Command Line Tools
+        if subprocess.run(["xcode-select", "-p"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode != 0:
+            print("Xcode Command Line Tools не найдены. Устанавливаем их...")
+            subprocess.run(["xcode-select", "--install"], check=True)
+        print("Устанавливаем необходимые пакеты через Homebrew: python3 и git...")
+        subprocess.run(["brew", "install", "python3", "git"], check=True)
+        print("Системные зависимости для macOS успешно установлены.")
+    except subprocess.CalledProcessError as e:
+        print("Ошибка установки зависимостей на macOS:", e)
+        sys.exit(1)
 
 def install_python_package():
     """Создаем виртуальное окружение (.venv) в папке проекта и устанавливаем пакет pion через pip в него"""
@@ -108,7 +127,6 @@ def install_python_package():
         print("Ошибка установки пакета pion в виртуальном окружении:", e)
         sys.exit(1)
 
-
 def main():
     current_os = platform.system()
     print("Определена операционная система:", current_os)
@@ -124,6 +142,8 @@ def main():
             install_ubuntu_dependencies()
     elif current_os == "Windows":
         install_windows_dependencies()
+    elif current_os == "Darwin":
+        install_macos_dependencies()
     else:
         print("Операционная система", current_os, "не поддерживается данным скриптом.")
         sys.exit(1)
