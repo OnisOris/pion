@@ -22,13 +22,12 @@ jobs:
       - name: Install dependencies
         run: |
           pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
-
       - name: Build Cython module
         run: |
           python setup.py build_ext --inplace
       - name: Activate venv and run tests
         run: |
-          pytest tests/              # Запуск тестов
+          pytest tests/
 
   windows:
     name: Test on Windows
@@ -42,6 +41,15 @@ jobs:
       - name: Run setup_all.py on Windows
         run: |
           python setup_all.py
+      - name: Install dependencies
+        run: |
+          pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
+      - name: Build Cython module
+        run: |
+          python setup.py build_ext --inplace
+      - name: Activate venv and run tests
+        run: |
+          pytest tests/
 
   arch:
     name: Test on Arch Linux (Docker)
@@ -56,3 +64,13 @@ jobs:
       - name: Run setup_all.py on Arch Linux
         run: |
           python setup_all.py
+      - name: Install dependencies
+        run: |
+          pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
+
+      - name: Build Cython module
+        run: |
+          python setup.py build_ext --inplace
+      - name: Activate venv and run tests
+        run: |
+          pytest tests/
