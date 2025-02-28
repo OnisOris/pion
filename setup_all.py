@@ -28,7 +28,7 @@ def install_ubuntu_dependencies():
     print("Ubuntu: Обновляем списки пакетов и устанавливаем build-essential и python3-dev...")
     try:
         subprocess.run(["apt", "update"], check=True)
-        subprocess.run(["apt", "install", "-y", "build-essential", "python3-dev"], check=True)
+        subprocess.run(["apt", "install", "-y", "build-essential", "python3-dev", "git"], check=True)
         print("Системные зависимости успешно установлены.")
     except subprocess.CalledProcessError as e:
         print("Ошибка установки зависимостей на Ubuntu:", e)
