@@ -130,6 +130,19 @@ pip install numpy matplotlib pymavlink cython setuptools rich protobuf
 python setup.py build_ext --inplace
 ```
 
+# Установка на mac os
+## Автоматическая установка
+Перейдите в папку с проектом и выполните команду:
+```angular2html
+curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_macos.sh | bash
+```
+
+После выполнения скрипта активируйте виртуальное окружение 
+```
+source ./.venv/bin/activate
+```
+
+
 # Подключение
 Для подключения к дрону достаточно создать экземпляр класса Pion
 ```python
