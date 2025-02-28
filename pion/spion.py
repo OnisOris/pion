@@ -330,21 +330,6 @@ class Spion(Simulator, DroneBase):
         self.simulation_turn_on = False
         print("Simulation stopped")
 
-    def save_data(self,
-                  file_name: str = 'data.npy',
-                  path: str = '') -> None:
-        """
-        Функция для сохранения траектории в файл
-        columns=['x', 'y', 'z', 'yaw', 'Vx', 'Vy', 'Vz', 'Vy_yaw', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
-        :param file_name: название файла
-        :type: str
-        :param path: путь сохранения
-        :type: str
-        :return: None
-        """
-        self.stop()
-        np.save(f'{path}{file_name}', self.trajectory[2:])
-
     def borders(self) -> None:
 
         """
