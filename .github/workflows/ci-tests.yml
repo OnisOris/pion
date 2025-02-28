@@ -60,12 +60,17 @@ jobs:
       - uses: actions/checkout@v3
       - name: Install dependencies on Arch Linux
         run: |
-          pacman -Syu --noconfirm python python-pip git
+          pacman -Syu --noconfirm python python-pip git gcc
       - name: Run setup_all.py on Arch Linux
         run: |
           python setup_all.py
+      - name: Create and activate venv
+        run: |
+          python -m venv venv
+          source venv/bin/activate
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
 
       - name: Build Cython module
