@@ -19,6 +19,15 @@ jobs:
       - name: Run setup_all.py on Ubuntu
         run: |
           sudo python3 setup_all.py
+      - name: Install dependencies
+        run: |
+          pip install cython pytest
+      - name: Build Cython module
+        run: |
+          python setup.py build_ext --inplace
+      - name: Activate venv and run tests
+        run: |
+          pytest tests/              # Запуск тестов
 
   windows:
     name: Test on Windows
