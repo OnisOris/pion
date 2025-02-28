@@ -10,23 +10,26 @@ class Point:
                  mass: float = 1,
                  position: Union[Array2, Array3] = np.array([0, 0, 0], dtype=np.float64),
                  speed: Union[Array2, Array3] = np.array([0, 0, 0], dtype=np.float64),
-                 trajectory_write: bool = False):
+                 trajectory_write: bool = False,
+                 drag_coefficient: float = 0.01):  # Добавлен параметр для сопротивления воздуха
         """
         Инициализация объекта Point3D
 
         :param mass: масса объекта
-        :type: Union[Array2, Array3]
+        :type mass: Union[Array2, Array3]
         :param position: начальная позиция объекта в пространстве [x, y, z]
-        :type: Union[Array2, Array3]
+        :type position: Union[Array2, Array3]
         :param speed: начальная скорость объекта [vx, vy, vz]
-        :type: Union[Array2, Array3]
-        :trajectory_write: записывать ли траекторию
-        :type: bool
+        type speed: Union[Array2, Array3]
+        :param trajectory_write: записывать ли траекторию
+        :type trajectory_write: bool
+        :param drag_coefficient: коэффициент сопротивления воздуха
+        :type drag_coefficient: float
         """
         if not position.shape == speed.shape:
-            raise ValueError(f"Начальная координата должна иметь схожую размерность со своей скоростью")
+            raise ValueError("Начальная координата должна иметь схожую размерность со своей скоростью")
         if position.shape not in [(2,), (3,)]:
-            raise ValueError(f"Размерность точки должна быть равна 2 или 3")
+            raise ValueError("Размерность точки должна быть равна 2 или 3")
         self.dimension = position.shape[0]
         self.trajectory = Trajectory_writer(['x', 'y', 'vx', 'vy', 't'] if self.dimension == 2 else
                                             ['x', 'y', 'z', 'vx', 'vy', 'vz', 't'])
@@ -36,6 +39,7 @@ class Point:
         self.position = np.array(position, dtype=np.float64)
         self.speed = np.array(speed, dtype=np.float64)
         self.time = 0.0
+        self.drag_coefficient = drag_coefficient  # Сохраняем коэффициент сопротивления
 
     def rk4_step(self,
                  acceleration: Union[Array2, Array3],
@@ -44,9 +48,9 @@ class Point:
         Шаг симуляции с использованием метода Рунге-Кутты 4-го порядка
 
         :param acceleration: вектор ускорения
-        :type: Union[Array2, Array3]
+        :type acceleration: Union[Array2, Array3]
         :param dt: временной шаг
-        :type: float
+        :type dt: float
         :return: None
         :rtype: None
         """
@@ -71,15 +75,23 @@ class Point:
         """
         Шаг симуляции. Вычисляются следующие значения координат и скорости в зависимости от дискретного шага dt
         :param: force: сила воздействия на точку
-        :type: Union[Array2, Array3]
+        :type force: Union[Array2, Array3]
         :param dt: дискретный шаг времени
-        :type: float
+        :type dt: float
         :return: None
         :rtype: None
         """
         if force.shape != (self.dimension,):
             raise ValueError(f"Сила должна иметь размерность {self.dimension}, но имеет размерность:  {force.shape}")
-        self.rk4_step(force / self.mass, dt=dt)
+        
+        # Расчет силы сопротивления (линейное сопротивление)
+        drag_force = -self.drag_coefficient * self.speed
+        
+        # Суммарная сила: внешняя сила + сила сопротивления
+        total_force = force + drag_force
+        
+        # Используем сумму сил для расчета ускорения
+        self.rk4_step(total_force / self.mass, dt=dt)
         self.time += dt
         if self.trajectory_write:
             self.trajectory.vstack(np.hstack([self.position, self.speed, self.time]))
@@ -87,10 +99,10 @@ class Point:
     def get_trajectory(self) -> NDArray[np.float64]:
         """
         Функция возвращает траекторию точки
-        :return: NDArray[np.float64]
+        :return: траектория точки
+        :rtype: NDArray[np.float64]
         """
         return self.trajectory.get_trajectory()
-
 
 class Simulator:
     """
@@ -181,8 +193,9 @@ class Simulator:
         """
         Фукнция запускает симуляцию объекта.
         :param type_of_cycle: тип симуляции - while или for, если for, то нужно указать steps
-        :type: str
+        :type type_of_cycle: str
         :param steps: количество шагов симуляции для цикла for
+        :type steps: int
         :return: None
         :rtype: None
         """
@@ -247,7 +260,7 @@ class Simulator_realtime(Simulator):
         Фукнция запускает симуляцию объектов в отдельных потоках, но с
         синхронизацией с реальным временем.
         :param type_of_cycle: тип симуляции - while или for, если for, то нужно указать steps
-        :type: str
+        :type type_of_cycle: str
         :param steps: количество шагов симуляции для цикла for
         :return: None
         :rtype: None
@@ -288,7 +301,7 @@ class Trajectory_writer:
         Специальный класс для записи и хранения траектории размером
         nx[len(list_of_names_columns)], n - количество точек.
         :param list_of_names_columns: названия колонн
-        :type: Union[list[str], NDArray[str]]
+        :type list_of_names_columns: Union[list[str], NDArray[str]]
         """
         self.trajectory = np.zeros((len(list_of_names_columns),))
         self.columns = list_of_names_columns
@@ -298,7 +311,7 @@ class Trajectory_writer:
         """
         Функция объединяет входящие вектора с матрицей trajectory
         :param vstack_array: массив размерности len(list_of_names_columns)
-        :type: NDArray[Any]
+        :type vstack_array: NDArray[np.float64]
         :return: None
         :rtype: None
         """

@@ -8,30 +8,60 @@ on:
 
 jobs:
   ubuntu:
+
     name: Test on Ubuntu
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+
       - name: Run setup_all.py on Ubuntu
         run: |
           sudo python3 setup_all.py
 
+      - name: Install dependencies
+        run: |
+          pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
+
+      - name: Build Cython module
+        run: |
+          python setup.py build_ext --inplace
+
+      - name: Activate venv and run tests
+        run: |
+          pytest tests/
+
   windows:
+
     name: Test on Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+
       - name: Run setup_all.py on Windows
         run: |
           python setup_all.py
+
+      - name: Install dependencies
+        run: |
+          pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
+
+      - name: Build Cython module
+        run: |
+          python setup.py build_ext --inplace
+
+      - name: Activate venv and run tests
+        run: |
+          pytest tests/
 
   arch:
     name: Test on Arch Linux (Docker)
@@ -40,9 +70,43 @@ jobs:
       image: archlinux:latest
     steps:
       - uses: actions/checkout@v3
-      - name: Install dependencies on Arch Linux
+      
+      - name: Install system dependencies
         run: |
-          pacman -Syu --noconfirm python python-pip git
-      - name: Run setup_all.py on Arch Linux
+          pacman -Syu --noconfirm python python-pip git gcc
+
+      - name: Set up virtual environment and install dependencies
         run: |
+          python -m venv /opt/venv
+          source /opt/venv/bin/activate
           python setup_all.py
+          pip install --upgrade pip
+          pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
+
+      - name: Build Cython module and run tests
+        run: |
+          source /opt/venv/bin/activate
+          python setup.py build_ext --inplace
+          pytest tests/
+  macos:
+    name: Test on macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Run setup_all.py on macOS
+        run: |
+          sudo python3 setup_all.py
+      - name: Install dependencies
+        run: |
+          pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
+      - name: Build Cython module
+        run: |
+          python setup.py build_ext --inplace
+      - name: Activate venv and run tests
+        run: |
+          pytest tests/
+
