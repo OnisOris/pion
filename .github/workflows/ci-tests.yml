@@ -21,7 +21,8 @@ jobs:
           sudo python3 setup_all.py
       - name: Install dependencies
         run: |
-          pip install cython setuptools pytest wheel numpy
+          pip install cython setuptools pytest wheel pymavlink rich
+
       - name: Build Cython module
         run: |
           python setup.py build_ext --inplace
