@@ -18,6 +18,8 @@ def is_admin():
             return ctypes.windll.shell32.IsUserAnAdmin()
         except Exception:
             return False
+    elif platform.system() == "Darwin":
+        return True
     else:
         return os.getuid() == 0
 
