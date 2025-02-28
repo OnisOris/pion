@@ -237,10 +237,8 @@ class Gpion(DroneBase):
             def exec_command_with_retry(cmd, timeout=15, retries=5, delay=5):
                 for attempt in range(1, retries + 1):
                     exit_code, stdout, stderr = exec_command(cmd, timeout=timeout)
-                    # Если команда выполнена успешно – возвращаем результат
                     if exit_code == 0:
                         return exit_code, stdout, stderr
-                    # Если ошибка связана с блокировкой dpkg – делаем повторную попытку
                     if "lock" in stderr.lower():
                         print(
                             f"Обнаружена блокировка dpkg (попытка {attempt}/{retries}). Повтор через {delay} секунд...")
@@ -249,7 +247,7 @@ class Gpion(DroneBase):
                         break
                 return exit_code, stdout, stderr
 
-            # Проверка, установлен ли уже сервис pion_server
+            # Проверяем, установлен ли уже сервис pion_server
             exit_code, stdout, stderr = exec_command("sudo systemctl list-unit-files | grep pion_server.service")
             if exit_code == 0 and stdout:
                 print("Pion server уже установлен и работает. Логи:")
@@ -263,12 +261,21 @@ class Gpion(DroneBase):
             if exit_code != 0:
                 raise Exception("Ошибка создания директории ~/code/server")
 
-            # Обновляем списки пакетов и устанавливаем зависимости с попытками повтора при блокировке
+            # Обновляем списки пакетов и устанавливаем необходимые apt-зависимости
             exit_code, _, _ = exec_command_with_retry(
-                "sudo apt-get update && sudo apt-get install -y python3 python3-pip wget curl", timeout=60
+                "sudo apt-get update && sudo apt-get install -y python3 python3-pip wget curl",
+                timeout=60
             )
             if exit_code != 0:
                 raise Exception("Ошибка установки зависимостей через apt-get")
+
+            # Устанавливаем зависимости Pion. Скрипт запускается в директории ~/code/server,
+            # после чего создается виртуальное окружение с нужными модулями.
+            install_command = ("cd ~/code/server && sudo curl -sSL "
+                               "https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_linux.sh | sudo bash")
+            exit_code, _, _ = exec_command(install_command, timeout=60)
+            if exit_code != 0:
+                raise Exception("Ошибка установки зависимостей Pion")
 
             # Скачиваем серверный файл
             exit_code, _, _ = exec_command(
@@ -277,8 +284,7 @@ class Gpion(DroneBase):
             if exit_code != 0:
                 raise Exception("Ошибка загрузки файла pion_server.py")
 
-            # Создаем systemd unit для Pion server.
-            # Используем nohup для запуска сервиса в фоне, вывод перенаправляем в лог.
+            # Создаем systemd unit для Pion server с активацией виртуального окружения
             service_content = f'''\
     [Unit]
     Description=Pion Server
@@ -287,7 +293,7 @@ class Gpion(DroneBase):
     [Service]
     User={ssh_user}
     WorkingDirectory=/home/{ssh_user}/code/server
-    ExecStart=/usr/bin/nohup /usr/bin/python3 /home/{ssh_user}/code/server/pion_server.py >> /home/{ssh_user}/code/server/pion_server.log 2>&1
+    ExecStart=/bin/bash -c 'source /home/{ssh_user}/code/server/.venv/bin/activate && nohup python3 /home/{ssh_user}/code/server/pion_server.py >> /home/{ssh_user}/code/server/pion_server.log 2>&1'
     Restart=always
     StandardOutput=null
     StandardError=null
@@ -296,7 +302,8 @@ class Gpion(DroneBase):
     WantedBy=multi-user.target
     '''
             exit_code, _, _ = exec_command(
-                f"echo '{service_content}' | sudo tee /etc/systemd/system/pion_server.service >/dev/null", timeout=15)
+                f"echo '{service_content}' | sudo tee /etc/systemd/system/pion_server.service >/dev/null",
+                timeout=15)
             if exit_code != 0:
                 raise Exception("Ошибка создания файла сервиса pion_server.service")
 
@@ -305,12 +312,12 @@ class Gpion(DroneBase):
             if exit_code != 0:
                 raise Exception("Ошибка перезагрузки демона systemd")
 
-            # Включаем сервис (чтобы он запускался при загрузке)
+            # Включаем сервис для автозапуска при загрузке
             exit_code, _, _ = exec_command("sudo systemctl enable pion_server", timeout=15)
             if exit_code != 0:
                 raise Exception("Ошибка включения сервиса pion_server")
 
-            # Запускаем сервис. Благодаря nohup, команда не будет захватывать вывод запущенного процесса.
+            # Запускаем сервис
             exit_code, _, _ = exec_command("sudo systemctl start pion_server", timeout=15)
             if exit_code != 0:
                 raise Exception("Ошибка запуска сервиса pion_server")
@@ -330,3 +337,4 @@ class Gpion(DroneBase):
         finally:
             ssh.close()
             print("SSH-соединение закрыто.")
+
