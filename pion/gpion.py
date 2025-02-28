@@ -338,3 +338,44 @@ class Gpion(DroneBase):
             ssh.close()
             print("SSH-соединение закрыто.")
 
+
+    def remove_existing_pion_service(self, ssh_host: str, ssh_user: str, ssh_password: str) -> None:
+        print(f"Подключаемся по SSH к {ssh_host} для удаления сервиса pion_server...")
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            ssh.connect(ssh_host, username=ssh_user, password=ssh_password, timeout=10)
+            transport = ssh.get_transport()
+
+            def exec_command(cmd, timeout=15):
+                print(f"\nВыполняется команда: {cmd}")
+                chan = transport.open_session()
+                chan.exec_command(cmd)
+                exit_code = chan.recv_exit_status()
+                stdout = chan.makefile('r', -1).read().strip()
+                stderr = chan.makefile_stderr('r', -1).read().strip()
+                print(f"Код завершения: {exit_code}")
+                if stdout:
+                    print(f"stdout:\n{stdout}")
+                if stderr:
+                    print(f"stderr:\n{stderr}")
+                return exit_code, stdout, stderr
+
+            # Останавливаем сервис, если он запущен
+            exec_command("sudo systemctl stop pion_server")
+            # Отключаем автозапуск сервиса
+            exec_command("sudo systemctl disable pion_server")
+            # Удаляем файл сервиса
+            exec_command("sudo rm -f /etc/systemd/system/pion_server.service")
+            # Обновляем конфигурацию systemd
+            exec_command("sudo systemctl daemon-reload")
+
+            print("\nСервис pion_server успешно удалён. Теперь можно провести тест установки.")
+
+        except Exception as e:
+            print(f"\nОшибка при удалении сервиса: {str(e)}")
+        finally:
+            ssh.close()
+            print("SSH-соединение закрыто.")
+
+
