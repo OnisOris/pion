@@ -24,9 +24,9 @@ def main():
         help="SSH пароль (по умолчанию 'raspberry')"
     )
     args = parser.parse_args()
-    ip = f"10.1.100.{args.device_number}"
-    drone = Gpion(ip=ip, mavlink_port=5656, name=f"Drone_{args.device_number}", dt=0.1)
+    ip = args.ssh_host
+    drone = Gpion(ip=ip, mavlink_port=5656, name=f"Drone", dt=0.1, start_from_init=False)
     drone.remove_existing_pion_service(args.ssh_host, args.ssh_user, args.ssh_password)
     drone.check_pion_server_raspb(args.ssh_host, args.ssh_user, args.ssh_password)
     
- 
+main()

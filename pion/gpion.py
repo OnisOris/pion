@@ -19,7 +19,7 @@ class Gpion(DroneBase):
     Класс Gpion – наследник DroneBase (аналог Pion), реализующий методы управления через UDP.
     Не запускает MAVLink-соединение и message handler'ы.
     """
-    def __init__(self, ip: str, mavlink_port: int, name: str, dt: float, **kwargs):
+    def __init__(self, ip: str, mavlink_port: int, name: str, dt: float, start_from_init: bool = True, **kwargs):
         DroneBase.__init__(self,
                            ip=ip,
                            mavlink_port=mavlink_port,
@@ -36,10 +36,11 @@ class Gpion(DroneBase):
                            max_speed=2.)
         # Настраиваем UDP-сокет для отправки команд
         self.udp_port = UDP_PORT
-        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        # Опция BROADCAST для универсальности
-        self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        print(f"Gpion создан для {name} с IP {ip}")
+        if start_from_init:
+            self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            # Опция BROADCAST для универсальности
+            self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            print(f"Gpion создан для {name} с IP {ip}")
 
     # Реализация методов управления, переопределенных для отправки UDP-команд через protobuf
     def send_speed(self, vx: float, vy: float, vz: float, yaw_rate: float) -> None:
