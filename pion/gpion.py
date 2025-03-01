@@ -212,6 +212,7 @@ class Gpion(DroneBase):
         finally:
             ssh.close()
 
+
     def check_pion_server_raspb(self, ssh_host: str, ssh_user: str, ssh_password: str) -> None:
         print(f"Подключаемся по SSH к {ssh_host} как {ssh_user}...")
         ssh = paramiko.SSHClient()
@@ -241,18 +242,18 @@ class Gpion(DroneBase):
                     if exit_code == 0:
                         return exit_code, stdout, stderr
                     if "lock" in stderr.lower():
-                        print(
-                            f"Обнаружена блокировка dpkg (попытка {attempt}/{retries}). Повтор через {delay} секунд...")
+                        print(f"Обнаружена блокировка dpkg (попытка {attempt}/{retries}). Повтор через {delay} секунд...")
                         time.sleep(delay)
                     else:
                         break
                 return exit_code, stdout, stderr
 
-            # Проверяем, установлен ли уже сервис pion_server
+            # Если сервис уже существует – выводим статус и завершаем установку
             exit_code, stdout, stderr = exec_command("sudo systemctl list-unit-files | grep pion_server.service")
             if exit_code == 0 and stdout:
-                print("Pion server уже установлен и работает. Логи:")
-                print(stdout)
+                print("Pion server уже установлен. Статус сервиса:")
+                exit_code, status_stdout, _ = exec_command("sudo systemctl status pion_server.service")
+                print(status_stdout)
                 return
 
             print("\nНачинаем установку Pion server для Raspberry Pi Zero 2W...")
@@ -262,7 +263,7 @@ class Gpion(DroneBase):
             if exit_code != 0:
                 raise Exception("Ошибка создания директории ~/code/server")
 
-            # Обновляем списки пакетов и устанавливаем необходимые apt-зависимости
+            # Обновляем списки пакетов и устанавливаем apt-зависимости
             exit_code, _, _ = exec_command_with_retry(
                 "sudo apt-get update && sudo apt-get install -y python3 python3-pip wget curl",
                 timeout=60
@@ -270,23 +271,25 @@ class Gpion(DroneBase):
             if exit_code != 0:
                 raise Exception("Ошибка установки зависимостей через apt-get")
 
-            # Устанавливаем зависимости Pion. Скрипт запускается в директории ~/code/server,
-            # после чего создается виртуальное окружение с нужными модулями.
-            install_command = ("cd ~/code/server && sudo curl -sSL "
-                               "https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_linux.sh | sudo bash")
+            # Устанавливаем зависимости Pion – запускаем скрипт установки
+            install_command = (
+                "cd ~/code/server && sudo curl -sSL "
+                "https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_linux.sh | sudo bash"
+            )
             exit_code, _, _ = exec_command(install_command, timeout=60)
             if exit_code != 0:
                 raise Exception("Ошибка установки зависимостей Pion")
 
-            # Скачиваем серверный файл
+            # Скачиваем файл pion_server.py
             exit_code, _, _ = exec_command(
                 "wget -q https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/pion_server.py -O ~/code/server/pion_server.py",
-                timeout=30)
+                timeout=30
+            )
             if exit_code != 0:
                 raise Exception("Ошибка загрузки файла pion_server.py")
 
-            # Создаем systemd unit для Pion server с активацией виртуального окружения
-            service_content = f'''\
+            # Создаем systemd unit для Pion server через heredoc
+            unit_command = f"""sudo tee /etc/systemd/system/pion_server.service > /dev/null << 'EOF'
     [Unit]
     Description=Pion Server
     After=network.target
@@ -294,17 +297,16 @@ class Gpion(DroneBase):
     [Service]
     User={ssh_user}
     WorkingDirectory=/home/{ssh_user}/code/server
-    ExecStart=/bin/bash -c 'source /home/{ssh_user}/code/server/.venv/bin/activate && nohup python3 /home/{ssh_user}/code/server/pion_server.py >> /home/{ssh_user}/code/server/pion_server.log 2>&1'
+    ExecStart=/bin/bash -c "source /home/{ssh_user}/code/server/.venv/bin/activate && nohup python3 /home/{ssh_user}/code/server/pion_server.py >> /home/{ssh_user}/code/server/pion_server.log 2>&1"
     Restart=always
     StandardOutput=null
     StandardError=null
 
     [Install]
     WantedBy=multi-user.target
-    '''
-            exit_code, _, _ = exec_command(
-                f"echo '{service_content}' | sudo tee /etc/systemd/system/pion_server.service >/dev/null",
-                timeout=15)
+    EOF
+    """
+            exit_code, _, _ = exec_command(unit_command, timeout=15)
             if exit_code != 0:
                 raise Exception("Ошибка создания файла сервиса pion_server.service")
 
@@ -313,13 +315,16 @@ class Gpion(DroneBase):
             if exit_code != 0:
                 raise Exception("Ошибка перезагрузки демона systemd")
 
-            # Включаем сервис для автозапуска при загрузке
-            exit_code, _, _ = exec_command("sudo systemctl enable pion_server", timeout=15)
+            # Если unit замаскирован, размаскируем его
+            exec_command("sudo systemctl unmask pion_server.service", timeout=10)
+
+            # Включаем сервис для автозапуска
+            exit_code, _, _ = exec_command("sudo systemctl enable pion_server.service", timeout=15)
             if exit_code != 0:
                 raise Exception("Ошибка включения сервиса pion_server")
 
             # Запускаем сервис
-            exit_code, _, _ = exec_command("sudo systemctl start pion_server", timeout=15)
+            exit_code, _, _ = exec_command("sudo systemctl start pion_server.service", timeout=15)
             if exit_code != 0:
                 raise Exception("Ошибка запуска сервиса pion_server")
 
@@ -338,7 +343,6 @@ class Gpion(DroneBase):
         finally:
             ssh.close()
             print("SSH-соединение закрыто.")
-
 
     def remove_existing_pion_service(self, ssh_host: str, ssh_user: str, ssh_password: str) -> None:
         print(f"Подключаемся по SSH к {ssh_host} для удаления сервиса pion_server...")
