@@ -245,6 +245,7 @@ def compute_swarm_velocity(state_vector: Array6,
         attraction_force = direction / norm_dir
     else:
         attraction_force = np.zeros(2)
+    print(attraction_force)
     # Repulsion force: суммируем вклад от каждого дрона, если расстояние меньше safety_radius
     repulsion_force = np.zeros(2)
 
@@ -261,14 +262,15 @@ def compute_swarm_velocity(state_vector: Array6,
             if 0 < distance < safety_radius:
                 repulsion_force += distance_vector / (distance ** 2)
                 print(f"+ repulsion_force = {repulsion_force}")
-            if (safety_radius - 0.1 < np.linalg.norm(xyz[0:2] - state_vector[0:2]) < safety_radius + 0.1 and
-                np.allclose(np.linalg.norm(state_vector[3:5]), 0, atol=0.1) and
+            direction_to_other_drone = np.linalg.norm(xyz[0:2] - state_vector[0:2])
+            if (direction_to_other_drone < safety_radius + 0.1 and
+                np.allclose(np.linalg.norm(speed[0:2]), 0, atol=0.1) and
                     np.linalg.norm(direction) > safety_radius + 0.2):
                 unstable_vector += vector_rotation2(normalization(direction, 0.3), -np.pi / 2)
                 print(f"+ unstable_vector = {unstable_vector}")
 
     # Вычисляем новый вектор скорости (базовый алгоритм)
-    new_velocity = current_velocity + attraction_force + 4 * repulsion_force + unstable_vector
+    new_velocity = current_velocity + attraction_force + 4 * repulsion_force + unstable_vector + np.random.random(2)
     # Ограничиваем изменение (акселерацию) до max_acceleration
     new_velocity = limit_acceleration(current_velocity, new_velocity, max_acceleration=0.1)
     # Ограничиваем скорость до max_speed
