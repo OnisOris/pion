@@ -17,6 +17,15 @@ CMD_ARM       = 5
 CMD_DISARM    = 6
 CMD_SMART_GOTO = 7
 
+def extract_ip_id(ip: str) -> int:
+    parts = ip.split('.')
+    if len(parts) == 4:
+        try:
+            return int(parts[-1])
+        except ValueError:
+            pass
+    return abs(hash(ip)) % 1000
+
 
 class UDPBroadcastClient:
     """
@@ -135,8 +144,9 @@ class SwarmCommunicator:
         self.broadcast_interval = broadcast_interval
         self.broadcast_port = broadcast_port
         self.receive_queue: Queue[Any] = Queue()
-        self.broadcast_client = UDPBroadcastClient(port=self.broadcast_port, id=int(self.control_object.ip[-3:]))
-        self.broadcast_server = UDPBroadcastServer(server_to_agent_queue=self.receive_queue, port=self.broadcast_port, id=int(self.control_object.ip[-3:]))
+        print("extract: ", extract_ip_id(self.control_object.ip))
+        self.broadcast_client = UDPBroadcastClient(port=self.broadcast_port, id=extract_ip_id(self.control_object.ip))
+        self.broadcast_server = UDPBroadcastServer(server_to_agent_queue=self.receive_queue, port=self.broadcast_port, id=extract_ip_id(self.control_object.ip))
         self.running: bool = True
         self.env = {}
         self.safety_radius = safety_radius
