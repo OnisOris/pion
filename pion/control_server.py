@@ -1,6 +1,16 @@
 import socket
 import time
 from .datagram import DDatagram
+import readline
+import atexit
+import os
+
+history_file = os.path.join(os.path.expanduser("~"), ".my_console_history")
+
+if os.path.exists(history_file):
+    readline.read_history_file(history_file)
+
+atexit.register(readline.write_history_file, history_file)
 
 # Определим коды команд
 CMD_SET_SPEED = 1
@@ -10,6 +20,7 @@ CMD_LAND      = 4
 CMD_ARM       = 5
 CMD_DISARM    = 6
 CMD_SMART_GOTO = 7
+CMD_LED       = 8
 
 class UDPBroadcastClient:
     """
@@ -60,11 +71,12 @@ class ControlServer:
         print(f"Команда {command} с данными {data} отправлена для {target}.")
 
 
+
     def console_loop(self):
         print("Запущен консольный интерфейс управления.")
         print("Синтаксис команд: [target] command [параметры]")
         print("  target: 'all' или номер устройства (например, 3 для IP 10.1.100.3)")
-        print("  Команды: set_speed, goto, takeoff, land, arm, disarm, smart_goto")
+        print("  Команды: set_speed, goto, takeoff, land, arm, disarm, smart_goto, led")
         while True:
             try:
                 line = input("Command> ").strip()
@@ -74,18 +86,16 @@ class ControlServer:
             if not line:
                 continue
             parts = line.split()
-            # Если вводится exit или quit – завершаем работу
             if parts[0].lower() in ["exit", "quit"]:
                 print("Выход из консоли.")
                 break
 
-            # Первый аргумент – это target
+            # Определяем target
             target_part = parts[0]
             if target_part.lower() == "all":
                 target = "<broadcast>"
             else:
                 try:
-                    # Формируем IP по шаблону 10.1.100.{номер}
                     num = int(target_part)
                     target = f"10.1.100.{num}"
                 except ValueError:
@@ -123,10 +133,26 @@ class ControlServer:
                 self.send_command(CMD_ARM, [], target)
             elif cmd == "disarm":
                 self.send_command(CMD_DISARM, [], target)
-            elif parts[1].lower() == "smart_goto":
-                x, y, z, yaw = map(float, parts[2:6])
-                self.send_command(CMD_SMART_GOTO, [x, y, z, yaw], target=target)
+            elif cmd == "smart_goto":
+                if len(parts) != 6:
+                    print("Использование: [target] smart_goto x y z yaw")
+                    continue
+                try:
+                    x, y, z, yaw = map(float, parts[2:6])
+                    self.send_command(CMD_SMART_GOTO, [x, y, z, yaw], target)
+                except ValueError:
+                    print("Неверные параметры для smart_goto")
+            elif cmd == "led":
+                if len(parts) != 6:
+                    print("Использование: [target] led led_id r g b")
+                    continue
+                try:
+                    led_id = int(parts[2])
+                    r, g, b = map(int, parts[3:6])
+                    self.send_command(CMD_LED, [led_id, r, g, b], target)
+                    print(f"Команда LED отправлена: led_id={led_id}, r={r}, g={g}, b={b}")
+                except ValueError:
+                    print("Неверные параметры для led")
             else:
-                print("Неизвестная команда. Доступны: set_speed, goto, takeoff, land, arm, disarm.")
-
+                print("Неизвестная команда. Доступны: set_speed, goto, takeoff, land, arm, disarm, smart_goto, led")
 

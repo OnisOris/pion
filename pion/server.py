@@ -16,6 +16,7 @@ CMD_LAND      = 4
 CMD_ARM       = 5
 CMD_DISARM    = 6
 CMD_SMART_GOTO = 7
+CMD_LED       = 8
 
 def extract_ip_id(ip: str) -> int:
     parts = ip.split('.')
@@ -203,28 +204,17 @@ class SwarmCommunicator:
         self.broadcast_server.running = False
     
  
+ 
     def process_incoming_state(self, state: Any) -> None:
-        """
-        Обрабатывает входящие сообщения.
-        Если поле command ненулевое – интерпретирует сообщение как команду управления.
-        Если присутствует поле target_ip, команда выполняется только если target_ip совпадает с IP устройства.
-        Если же target_ip не соответствует, данные сохраняются в словарь self.env для будущей обработки.
-        :param state: 
-        :return: None
-        """
-        if not hasattr(self, "env"):
-            self.env = {}  # инициализируем, если ещё не создано
         if hasattr(state, "command") and state.command != 0:
-            # Если в сообщении задано поле target_ip (не пустое), фильтруем команду по IP
+            # Если в сообщении задано поле target_ip, проверяем совпадение
             if hasattr(state, "target_ip") and state.target_ip:
                 local_ip = self.control_object.ip
                 if state.target_ip != local_ip:
                     print(f"Команда с target_ip {state.target_ip} не предназначена для этого устройства ({local_ip}). Данные сохранены.")
-                    # Сохраняем данные в словарь self.env, ключом можно использовать, например, state.id
                     self.env[state.id] = state
                     return
 
-            # Обработка команд, если target_ip соответствует
             if state.command == CMD_SET_SPEED:
                 try:
                     vx, vy, vz, yaw_rate = state.data
@@ -252,18 +242,26 @@ class SwarmCommunicator:
                 self.control_object.disarm()
                 print("Команда disarm выполнена")
             elif state.command == CMD_SMART_GOTO:
-                self.point_reached = True
-                x, y, z, yaw = state.data
-                self.smart_goto(x, y, z, yaw)
+                try:
+                    x, y, z, yaw = state.data
+                    self.smart_goto(x, y, z, yaw)
+                except Exception as e:
+                    print("Ошибка при выполнении smart_goto:", e)
+            elif state.command == CMD_LED:
+                try:
+                    led_id, r, g, b = state.data
+                    self.control_object.led_control(led_id, r, g, b)
+                    print(f"LED control executed: led_id={led_id}, r={r}, g={g}, b={b}")
+                except Exception as e:
+                    print("Ошибка при выполнении LED control:", e)
             else:
                 print("Получена неизвестная команда:", state.command)
         else:
-            # Если поле command равно 0 – можно сохранить обновление состояния в self.env для роевого алгоритма
-            # Ключ можно сформировать, например, по state.id или другому уникальному идентификатору
             if hasattr(state, "id"):
                 self.env[state.id] = state
             elif hasattr(state, "ip"):
                 self.env[state.ip] = state
+
 
     def update_swarm_control(self, target_point) -> None:
         """
