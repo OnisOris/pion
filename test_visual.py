@@ -15,19 +15,19 @@ class SwarmVisualizer2D:
         self.colors = {}
         self.trails_length = 30
         self.running = True
-        self.lock = threading.Lock()  # Добавлена блокировка
+        self.lock = threading.Lock()  # Блокировка для синхронизации доступа
 
-        # UDP server setup
+        # UDP сервер
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(('', self.port))
         
-        # Start threads
+        # Запуск потока приёма данных
         self.receiver_thread = threading.Thread(target=self.receive_data)
         self.receiver_thread.daemon = True
         self.receiver_thread.start()
 
-        # Initialize plot
+        # Инициализация графика
         self.fig, self.ax = plt.subplots(figsize=(10, 8))
         self.setup_plot()
 
@@ -46,15 +46,16 @@ class SwarmVisualizer2D:
             try:
                 data, addr = self.sock.recvfrom(4096)
                 valid, payload = decoder.read_serialized(data)
-                if valid and len(payload.data) >= 4:  # Проверка длины данных
+                # Проверяем, что данных достаточно (1 - IP, 3 - позиция, 3 - скорость)
+                if valid and len(payload.data) >= 7:
                     self.process_payload(payload, addr)
             except Exception as e:
                 print(f"Receive error: {e}")
 
     def process_payload(self, payload, addr):
-        with self.lock:  # Блокировка доступа
+        with self.lock:
             drone_id = payload.id
-            if len(payload.data) < 4:  # Защита от неполных данных
+            if len(payload.data) < 7:
                 return
 
             try:
@@ -63,26 +64,32 @@ class SwarmVisualizer2D:
             except (OverflowError, IndexError):
                 ip = "Invalid IP"
 
+            # Позиция: индексы 1, 2, 3
             position = np.array([
                 payload.data[1],  # X
                 payload.data[2],  # Y
                 payload.data[3]   # Z
             ])
             
-            attitude = np.array(payload.data[4:7]) if len(payload.data) >=7 else np.zeros(3)
+            # Скорость: индексы 4, 5, 6
+            velocity = np.array([
+                payload.data[4],  # Vx
+                payload.data[5],  # Vy
+                payload.data[6]   # Vz
+            ])
             
             if drone_id not in self.drones:
                 self.colors[drone_id] = np.random.rand(3,)
                 self.drones[drone_id] = {
                     'position': position,
-                    'attitude': attitude,
+                    'velocity': velocity,
                     'trail': [],
                     'ip': ip,
                     'last_update': time.time()
                 }
             else:
                 self.drones[drone_id]['position'] = position
-                self.drones[drone_id]['attitude'] = attitude
+                self.drones[drone_id]['velocity'] = velocity
                 self.drones[drone_id]['last_update'] = time.time()
                 
                 trail = self.drones[drone_id]['trail']
@@ -91,17 +98,18 @@ class SwarmVisualizer2D:
                     trail.pop(0)
 
     def update_plot(self, frame):
-        with self.lock:  # Блокировка доступа
+        with self.lock:
             self.ax.clear()
             self.setup_plot()
             
             current_time = time.time()
             to_delete = []
             
-            # Итерация по копии списка ключей
+            # Итерация по дронам
             for drone_id in list(self.drones.keys()):
                 data = self.drones[drone_id]
                 
+                # Удаление неактивных дронов (без обновлений >5 сек)
                 if current_time - data['last_update'] > 5:
                     to_delete.append(drone_id)
                     continue
@@ -109,8 +117,9 @@ class SwarmVisualizer2D:
                 color = self.colors[drone_id]
                 pos = data['position']
                 trail = np.array(data['trail'])
+                velocity = data['velocity']
                 
-                # Отрисовка дрона
+                # Рисуем дрона (точка)
                 size = 80 + pos[2] * 5
                 self.ax.scatter(
                     pos[0], 
@@ -131,7 +140,7 @@ class SwarmVisualizer2D:
                     fontsize=8
                 )
                 
-                # Траектория
+                # Рисуем траекторию (след)
                 if len(trail) > 1:
                     self.ax.plot(
                         trail[:,0], 
@@ -142,9 +151,17 @@ class SwarmVisualizer2D:
                         linewidth=1
                     )
                 
-                # Ориентация
-                yaw = data['attitude'][2]
+                # Рассчитываем угол (yaw) из вектора скорости (если ненулевой)
+                if np.linalg.norm(velocity[:2]) > 0.001:
+                    yaw = np.arctan2(velocity[1], velocity[0])
+                else:
+                    yaw = 0
+                    
+                # Рисуем стрелку направления (yaw) с фиксированной длиной
                 self.draw_orientation(pos[:2], yaw, color)
+                
+                # Рисуем вектор скорости (масштабированный по модулю)
+                self.draw_velocity_vector(pos[:2], velocity, color)
             
             # Удаление неактивных дронов
             for did in to_delete:
@@ -157,7 +174,7 @@ class SwarmVisualizer2D:
         return self.ax
 
     def draw_orientation(self, position, yaw, color):
-        arrow_length = 1.2
+        arrow_length = 1.2  # фиксированная длина стрелки направления
         dx = arrow_length * np.cos(yaw)
         dy = arrow_length * np.sin(yaw)
         
@@ -173,6 +190,27 @@ class SwarmVisualizer2D:
             width=0.003,
             headwidth=4,
             headlength=5
+        )
+    
+    def draw_velocity_vector(self, position, velocity, color):
+        # Масштабирование вектора скорости для наглядности
+        factor = 0.5
+        arrow_dx = velocity[0] * factor
+        arrow_dy = velocity[1] * factor
+        
+        self.ax.quiver(
+            position[0],
+            position[1],
+            arrow_dx,
+            arrow_dy,
+            color=color,
+            angles='xy',
+            scale_units='xy',
+            scale=1,
+            width=0.005,
+            headwidth=5,
+            headlength=7,
+            alpha=0.8
         )
 
     def run(self):
@@ -197,3 +235,4 @@ if __name__ == "__main__":
         visualizer.shutdown()
     finally:
         visualizer.shutdown()
+
