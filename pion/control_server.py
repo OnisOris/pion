@@ -4,6 +4,7 @@ from .datagram import DDatagram
 import readline
 import atexit
 import os
+from .server import UDPBroadcastClient
 
 history_file = os.path.join(os.path.expanduser("~"), ".my_console_history")
 
@@ -38,19 +39,9 @@ def get_local_ip():
         s.close()
     return local_ip
 
-class UDPBroadcastClient:
-    """
-    Клиент для отправки UDP сообщений.
-    """
-    def __init__(self, port: int = 37020) -> None:
-        self.port = port
-        try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-            # Разрешаем широковещательную рассылку
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            print("UDPBroadcastClient запущен")
-        except Exception as error:
-            print("Ошибка инициализации UDPBroadcastClient:", error)
+#####################################
+# Control Server (Консольное приложение)
+#####################################
 
 class ControlServer:
     """
@@ -59,35 +50,24 @@ class ControlServer:
       [target] command [параметры]
       
     target:
-      - "all" – отправить команду всем дронам (широковещательно)
-      - либо номер устройства (например, 3 для IP 192.168.0.3)
+      - "all" – широковещательная рассылка
+      - либо уникальный идентификатор (например, "105" или "105-2")
       
-    Команды:
-      set_speed vx vy vz yaw_rate
-      goto x y z yaw
-      takeoff
-      land
-      arm
-      disarm
-      smart_goto x y z yaw
-      led led_id r g b
+    Команды: set_speed, goto, takeoff, land, arm, disarm, smart_goto, led
     """
     def __init__(self, broadcast_port: int = 37020):
         self.broadcast_port = broadcast_port
         self.client = UDPBroadcastClient(port=broadcast_port)
-        # Определяем локальный IP и извлекаем сетевой префикс (первые 3 октета)
-        self.local_ip = get_local_ip()
-        self.network_prefix = '.'.join(self.local_ip.split('.')[:3])
-        print(f"Определён локальный IP: {self.local_ip}")
-        print(f"Определён сетевой префикс: {self.network_prefix}")
+        # Здесь network_prefix больше не используется, поскольку target задается как уникальный id
+        print("Управляющая консоль запущена. Используйте 'all' или уникальный id (например, 105 или 105-2) в качестве target.")
 
     def send_command(self, command: int, data: list, target: str = "<broadcast>") -> None:
         dt = DDatagram()
         dt.command = command
         dt.data = data
-        # Если target не широковещательный, добавляем target_ip в datagram:
         if target != "<broadcast>":
-            dt.target_ip = target  # новое поле в протобафе
+            # Передаём target_id, чтобы команда адресовалась конкретному экземпляру
+            dt.target_id = target
         serialized = dt.export_serialized()
         self.client.socket.sendto(serialized, ("<broadcast>", self.broadcast_port))
         print(f"Команда {command} с данными {data} отправлена для {target}.")
@@ -95,7 +75,7 @@ class ControlServer:
     def console_loop(self):
         print("Запущен консольный интерфейс управления.")
         print("Синтаксис команд: [target] command [параметры]")
-        print(f"  target: 'all' или номер устройства (например, 3 для IP {self.network_prefix}.3)")
+        print("  target: 'all' или уникальный id (например, 105 или 105-2)")
         print("  Команды: set_speed, goto, takeoff, land, arm, disarm, smart_goto, led")
         while True:
             try:
@@ -110,17 +90,8 @@ class ControlServer:
                 print("Выход из консоли.")
                 break
 
-            # Определяем target
             target_part = parts[0]
-            if target_part.lower() == "all":
-                target = "<broadcast>"
-            else:
-                try:
-                    num = int(target_part)
-                    target = f"{self.network_prefix}.{num}"
-                except ValueError:
-                    print("Неверное значение target. Используйте 'all' или номер устройства (например, 3).")
-                    continue
+            target = "<broadcast>" if target_part.lower() == "all" else target_part
 
             if len(parts) < 2:
                 print("Не указана команда.")
@@ -175,4 +146,3 @@ class ControlServer:
                     print("Неверные параметры для led")
             else:
                 print("Неизвестная команда. Доступны: set_speed, goto, takeoff, land, arm, disarm, smart_goto, led")
-

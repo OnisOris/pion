@@ -1,21 +1,37 @@
 import socket
+import time
 import threading
 from queue import Queue
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numpy as np
 from pion.datagram import DDatagram
-import time
+
+def extract_ip_id(ip: str) -> str:
+    """
+    Возвращает последний октет IP как строку.
+    Если не получается, возвращает хэш в диапазоне [0, 1000).
+    """
+    parts = ip.split('.')
+    if len(parts) == 4:
+        try:
+            return parts[-1]
+        except ValueError:
+            pass
+    return str(abs(hash(ip)) % 1000)
 
 class SwarmVisualizer2D:
     def __init__(self, port=37020):
         self.port = port
         self.data_queue = Queue()
-        self.drones = {}
+        self.drones = {}   # ключи – исходный payload.id, значения – словари с данными дрона
         self.colors = {}
         self.trails_length = 30
         self.running = True
         self.lock = threading.Lock()  # Блокировка для синхронизации доступа
+        
+        # Словарь для сопоставления длинных id с короткими метками
+        self.id_mapping = {}
 
         # UDP сервер
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -54,45 +70,55 @@ class SwarmVisualizer2D:
 
     def process_payload(self, payload, addr):
         with self.lock:
-            drone_id = payload.id
-            if len(payload.data) < 7:
-                return
-
+            # Извлечение ip из данных
             try:
                 ip_num = int(payload.data[0])
                 ip = socket.inet_ntoa(ip_num.to_bytes(4, byteorder='big'))
             except (OverflowError, IndexError):
                 ip = "Invalid IP"
 
-            # Позиция: индексы 1, 2, 3
+            # Если для данного payload.id ещё не определена короткая метка, вычисляем её:
+            if payload.id not in self.id_mapping:
+                base = extract_ip_id(ip)
+                # Считаем, сколько уже есть меток с таким базовым значением
+                duplicates = [v for v in self.id_mapping.values() if v.startswith(base)]
+                if duplicates:
+                    short_id = f"{base}-{len(duplicates)+1}"
+                else:
+                    short_id = base
+                self.id_mapping[payload.id] = short_id
+
+            short_id = self.id_mapping[payload.id]
+
+            # Извлекаем позицию: индексы 1, 2, 3
             position = np.array([
                 payload.data[1],  # X
                 payload.data[2],  # Y
                 payload.data[3]   # Z
             ])
             
-            # Скорость: индексы 4, 5, 6
+            # Извлекаем скорость: индексы 4, 5, 6
             velocity = np.array([
                 payload.data[4],  # Vx
                 payload.data[5],  # Vy
                 payload.data[6]   # Vz
             ])
             
-            if drone_id not in self.drones:
-                self.colors[drone_id] = np.random.rand(3,)
-                self.drones[drone_id] = {
+            if payload.id not in self.drones:
+                self.colors[payload.id] = np.random.rand(3,)
+                self.drones[payload.id] = {
                     'position': position,
                     'velocity': velocity,
                     'trail': [],
                     'ip': ip,
-                    'last_update': time.time()
+                    'last_update': time.time(),
+                    'short_id': short_id
                 }
             else:
-                self.drones[drone_id]['position'] = position
-                self.drones[drone_id]['velocity'] = velocity
-                self.drones[drone_id]['last_update'] = time.time()
-                
-                trail = self.drones[drone_id]['trail']
+                self.drones[payload.id]['position'] = position
+                self.drones[payload.id]['velocity'] = velocity
+                self.drones[payload.id]['last_update'] = time.time()
+                trail = self.drones[payload.id]['trail']
                 trail.append(position.copy()[:2])
                 if len(trail) > self.trails_length:
                     trail.pop(0)
@@ -106,15 +132,15 @@ class SwarmVisualizer2D:
             to_delete = []
             
             # Итерация по дронам
-            for drone_id in list(self.drones.keys()):
-                data = self.drones[drone_id]
+            for drone_key in list(self.drones.keys()):
+                data = self.drones[drone_key]
                 
-                # Удаление неактивных дронов (без обновлений >5 сек)
+                # Удаляем неактивных дронов (без обновлений >5 сек)
                 if current_time - data['last_update'] > 5:
-                    to_delete.append(drone_id)
+                    to_delete.append(drone_key)
                     continue
                     
-                color = self.colors[drone_id]
+                color = self.colors[drone_key]
                 pos = data['position']
                 trail = np.array(data['trail'])
                 velocity = data['velocity']
@@ -128,7 +154,7 @@ class SwarmVisualizer2D:
                     s=size,
                     marker='o',
                     edgecolors='k',
-                    label=f'Drone {drone_id}'
+                    label=f'Drone {data["short_id"]}'
                 )
                 
                 # Текст с высотой
@@ -167,6 +193,7 @@ class SwarmVisualizer2D:
             for did in to_delete:
                 del self.drones[did]
                 del self.colors[did]
+                # Не удаляем соответствующую запись из id_mapping, чтобы при повторном появлении тот же short_id использоваться было согласованно
                 
             if self.drones:
                 self.ax.legend(loc='upper right', bbox_to_anchor=(1.15, 1))
@@ -177,7 +204,6 @@ class SwarmVisualizer2D:
         arrow_length = 1.2  # фиксированная длина стрелки направления
         dx = arrow_length * np.cos(yaw)
         dy = arrow_length * np.sin(yaw)
-        
         self.ax.quiver(
             position[0],
             position[1],
@@ -193,11 +219,9 @@ class SwarmVisualizer2D:
         )
     
     def draw_velocity_vector(self, position, velocity, color):
-        # Масштабирование вектора скорости для наглядности
-        factor = 0.5
+        factor = 0.5  # масштабирование вектора скорости
         arrow_dx = velocity[0] * factor
         arrow_dy = velocity[1] * factor
-        
         self.ax.quiver(
             position[0],
             position[1],
@@ -235,4 +259,3 @@ if __name__ == "__main__":
         visualizer.shutdown()
     finally:
         visualizer.shutdown()
-
