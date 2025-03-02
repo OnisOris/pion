@@ -20,31 +20,11 @@ CMD_SMART_GOTO = 7
 CMD_LED        = 8
 
 # Глобальный словарь для отслеживания количества экземпляров по IP
-_instance_counters = {}
+# _instance_counters = {}
 
-
-def get_unique_instance_id(ip: str, instance_number = None) -> str:
-    """
-    Возвращает уникальный строковый идентификатор для данного IP.
-    Если instance_number передан, то формируется id вида "<last_octet>-<instance_number>".
-    Если instance_number не задан, используется глобальный счётчик.
-    """
-    parts = ip.split('.')
-    if len(parts) == 4:
-        base = parts[-1]
-    else:
-        base = str(abs(hash(ip)) % 1000)
-        
-    if instance_number is not None:
-        return base if instance_number == "1" else f"{base}-{instance_number}"
-    else:
-        global _instance_counters
-        if ip in _instance_counters:
-            _instance_counters[ip] += 1
-        else:
-            _instance_counters[ip] = 1
-        count = _instance_counters[ip]
-        return base if count == 1 else f"{base}-{count}"
+def get_unique_instance_id(ip: str, instance_number=None) -> str:
+    octet = ip.split('.')[-1] if ip.count('.') == 3 else str(hash(ip) % 1000)
+    return f"{octet}-{instance_number}" if instance_number else octet
 
 def get_numeric_id(unique_id: str) -> int:
     return abs(hash(unique_id)) % (10**12)
@@ -224,15 +204,16 @@ class SwarmCommunicator:
         self.running = False
         self.broadcast_server.running = False
 
+
     def process_incoming_state(self, state: Any) -> None:
-        # Если в сообщении задано поле target_id, проверяем совпадение с уникальным id
-        if hasattr(state, "target_id") and state.target_id:
+        # Проверяем наличие target_id в сообщении
+        if state.target_id:
             if state.target_id != self.unique_id:
-                print(f"Команда с target_id {state.target_id} не предназначена для этого экземпляра ({self.unique_id}). Данные сохранены.")
-                self.env[state.id] = state
+                print(f"Команда для {state.target_id} пропущена (я: {self.unique_id})")
                 return
 
         if hasattr(state, "command") and state.command != 0:
+            print("unique_id = ", self.unique_id, "\n state = ", state)
             if state.command == CMD_SET_SPEED:
                 try:
                     vx, vy, vz, yaw_rate = state.data
