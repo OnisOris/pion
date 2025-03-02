@@ -13,14 +13,30 @@ if os.path.exists(history_file):
 atexit.register(readline.write_history_file, history_file)
 
 # Определим коды команд
-CMD_SET_SPEED = 1
-CMD_GOTO      = 2
-CMD_TAKEOFF   = 3
-CMD_LAND      = 4
-CMD_ARM       = 5
-CMD_DISARM    = 6
+CMD_SET_SPEED  = 1
+CMD_GOTO       = 2
+CMD_TAKEOFF    = 3
+CMD_LAND       = 4
+CMD_ARM        = 5
+CMD_DISARM     = 6
 CMD_SMART_GOTO = 7
-CMD_LED       = 8
+CMD_LED        = 8
+
+def get_local_ip():
+    """
+    Определяет локальный IP-адрес, используя временный UDP-сокет.
+    При неудаче возвращает '127.0.0.1'.
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Подключаемся к внешнему адресу (8.8.8.8) для определения локального IP
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+    except Exception:
+        local_ip = "127.0.0.1"
+    finally:
+        s.close()
+    return local_ip
 
 class UDPBroadcastClient:
     """
@@ -36,7 +52,6 @@ class UDPBroadcastClient:
         except Exception as error:
             print("Ошибка инициализации UDPBroadcastClient:", error)
 
-
 class ControlServer:
     """
     Консольное приложение для отправки команд дронам.
@@ -45,7 +60,7 @@ class ControlServer:
       
     target:
       - "all" – отправить команду всем дронам (широковещательно)
-      - либо номер устройства (например, 3 для IP 10.1.100.3)
+      - либо номер устройства (например, 3 для IP 192.168.0.3)
       
     Команды:
       set_speed vx vy vz yaw_rate
@@ -54,11 +69,18 @@ class ControlServer:
       land
       arm
       disarm
+      smart_goto x y z yaw
+      led led_id r g b
     """
     def __init__(self, broadcast_port: int = 37020):
         self.broadcast_port = broadcast_port
         self.client = UDPBroadcastClient(port=broadcast_port)
-    
+        # Определяем локальный IP и извлекаем сетевой префикс (первые 3 октета)
+        self.local_ip = get_local_ip()
+        self.network_prefix = '.'.join(self.local_ip.split('.')[:3])
+        print(f"Определён локальный IP: {self.local_ip}")
+        print(f"Определён сетевой префикс: {self.network_prefix}")
+
     def send_command(self, command: int, data: list, target: str = "<broadcast>") -> None:
         dt = DDatagram()
         dt.command = command
@@ -70,12 +92,10 @@ class ControlServer:
         self.client.socket.sendto(serialized, ("<broadcast>", self.broadcast_port))
         print(f"Команда {command} с данными {data} отправлена для {target}.")
 
-
-
     def console_loop(self):
         print("Запущен консольный интерфейс управления.")
         print("Синтаксис команд: [target] command [параметры]")
-        print("  target: 'all' или номер устройства (например, 3 для IP 10.1.100.3)")
+        print(f"  target: 'all' или номер устройства (например, 3 для IP {self.network_prefix}.3)")
         print("  Команды: set_speed, goto, takeoff, land, arm, disarm, smart_goto, led")
         while True:
             try:
@@ -97,7 +117,7 @@ class ControlServer:
             else:
                 try:
                     num = int(target_part)
-                    target = f"10.1.100.{num}"
+                    target = f"{self.network_prefix}.{num}"
                 except ValueError:
                     print("Неверное значение target. Используйте 'all' или номер устройства (например, 3).")
                     continue
