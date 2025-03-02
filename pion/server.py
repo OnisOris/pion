@@ -135,7 +135,8 @@ class SwarmCommunicator:
                  broadcast_port: int = 37020, 
                  broadcast_interval: float = 0.05,
                  safety_radius: float = 1.,
-                 max_speed: float = 1.) -> None:
+                 max_speed: float = 1.,
+                 ip = None) -> None:
         """
         :param control_object: Экземпляр дрона (например, объект Pion), из которого берутся данные состояния.
         :param control_object: Порт для широковещательной рассылки.
@@ -146,8 +147,12 @@ class SwarmCommunicator:
         self.broadcast_port = broadcast_port
         self.receive_queue: Queue[Any] = Queue()
         print("extract: ", extract_ip_id(self.control_object.ip))
-        self.broadcast_client = UDPBroadcastClient(port=self.broadcast_port, id=extract_ip_id(self.control_object.ip))
-        self.broadcast_server = UDPBroadcastServer(server_to_agent_queue=self.receive_queue, port=self.broadcast_port, id=extract_ip_id(self.control_object.ip))
+        if ip is None:
+            id = extract_ip_id(self.control_object.ip)
+        else:
+            id = extract_ip_id(ip)
+        self.broadcast_client = UDPBroadcastClient(port=self.broadcast_port, id=id)
+        self.broadcast_server = UDPBroadcastServer(server_to_agent_queue=self.receive_queue, port=self.broadcast_port, id=id)
         self.running: bool = True
         self.env = {}
         self.safety_radius = safety_radius
