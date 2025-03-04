@@ -2,7 +2,7 @@ import argparse
 import time
 from pion import Spion
 from pion.server import SwarmCommunicator  # модуль, где определён SwarmCommunicator
-from pion.control_server import get_local_ip
+from pion.functions import get_local_ip
 
 def main():
     parser = argparse.ArgumentParser(
