@@ -1,11 +1,12 @@
 import socket
-import time
 from .datagram import DDatagram
 import readline
 import atexit
 import os
-from .server import UDPBroadcastClient
+from .server import UDPBroadcastClient, UDPBroadcastServer
+from queue import Queue
 
+                
 history_file = os.path.join(os.path.expanduser("~"), ".my_console_history")
 
 if os.path.exists(history_file):
@@ -22,6 +23,7 @@ CMD_ARM        = 5
 CMD_DISARM     = 6
 CMD_SMART_GOTO = 7
 CMD_LED        = 8
+CMD_STOP       = 9
 
 def get_local_ip():
     """
@@ -56,10 +58,13 @@ class ControlServer:
     Команды: set_speed, goto, takeoff, land, arm, disarm, smart_goto, led
     """
     def __init__(self, broadcast_port: int = 37020):
+        self.client = UDPBroadcastClient(port=broadcast_port, unique_id="control_server") 
         self.broadcast_port = broadcast_port
-        self.client = UDPBroadcastClient(port=broadcast_port)
         # Здесь network_prefix больше не используется, поскольку target задается как уникальный id
+        self.receive_queue = Queue()
+
         print("Управляющая консоль запущена. Используйте 'all' или уникальный id (например, 105 или 105-2) в качестве target.")
+
 
     def send_command(self, command: int, data: list, target: str = "<broadcast>") -> None:
         dt = DDatagram()
@@ -122,6 +127,8 @@ class ControlServer:
                 self.send_command(CMD_LAND, [], target)
             elif cmd == "arm":
                 self.send_command(CMD_ARM, [], target)
+            elif cmd == "stop":
+                self.send_command(CMD_STOP, [], target)
             elif cmd == "disarm":
                 self.send_command(CMD_DISARM, [], target)
             elif cmd == "smart_goto":
