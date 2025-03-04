@@ -220,7 +220,7 @@ class SwarmCommunicator:
             elif state.command == CMD_GOTO:
                 try:
                     x, y, z, yaw = state.data
-                    self.control_object.goto(x, y, z, yaw)
+                    self.control_object.goto_from_outside(x, y, z, yaw)
                     print(f"Команда goto выполнена: {x}, {y}, {z}, {yaw}")
                 except Exception as e:
                     print("Ошибка при выполнении goto:", e)
