@@ -2,9 +2,24 @@ import numpy as np
 from typing import Union
 import numpy.typing as npt
 from pymavlink import mavutil
-
+import socket
 from pion.annotation import Array6
 
+def get_local_ip():
+    """
+    Определяет локальный IP-адрес, используя временный UDP-сокет.
+    При неудаче возвращает '127.0.0.1'.
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Подключаемся к внешнему адресу (8.8.8.8) для определения локального IP
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+    except Exception:
+        local_ip = "127.0.0.1"
+    finally:
+        s.close()
+    return local_ip
 
 def normalization(vector: np.ndarray, length: float = 1.) -> np.ndarray:
     """
@@ -237,7 +252,7 @@ def compute_swarm_velocity(state_vector: Array6,
     :rtype: np.ndarray
     """
     local_pos = state_vector[0:2]
-    current_velocity = state_vector[3:5]  # np.array([vx, vy])
+    current_velocity = state_vector[3:5] 
     # Attraction force: единичный вектор от текущей позиции к swarm_goal
     direction = target_point - local_pos
     norm_dir = np.linalg.norm(direction)
@@ -248,10 +263,8 @@ def compute_swarm_velocity(state_vector: Array6,
     print(attraction_force)
     # Repulsion force: суммируем вклад от каждого дрона, если расстояние меньше safety_radius
     repulsion_force = np.zeros(2)
-
     # Вектор выведения дрона из равновесия (при стабилизации на границе дрона)
     unstable_vector = np.zeros(2)
-
     for state in env.values():
         if len(state.data) >= 3:
             xyz = state.data[1:4]
@@ -268,7 +281,6 @@ def compute_swarm_velocity(state_vector: Array6,
                     np.linalg.norm(direction) > safety_radius + 0.2):
                 unstable_vector += vector_rotation2(normalization(direction, 0.3), -np.pi / 2)
                 print(f"+ unstable_vector = {unstable_vector}")
-
     # Вычисляем новый вектор скорости (базовый алгоритм)
     new_velocity = current_velocity + attraction_force + 4 * repulsion_force + unstable_vector + np.random.random(2)
     # Ограничиваем изменение (акселерацию) до max_acceleration
