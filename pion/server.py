@@ -4,7 +4,7 @@ from queue import Queue
 import threading
 import random
 import numpy as np
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Tuple, Union, Optional
 from .datagram import DDatagram  
 from .functions import vector_reached, compute_swarm_velocity
 
@@ -18,9 +18,7 @@ CMD_ARM        = 5
 CMD_DISARM     = 6
 CMD_SMART_GOTO = 7
 CMD_LED        = 8
-
-# Глобальный словарь для отслеживания количества экземпляров по IP
-# _instance_counters = {}
+CMD_STOP       = 9
 
 def get_unique_instance_id(ip: str, instance_number=None) -> str:
     octet = ip.split('.')[-1] if ip.count('.') == 3 else str(hash(ip) % 1000)
@@ -60,16 +58,17 @@ class UDPBroadcastClient:
         try:
             # Преобразуем строковый id в числовой (для DDatagram)
             numeric_id = get_numeric_id(state.get("id", "0"))
+            # print("numeric_id = ", numeric_id)
             self.encoder.token = state.get("token", -1)
             self.encoder.id = numeric_id
             self.encoder.source = 0  
             self.encoder.command = state.get("command", 0)
-            # Если присутствует поле target_id (адресуется конкретному экземпляру), передаём его
-            if state.get("target_id", None) is not None:
-                self.encoder.target_id = state["target_id"]
-            # Объединяем данные position и attitude в одно поле data
-            pos = state.get("position", [])
-            att = state.get("attitude", [])
+            if "target_id" in state:
+                self.encoder.target_id = state["target_id"]  # Используем строковый target_id
+                # pos = state.get("position", [])
+            # att = state.get("attitude", [])
+            pos = state.get("position", [0.0, 0.0, 0.0])  # Значения по умолчанию
+            att = state.get("attitude", [0.0, 0.0, 0.0])
             ip_str = state.get("ip", "0.0.0.0")
             try:
                 import ipaddress
@@ -86,7 +85,7 @@ class UDPBroadcastServer:
     """
     Сервер для приёма UDP широковещательных сообщений.
     """
-    def __init__(self, server_to_agent_queue: Queue[Any], port: int = 37020, unique_id: str = None) -> None:
+    def __init__(self, server_to_agent_queue: Queue[Any], port: int = 37020, unique_id: Optional[str] = None) -> None:
         numeric_id = get_numeric_id(unique_id) if unique_id else random.randint(0, int(1e12))
         self.encoder: DDatagram = DDatagram(id=numeric_id)
         self.decoder: DDatagram = DDatagram(id=numeric_id)
@@ -149,7 +148,7 @@ class SwarmCommunicator:
         # Генерируем уникальный id с использованием instance_number, если он передан
         self.unique_id: str = get_unique_instance_id(local_ip, instance_number=instance_number)
         print("Уникальный id для этого экземпляра:", self.unique_id)
-        numeric_id = get_numeric_id(self.unique_id)
+        self.numeric_id = get_numeric_id(self.unique_id)
         self.broadcast_client = UDPBroadcastClient(port=self.broadcast_port, unique_id=self.unique_id)
         self.broadcast_server = UDPBroadcastServer(server_to_agent_queue=self.receive_queue, port=self.broadcast_port, unique_id=self.unique_id)
         self.running: bool = True
@@ -209,11 +208,8 @@ class SwarmCommunicator:
         # Проверяем наличие target_id в сообщении
         if state.target_id:
             if state.target_id != self.unique_id:
-                print(f"Команда для {state.target_id} пропущена (я: {self.unique_id})")
                 return
-
         if hasattr(state, "command") and state.command != 0:
-            print("unique_id = ", self.unique_id, "\n state = ", state)
             if state.command == CMD_SET_SPEED:
                 try:
                     vx, vy, vz, yaw_rate = state.data
@@ -240,10 +236,13 @@ class SwarmCommunicator:
             elif state.command == CMD_DISARM:
                 self.control_object.disarm()
                 print("Команда disarm выполнена")
+            elif state.command == CMD_STOP:
+                self.control_object.point_reached = True
+                print("Команды на достижение позиций остановлены")
             elif state.command == CMD_SMART_GOTO:
                 try:
                     x, y, z, yaw = state.data
-                    self.smart_goto(x, y, z, yaw)
+                    self.start_threading_smart_goto(x, y, z, yaw)
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
             elif state.command == CMD_LED:
@@ -257,13 +256,23 @@ class SwarmCommunicator:
                 print("Получена неизвестная команда:", state.command)
         else:
             if hasattr(state, "id"):
-                self.env[state.id] = state
+                if not state.id == self.numeric_id:
+                    self.env[state.id] = state
             elif hasattr(state, "ip"):
                 self.env[state.ip] = state
 
     def update_swarm_control(self, target_point) -> None:
         new_vel = compute_swarm_velocity(self.control_object.position, self.env, target_point, self.safety_radius, self.control_object.max_speed)
         self.control_object.t_speed = np.array([new_vel[0], new_vel[1], 0, 0])
+    
+    def start_threading_smart_goto(self,
+                                   x: Union[float, int],
+                                   y: Union[float, int],
+                                   z: Union[float, int],
+                                   yaw: Union[float, int] = 0,
+                                   accuracy: Union[float, int] = 5e-2):
+        thread = threading.Thread(target=self.smart_goto, args=(x, y, z, yaw, accuracy,))
+        thread.start()
 
     def smart_goto(self,
                    x: Union[float, int],
