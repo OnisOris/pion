@@ -95,6 +95,8 @@ class Pion(DroneBase):
                            max_speed=max_speed)
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag = True
+        # Флаг для остановки отдачи управляющих сигналов rc channels
+        self.rc_flag = False
         # Флаг для остановки цикла в _message_handler
         self.message_handler_flag = True
         self.mavlink_port = mavlink_port
@@ -112,6 +114,8 @@ class Pion(DroneBase):
         self.threads = []
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
+        # Период отправления rc каналов
+        self.period_send_rc = 0.05
         # Период приема всех сообщений с дрона
         self.period_message_handler = dt
         self.connection_lost = False
@@ -293,8 +297,8 @@ class Pion(DroneBase):
         self.t_speed = np.zeros(4)
 
     def goto_yaw(self,
-                 yaw: float = 0.,
-                 accuracy: float = 0.057) -> None:
+                 yaw: Union[float, int] = 0,
+                 accuracy: Union[float, int] = 0.057) -> None:
         """
         Функция берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
@@ -308,14 +312,14 @@ class Pion(DroneBase):
         self.tracking = False
         self.set_v()
         pid_controller = PIDController(*self.yaw_pid_matrix)
-        self.point_reached = False
+        point_reached = False
         last_time = time.time()
         time.sleep(self.period_send_speed)
-        while not self.point_reached:
+        while not point_reached:
             current_time = time.time()
             dt = current_time - last_time
             last_time = current_time
-            self.point_reached = scalar_reached(yaw, self.last_angles, accuracy=accuracy)
+            point_reached = scalar_reached(yaw, self.last_angles, accuracy=accuracy)
             signal = -pid_controller.compute_control(np.array([yaw], dtype=np.float64),
                                                      np.array([self.yaw],
                                                               dtype=np.float64),
@@ -352,6 +356,32 @@ class Pion(DroneBase):
                                              vz=vz,
                                              yaw_rate=yaw_rate,
                                              mavlink_send_number=1)
+
+    def send_rc_channels(self, channel_1: int = 0xFF, channel_2: int = 0xFF,
+                         channel_3: int = 0xFF, channel_4: int = 0xFF) -> None:
+        """
+        Функция отправляет управляющие сигналы RC-каналов дрону. Отсылать необходимо в цикле.
+
+        :param channel_1: высота (throttle)
+        :type channel_1: int
+        :param channel_2: угол курса (yaw)
+        :type channel_2: int
+        :param channel_3: движение влево/вправо (roll)
+        :type channel_3: int
+        :param channel_4: движение вперед/назад (pitch)
+        :type channel_4: int
+        :return: None
+        """
+        # Фиксированные значения для каналов 5-8
+        channel_5 = 0xFF
+        channel_6 = 0xFF
+        channel_7 = 0xFF
+        channel_8 = 0xFF
+
+        self.mavlink_socket.mav.rc_channels_override_send(self.mavlink_socket.target_system,
+                                                          self.mavlink_socket.target_component, channel_1,
+                                                          channel_2, channel_3, channel_4, channel_5, channel_6,
+                                                          channel_7, channel_8)
 
     def _send_position_target_local_ned(self, coordinate_system,
                                         mask=0b0000_11_0_111_111_111,
@@ -575,6 +605,27 @@ class Pion(DroneBase):
         elif msg.get_type() == "BATTERY_STATUS":
             self.battery_voltage = msg.voltages[0] / 100
 
+    def rc_while(self) -> None:
+        """
+        Функция задает цикл while на отправку управляющих сигналов rc каналов с периодом period_send_rc
+        :return: None
+        """
+        self.set_rc_check_flag = True
+        while self.rc_flag:
+            self.send_rc_channels()
+            time.sleep(self.period_send_rc)
+        self.set_rc_check_flag = False
+
+    def set_rc(self):
+        """
+        Создает поток, который вызывает функцию rc_while() для параллельной отправки управляющего сигнала rc channels
+        :return:
+        """
+        if not self.set_rc_check_flag and not self.set_v_check_flag:
+            self.rc_flag = True
+            self.threads.append(threading.Thread(target=self.rc_while))
+            self.threads[-1].start()
+
     def v_while(self) -> None:
         """
         Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
@@ -615,6 +666,7 @@ class Pion(DroneBase):
         :return: None
         """
         self.speed_flag = False
+        self.rc_flag = False
         self.check_attitude_flag = False
         self.message_handler_flag = False
 
