@@ -293,8 +293,8 @@ class Pion(DroneBase):
         self.t_speed = np.zeros(4)
 
     def goto_yaw(self,
-                 yaw: Union[float, int] = 0,
-                 accuracy: Union[float, int] = 0.057) -> None:
+                 yaw: float = 0.,
+                 accuracy: float = 0.057) -> None:
         """
         Функция берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
@@ -308,14 +308,14 @@ class Pion(DroneBase):
         self.tracking = False
         self.set_v()
         pid_controller = PIDController(*self.yaw_pid_matrix)
-        point_reached = False
+        self.point_reached = False
         last_time = time.time()
         time.sleep(self.period_send_speed)
-        while not point_reached:
+        while not self.point_reached:
             current_time = time.time()
             dt = current_time - last_time
             last_time = current_time
-            point_reached = scalar_reached(yaw, self.last_angles, accuracy=accuracy)
+            self.point_reached = scalar_reached(yaw, self.last_angles, accuracy=accuracy)
             signal = -pid_controller.compute_control(np.array([yaw], dtype=np.float64),
                                                      np.array([self.yaw],
                                                               dtype=np.float64),

@@ -168,8 +168,8 @@ def vector_reached(target_vector: Union[list, npt.NDArray[np.float64]],
         return False
 
 
-def scalar_reached(target_vector: Union[list, npt.NDArray[np.float64]],
-                   current_point_matrix: Union[list, npt.NDArray[np.ndarray]],
+def scalar_reached(target_vector: float,
+                   current_point_matrix: npt.NDArray[np.ndarray],
                    accuracy: Union[int, float] = 5e-2) -> bool:
     """
     Функция сравнивает текующую позицию с целевой позицией, возвращает True в пределах погрешности accuracy
