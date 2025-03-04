@@ -238,6 +238,7 @@ class SwarmCommunicator:
                 print("Команда disarm выполнена")
             elif state.command == CMD_STOP:
                 self.control_object.point_reached = True
+                self.control_object.speed_flag = False
                 print("Команды на достижение позиций остановлены")
             elif state.command == CMD_SMART_GOTO:
                 try:
