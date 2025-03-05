@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union
+from typing import Union, Optional
 import numpy.typing as npt
 from pymavlink import mavutil
 import socket
@@ -210,7 +210,28 @@ def limit_acceleration(current_velocity: np.ndarray,
         change = change / norm * max_acceleration
     return current_velocity + change
 
-def limit_speed(velocity: np.ndarray,
+
+
+def saturation(vector: np.ndarray, max_value: float) -> np.ndarray:
+    """
+    Ограничение вектора по максимальной длине.
+
+    :param vector: Ограничеваемый вектор
+    :type vector: np.ndarray
+    
+    :param max_value: Максимальное значение
+    :type max_value: float
+
+    :return: np.ndarray
+    :rtype: np.ndarray
+    """
+    norm = np.linalg.norm(vector)
+    if norm > max_value:
+        return (vector / norm) * max_value
+    return vector
+
+
+def limit_speed0345(velocity: np.ndarray,
                  max_speed: float) -> np.ndarray:
     """
     Метод для ограничения скорости.
@@ -236,8 +257,7 @@ def limit_speed(velocity: np.ndarray,
 def compute_swarm_velocity(state_vector: Array6,
                            env: dict,
                            target_point: np.ndarray = np.array([0, 0]),
-                           safety_radius: float = 1,
-                           max_speed: float = 0.4) -> np.ndarray:
+                           params: Optional[dict] = None) -> np.ndarray:
     """
     Вычисляет желаемый вектор скорости для локального дрона на основе информации из env.
     Логика:
@@ -251,6 +271,18 @@ def compute_swarm_velocity(state_vector: Array6,
     :return: numpy-массив [vx, vy]
     :rtype: np.ndarray
     """
+    if params is None:
+        params = {
+            "attraction_weight": 1.0,
+            "cohesion_weight": 1.0,
+            "alignment_weight": 1.0,
+            "repulsion_weight": 4.0,
+            "unstable_weight": 1.0,
+            "noise_weight": 1.0,
+            "safety_radius": 1.0,
+            "max_acceleration": 0.1,
+            "max_speed": 0.4,
+        }
     local_pos = state_vector[0:2]
     current_velocity = state_vector[3:5] 
     # Attraction force: единичный вектор от текущей позиции к swarm_goal
@@ -272,13 +304,13 @@ def compute_swarm_velocity(state_vector: Array6,
             other_pos = np.array(xyz[0:2], dtype=float)
             distance_vector = local_pos - other_pos
             distance = np.linalg.norm(distance_vector)
-            if 0 < distance < safety_radius:
+            if 0 < distance < params["safety_radius"]:
                 repulsion_force += distance_vector / (distance ** 2)
                 print(f"+ repulsion_force = {repulsion_force}")
             direction_to_other_drone = np.linalg.norm(xyz[0:2] - state_vector[0:2])
-            if (direction_to_other_drone < safety_radius + 0.1 and
+            if (direction_to_other_drone < params["safety_radius"] + 0.1 and
                 np.allclose(np.linalg.norm(speed[0:2]), 0, atol=0.1) and
-                    np.linalg.norm(direction) > safety_radius + 0.2):
+                    np.linalg.norm(direction) > params["safety_radius"] + 0.2):
                 unstable_vector += vector_rotation2(normalization(direction, 0.3), -np.pi / 2)
                 print(f"+ unstable_vector = {unstable_vector}")
     # Вычисляем новый вектор скорости (базовый алгоритм)
@@ -286,7 +318,135 @@ def compute_swarm_velocity(state_vector: Array6,
     # Ограничиваем изменение (акселерацию) до max_acceleration
     new_velocity = limit_acceleration(current_velocity, new_velocity, max_acceleration=0.1)
     # Ограничиваем скорость до max_speed
-    new_velocity = limit_speed(new_velocity, max_speed)
+    new_velocity = saturation(new_velocity, params["max_speed"])
+    return new_velocity
+
+def compute_swarm_velocity_boids(state_vector: np.ndarray,
+                           env: dict,
+                           target_point: np.ndarray = np.array([0, 0]),
+                           params: Optional[dict] = None) -> np.ndarray:
+    """
+    Вычисляет желаемый вектор скорости для локального дрона с использованием правил boids.
+    Алгоритм учитывает:
+      - Attraction к целевой точке (target_point),
+      - Cohesion: стремление к центру масс соседей,
+      - Alignment: выравнивание с соседними дронами,
+      - Repulsion: отталкивание от слишком близких дронов,
+      - Дополнительный unstable_vector (если дрон находится в нестабильном положении),
+      - Случайный шум.
+      
+    Все веса и ограничения задаются через словарь params.
+    
+    :param state_vector: вектор состояния дрона (например, [x, y, ?, vx, vy, ?])
+    :param env: словарь состояний других дронов, где state.data содержит позицию и скорость
+    :param target_point: целевая координата, к которой направлен дрон
+    :param params: словарь с параметрами:
+         - "attraction_weight": вес силы притяжения к target_point,
+         - "cohesion_weight": вес силы коэф. сближения (центр масс соседей),
+         - "alignment_weight": вес силы выравнивания (средняя скорость соседей),
+         - "repulsion_weight": вес силы отталкивания,
+         - "unstable_weight": вес дополнительного корректирующего вектора,
+         - "noise_weight": вес случайного шума,
+         - "safety_radius": радиус, в пределах которого действует repulsion,
+         - "max_acceleration": максимальное изменение скорости,
+         - "max_speed": максимальная скорость.
+    :return: numpy-массив [vx, vy] – новый вектор скорости
+    """
+    # Если не передан словарь параметров, используем значения по умолчанию
+    if params is None:
+        params = {
+            "attraction_weight": 1.0,
+            "cohesion_weight": 1.0,
+            "alignment_weight": 1.0,
+            "repulsion_weight": 4.0,
+            "unstable_weight": 1.0,
+            "noise_weight": 1.0,
+            "safety_radius": 1.0,
+            "max_acceleration": 0.1,
+            "max_speed": 0.4,
+        }
+        
+    local_pos = state_vector[0:2]
+    current_velocity = state_vector[3:5]
+    
+    # 1. Attraction: от текущей позиции к целевой точке
+    direction_to_target = target_point - local_pos
+    norm_dir = np.linalg.norm(direction_to_target)
+    if norm_dir != 0:
+        attraction_force = direction_to_target / norm_dir
+    else:
+        attraction_force = np.zeros(2)
+    
+    # 2. Cohesion: стремление к центру масс соседей
+    neighbor_positions = []
+    neighbor_velocities = []
+    repulsion_force = np.zeros(2)
+    unstable_vector = np.zeros(2)
+    
+    for state in env.values():
+        # Предполагаем, что state.data содержит позицию (индексы 1:4) и скорость (индексы 4:7)
+        if len(state.data) >= 7:
+            # Позиция соседа (возьмём только x и y)
+            other_pos = np.array(state.data[1:3], dtype=float)
+            neighbor_positions.append(other_pos)
+            # Скорость соседа
+            other_vel = np.array(state.data[4:6], dtype=float)
+            neighbor_velocities.append(other_vel)
+            
+            # Repulsion: если расстояние меньше safety_radius
+            distance_vector = local_pos - other_pos
+            distance = np.linalg.norm(distance_vector)
+            if 0 < distance < params["safety_radius"]:
+                repulsion_force += distance_vector / (distance ** 2)
+            
+            # Пример дополнительного unstable_vector, если сосед неподвижен и слишком близко
+            if distance < (params["safety_radius"] + 0.1):
+                # Если сосед неподвижен (скорость почти нулевая) и дрон движется достаточно быстро
+                if np.allclose(np.linalg.norm(other_vel), 0, atol=0.1) and np.linalg.norm(direction_to_target) > (params["safety_radius"] + 0.2):
+                    # Добавляем повернутый вектор от нормированного направления к цели
+                    unstable_vector += vector_rotation2(normalization(direction_to_target, 0.3), -np.pi / 2)
+    
+    # 3. Cohesion force: если есть соседи
+    if neighbor_positions:
+        avg_neighbor_pos = np.mean(neighbor_positions, axis=0)
+        cohesion_vector = avg_neighbor_pos - local_pos
+        norm_cohesion = np.linalg.norm(cohesion_vector)
+        if norm_cohesion != 0:
+            cohesion_force = cohesion_vector / norm_cohesion
+        else:
+            cohesion_force = np.zeros(2)
+    else:
+        cohesion_force = np.zeros(2)
+    
+    # 4. Alignment force: стремление согласовать скорость с соседями
+    if neighbor_velocities:
+        avg_neighbor_vel = np.mean(neighbor_velocities, axis=0)
+        alignment_vector = avg_neighbor_vel - current_velocity
+        norm_alignment = np.linalg.norm(alignment_vector)
+        if norm_alignment != 0:
+            alignment_force = alignment_vector / norm_alignment
+        else:
+            alignment_force = np.zeros(2)
+    else:
+        alignment_force = np.zeros(2)
+    
+    # Случайный шум
+    noise = np.random.random(2)
+    
+    # Комбинируем все силы с заданными весами
+    new_velocity = (current_velocity +
+                    params["attraction_weight"] * attraction_force +
+                    params["cohesion_weight"] * cohesion_force +
+                    params["alignment_weight"] * alignment_force +
+                    params["repulsion_weight"] * repulsion_force +
+                    params["unstable_weight"] * unstable_vector +
+                    params["noise_weight"] * noise)
+    
+    # Ограничиваем изменение (акселерацию)
+    new_velocity = limit_acceleration(current_velocity, new_velocity, max_acceleration=params["max_acceleration"])
+    # Ограничиваем скорость
+    new_velocity = saturation(new_velocity, params["max_speed"])
+    
     return new_velocity
 
 
