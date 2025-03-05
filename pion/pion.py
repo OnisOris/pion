@@ -102,8 +102,8 @@ class Pion(DroneBase):
         self._msg = None
 
         self.mavlink_socket = create_connection(connection_method=connection_method,
-                                                ip=ip,
-                                                port=mavlink_port)
+                                                address=ip,
+                                                port_or_baudrate=mavlink_port)
         self._heartbeat_timeout = 1
         self._mavlink_send_number = 10
         self.__is_socket_open = threading.Event()

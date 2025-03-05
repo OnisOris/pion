@@ -56,27 +56,37 @@ def vector_rotation2(vector: np.ndarray, angle: float) -> np.ndarray:
 
 def create_connection(
         connection_method: str,
-        ip: str,
-        port: Union[int, str]
+        address: str,
+        port_or_baudrate: Union[int, str]
 ) -> mavutil.mavfile:
     """
     Создаёт MAVLink соединение.
 
-    :param connection_method: Метод соединения, например, 'udp', 'tcp', или другой.
+    :param connection_method: Метод соединения, например, 'udp', 'tcp', 'serial', или другой.
     :type connection_method: str
 
-    :param ip: IP-адрес для соединения, например '127.0.0.1'
-    :type ip: str
+    :param address: IP-адрес для соединения, например '127.0.0.1'
+    :type address: str
 
-    :param port: Порт для соединения. Может быть целым числом или строкой.
-    :type port: Union[int, str]
+    :param port_or_baudrate: Порт для соединения. Может быть целым числом или строкой.
+    :type port_or_baudrate: Union[int, str]
 
     :return: Возвращает объект mav_socket, который представляет MAVLink соединение.
     :rtype: mavutil.mavfile
     """
-    mav_socket = mavutil.mavlink_connection('%s:%s:%s' % (connection_method, ip, port))
-    return mav_socket
 
+    if connection_method.lower() == 'serial':
+        # Для Serial: device=ip, baud=port
+        mav_socket = mavutil.mavlink_connection(
+            device=address, 
+            baud=int(port_or_baudrate), 
+            autoreconnect=True
+        )
+    else:
+        # Для UDP/TCP и других методов
+        conn_str = f"{connection_method}:{address}:{port_or_baudrate}"
+        mav_socket = mavutil.mavlink_connection(conn_str)
+    return mav_socket
 
 def update_array(
         arr: Union[list, npt.NDArray[Union[float, list, npt.NDArray[np.float64]]]],
@@ -314,7 +324,7 @@ def compute_swarm_velocity(state_vector: Array6,
                 unstable_vector += vector_rotation2(normalization(direction, 0.3), -np.pi / 2)
                 print(f"+ unstable_vector = {unstable_vector}")
     # Вычисляем новый вектор скорости (базовый алгоритм)
-    new_velocity = current_velocity + attraction_force + 4 * repulsion_force + unstable_vector + np.random.random(2)
+    new_velocity = current_velocity + attraction_force + 4 * repulsion_force + unstable_vector
     # Ограничиваем изменение (акселерацию) до max_acceleration
     new_velocity = limit_acceleration(current_velocity, new_velocity, max_acceleration=0.1)
     # Ограничиваем скорость до max_speed
