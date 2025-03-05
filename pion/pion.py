@@ -134,8 +134,7 @@ class Pion(DroneBase):
             [1] * 1
         ], dtype=np.float64)
         self.set_v_check_flag = False
-        self.target_point: np.ndarray = np.array([0, 0, 2, 0])
-        self.tracking = False
+
 
 
     @property
@@ -232,7 +231,6 @@ class Pion(DroneBase):
         last_time = time.time()
         time.sleep(self.period_send_speed)
         self.tracking = True
-        print(1)
         while self.tracking:
             current_time = time.time()
             dt = current_time - last_time

@@ -157,6 +157,8 @@ class DroneBase(Pio, ABC):
         self._speed_control_lock = threading.Lock()
         self._live = None
         self._table = None
+        self.target_point: np.ndarray = np.array([0, 0, 2, 0])
+        self.tracking = False
 
     @property
     def position(self) -> Union[Array6, Array4]:
