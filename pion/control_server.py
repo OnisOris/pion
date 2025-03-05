@@ -5,7 +5,7 @@ import atexit
 import os
 from .server import UDPBroadcastClient, UDPBroadcastServer
 from queue import Queue
-
+from .commands import *
                 
 history_file = os.path.join(os.path.expanduser("~"), ".my_console_history")
 
@@ -14,16 +14,6 @@ if os.path.exists(history_file):
 
 atexit.register(readline.write_history_file, history_file)
 
-# Определим коды команд
-CMD_SET_SPEED  = 1
-CMD_GOTO       = 2
-CMD_TAKEOFF    = 3
-CMD_LAND       = 4
-CMD_ARM        = 5
-CMD_DISARM     = 6
-CMD_SMART_GOTO = 7
-CMD_LED        = 8
-CMD_STOP       = 9
 
 def get_local_ip():
     """
@@ -127,6 +117,8 @@ class ControlServer:
                 self.send_command(CMD_LAND, [], target)
             elif cmd == "arm":
                 self.send_command(CMD_ARM, [], target)
+            elif cmd == "trp":
+                self.send_command(CMD_SWARM_ON, [], target)
             elif cmd == "stop":
                 self.send_command(CMD_STOP, [], target)
             elif cmd == "disarm":

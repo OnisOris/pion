@@ -1,0 +1,10 @@
+CMD_SET_SPEED  = 1
+CMD_GOTO       = 2
+CMD_TAKEOFF    = 3
+CMD_LAND       = 4
+CMD_ARM        = 5
+CMD_DISARM     = 6
+CMD_SMART_GOTO = 7
+CMD_LED        = 8
+CMD_STOP       = 9
+CMD_SWARM_ON   = 10

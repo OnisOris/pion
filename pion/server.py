@@ -6,19 +6,10 @@ import random
 import numpy as np
 from typing import Any, Dict, Tuple, Union, Optional
 from .datagram import DDatagram  
-from .functions import vector_reached, compute_swarm_velocity
+from .functions import vector_reached, compute_swarm_velocity, compute_swarm_velocity_boids
+from .commands import *
 
 
-# Определим коды команд
-CMD_SET_SPEED  = 1
-CMD_GOTO       = 2
-CMD_TAKEOFF    = 3
-CMD_LAND       = 4
-CMD_ARM        = 5
-CMD_DISARM     = 6
-CMD_SMART_GOTO = 7
-CMD_LED        = 8
-CMD_STOP       = 9
 
 def get_unique_instance_id(ip: str, instance_number=None) -> str:
     octet = ip.split('.')[-1] if ip.count('.') == 3 else str(hash(ip) % 1000)
@@ -220,8 +211,12 @@ class SwarmCommunicator:
             elif state.command == CMD_GOTO:
                 try:
                     x, y, z, yaw = state.data
-                    self.control_object.goto_from_outside(x, y, z, yaw)
-                    print(f"Команда goto выполнена: {x}, {y}, {z}, {yaw}")
+                    if self.control_object.tracking:
+                        print(f"Smart tracking to {x, y, 1.5}")
+                        self.control_object.target_point= np.array([x, y, 1.5, 0])
+                    else:
+                        self.control_object.goto_from_outside(x, y, z, yaw)
+                        print(f"Команда goto выполнена: {x}, {y}, {z}, {yaw}")
                 except Exception as e:
                     print("Ошибка при выполнении goto:", e)
             elif state.command == CMD_TAKEOFF:
@@ -237,13 +232,21 @@ class SwarmCommunicator:
                 self.control_object.disarm()
                 print("Команда disarm выполнена")
             elif state.command == CMD_STOP:
+                self.control_object.tracking = False
                 self.control_object.point_reached = True
                 self.control_object.speed_flag = False
                 print("Команды на достижение позиций остановлены")
+            elif state.command == CMD_SWARM_ON:
+                try:
+                    self.control_object.tracking = True
+                    self.start_threading(self.smart_point_tacking)
+                except Exception as e:
+                    print("Ошибка при выполнении smart_goto:", e)
+
             elif state.command == CMD_SMART_GOTO:
                 try:
                     x, y, z, yaw = state.data
-                    self.start_threading_smart_goto(x, y, z, yaw)
+                    self.start_threading(self.smart_goto, x, y, z, yaw)
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
             elif state.command == CMD_LED:
@@ -263,7 +266,7 @@ class SwarmCommunicator:
                 self.env[state.ip] = state
 
     def update_swarm_control(self, target_point) -> None:
-        new_vel = compute_swarm_velocity(self.control_object.position, self.env, target_point, self.safety_radius, self.control_object.max_speed)
+        new_vel = compute_swarm_velocity(self.control_object.position, self.env, target_point)
         self.control_object.t_speed = np.array([new_vel[0], new_vel[1], 0, 0])
     
     def start_threading_smart_goto(self,
@@ -273,6 +276,10 @@ class SwarmCommunicator:
                                    yaw: Union[float, int] = 0,
                                    accuracy: Union[float, int] = 5e-2):
         thread = threading.Thread(target=self.smart_goto, args=(x, y, z, yaw, accuracy,))
+        thread.start()
+
+    def start_threading(self, function, *args, **kwargs):
+        thread = threading.Thread(target=function, args=args)
         thread.start()
 
     def smart_goto(self,
@@ -301,3 +308,12 @@ class SwarmCommunicator:
         self.control_object.t_speed = np.zeros(4)
 
 
+    def smart_point_tacking(self):
+        print(f"Smart point tracking")
+        self.control_object.set_v()
+        self.control_object.point_reached = False
+        self.control_object.tracking = True
+        while self.control_object.tracking:
+            self.update_swarm_control(self.control_object.target_point[0:2])
+            time.sleep(self.control_object.period_send_speed)
+        self.t_speed = np.zeros(4)
