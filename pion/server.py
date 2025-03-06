@@ -130,7 +130,22 @@ class SwarmCommunicator:
                  max_speed: float = 1.,
                  ip = None,
                  instance_number = None,
-                 time_sleep_update_velocity: float = 0.1) -> None:
+                 time_sleep_update_velocity: float = 0.1,
+                 params: Optional[dict] = None) -> None:
+        if params is None:
+            self.params = {
+                "attraction_weight": 1.0,
+                "cohesion_weight": 1.0,
+                "alignment_weight": 1.0,
+                "repulsion_weight": 4.0,
+                "unstable_weight": 1.0,
+                "noise_weight": 1.0,
+                "safety_radius": 1.0,
+                "max_acceleration": 1,
+                "max_speed": 0.4,
+            }
+        else:
+            self.params = params
         self.control_object = control_object
         self.broadcast_interval = broadcast_interval
         self.broadcast_port = broadcast_port
@@ -304,7 +319,7 @@ class SwarmCommunicator:
                                                                    np.array([0, 0, 0]),
                                                                    atol=1e-2)
             self.update_swarm_control(np.array([x, y]))
-            time.sleep(0.1)
+            time.sleep(self.time_sleep_update_velocity)
         print("smart end")
         time.sleep(0.5)
         self.control_object.t_speed = np.zeros(4)
@@ -317,5 +332,5 @@ class SwarmCommunicator:
         self.control_object.tracking = True
         while self.control_object.tracking:
             self.update_swarm_control(self.control_object.target_point[0:2])
-            time.sleep(self.control_object.period_send_speed)
+            time.sleep(self.time_sleep_update_velocity)
         self.t_speed = np.zeros(4)
