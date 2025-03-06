@@ -103,11 +103,12 @@ class SwarmVisualizer2D:
                 payload.data[5],  # Vy
                 payload.data[6]   # Vz
             ])
-            
+            attitude = np.array(payload.data[4:7]) if len(payload.data) >=7 else np.zeros(3) 
             if payload.id not in self.drones:
                 self.colors[payload.id] = np.random.rand(3,)
                 self.drones[payload.id] = {
                     'position': position,
+                    'attitude': attitude,
                     'velocity': velocity,
                     'trail': [],
                     'ip': ip,
@@ -135,8 +136,8 @@ class SwarmVisualizer2D:
             for drone_key in list(self.drones.keys()):
                 data = self.drones[drone_key]
                 
-                # Удаляем неактивных дронов (без обновлений >5 сек)
-                if current_time - data['last_update'] > 5:
+                # Удаляем неактивных дронов (без обновлений >3 сек)
+                if current_time - data['last_update'] > 3:
                     to_delete.append(drone_key)
                     continue
                     
@@ -178,10 +179,11 @@ class SwarmVisualizer2D:
                     )
                 
                 # Рассчитываем угол (yaw) из вектора скорости (если ненулевой)
-                if np.linalg.norm(velocity[:2]) > 0.001:
-                    yaw = np.arctan2(velocity[1], velocity[0])
-                else:
-                    yaw = 0
+                # if np.linalg.norm(velocity[:2]) > 0.001:
+                #     yaw = np.arctan2(velocity[1], velocity[0])
+                # else:
+                #     yaw = 0
+                yaw = data['attitude'][2]
                     
                 # Рисуем стрелку направления (yaw) с фиксированной длиной
                 self.draw_orientation(pos[:2], yaw, color)
@@ -219,7 +221,7 @@ class SwarmVisualizer2D:
         )
     
     def draw_velocity_vector(self, position, velocity, color):
-        factor = 0.5  # масштабирование вектора скорости
+        factor = 2  # масштабирование вектора скорости
         arrow_dx = velocity[0] * factor
         arrow_dy = velocity[1] * factor
         self.ax.quiver(
