@@ -129,7 +129,8 @@ class SwarmCommunicator:
                  safety_radius: float = 1.,
                  max_speed: float = 1.,
                  ip = None,
-                 instance_number = None) -> None:
+                 instance_number = None,
+                 time_sleep_update_velocity: float = 0.1) -> None:
         self.control_object = control_object
         self.broadcast_interval = broadcast_interval
         self.broadcast_port = broadcast_port
@@ -146,6 +147,7 @@ class SwarmCommunicator:
         self.env = {}
         self.safety_radius = safety_radius
         self.max_speed = max_speed
+        self.time_sleep_update_velocity = time_sleep_update_velocity
 
     def start(self) -> None:
         """
@@ -302,7 +304,7 @@ class SwarmCommunicator:
                                                                    np.array([0, 0, 0]),
                                                                    atol=1e-2)
             self.update_swarm_control(np.array([x, y]))
-            time.sleep(self.control_object.period_send_speed)
+            time.sleep(0.1)
         print("smart end")
         time.sleep(0.5)
         self.control_object.t_speed = np.zeros(4)
