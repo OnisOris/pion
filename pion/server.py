@@ -56,17 +56,17 @@ class UDPBroadcastClient:
             self.encoder.command = state.get("command", 0)
             if "target_id" in state:
                 self.encoder.target_id = state["target_id"]  # Используем строковый target_id
-                # pos = state.get("position", [])
-            # att = state.get("attitude", [])
+  
             pos = state.get("position", [0.0, 0.0, 0.0])  # Значения по умолчанию
             att = state.get("attitude", [0.0, 0.0, 0.0])
+            t_speed = state.get("t_speed", [0.0, 0.0, 0.0, 0.0])
             ip_str = state.get("ip", "0.0.0.0")
             try:
                 import ipaddress
                 ip_num = int(ipaddress.IPv4Address(ip_str))
             except Exception:
                 ip_num = 0
-            self.encoder.data = [ip_num] + pos + att
+            self.encoder.data = [ip_num] + pos + att + t_speed
             serialized: bytes = self.encoder.export_serialized()
             self.socket.sendto(serialized, ("<broadcast>", self.port))
         except Exception as error:
@@ -184,7 +184,8 @@ class SwarmCommunicator:
                     "id": self.unique_id,        # теперь id – уникальный строковый идентификатор
                     "ip": self.control_object.ip,
                     "position": self.control_object.position.tolist(),
-                    "attitude": self.control_object.attitude.tolist()
+                    "attitude": self.control_object.attitude.tolist(),
+                    "t_speed": self.control_object.t_speed.tolist()
                     # Можно добавить поле command, если требуется
                 }
                 self.broadcast_client.send(state)
