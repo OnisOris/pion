@@ -103,13 +103,16 @@ class SwarmVisualizer2D:
                 payload.data[5],  # Vy
                 payload.data[6]   # Vz
             ])
-            attitude = np.array(payload.data[4:7]) if len(payload.data) >=7 else np.zeros(3) 
+            print(len(payload.data))
+            attitude = np.array(payload.data[7:13]) if len(payload.data) >=7 else np.zeros(3) 
+            t_speed = np.array(payload.data[13:17]) if len(payload.data) >=14 else np.zeros(4)
             if payload.id not in self.drones:
                 self.colors[payload.id] = np.random.rand(3,)
                 self.drones[payload.id] = {
                     'position': position,
                     'attitude': attitude,
                     'velocity': velocity,
+                    't_speed': t_speed,
                     'trail': [],
                     'ip': ip,
                     'last_update': time.time(),
@@ -117,7 +120,9 @@ class SwarmVisualizer2D:
                 }
             else:
                 self.drones[payload.id]['position'] = position
+                self.drones[payload.id]['attitude'] = attitude
                 self.drones[payload.id]['velocity'] = velocity
+                self.drones[payload.id]['t_speed'] = t_speed
                 self.drones[payload.id]['last_update'] = time.time()
                 trail = self.drones[payload.id]['trail']
                 trail.append(position.copy()[:2])
@@ -184,10 +189,10 @@ class SwarmVisualizer2D:
                 # else:
                 #     yaw = 0
                 yaw = data['attitude'][2]
-                    
+                t_speed = data['t_speed']
                 # Рисуем стрелку направления (yaw) с фиксированной длиной
                 self.draw_orientation(pos[:2], yaw, color)
-                
+                self.draw_t_speed_vector(pos[:2], t_speed, "red")
                 # Рисуем вектор скорости (масштабированный по модулю)
                 self.draw_velocity_vector(pos[:2], velocity, color)
             
@@ -203,6 +208,7 @@ class SwarmVisualizer2D:
         return self.ax
 
     def draw_orientation(self, position, yaw, color):
+        print("draw_orientation, yaw = ", yaw)
         arrow_length = 1.2  # фиксированная длина стрелки направления
         dx = arrow_length * np.cos(yaw)
         dy = arrow_length * np.sin(yaw)
@@ -221,9 +227,27 @@ class SwarmVisualizer2D:
         )
     
     def draw_velocity_vector(self, position, velocity, color):
-        factor = 2  # масштабирование вектора скорости
+        factor = 10  # масштабирование вектора скорости
         arrow_dx = velocity[0] * factor
         arrow_dy = velocity[1] * factor
+        self.ax.quiver(
+            position[0],
+            position[1],
+            arrow_dx,
+            arrow_dy,
+            color=color,
+            angles='xy',
+            scale_units='xy',
+            scale=1,
+            width=0.005,
+            headwidth=5,
+            headlength=7,
+            alpha=0.8
+        )
+    def draw_t_speed_vector(self, position, t_speed, color):
+        factor = 1  # масштабирование вектора скорости
+        arrow_dx = t_speed[0] * factor
+        arrow_dy = t_speed[1] * factor
         self.ax.quiver(
             position[0],
             position[1],
