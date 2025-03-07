@@ -2,7 +2,7 @@ import time
 import threading
 import select
 from pion.cython_pid import PIDController, AdaptiveController
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 from .functions import *
 from .pio import DroneBase
 from .annotation import *
