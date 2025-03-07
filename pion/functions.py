@@ -320,7 +320,7 @@ def compute_swarm_velocity(state_vector: Array6,
             direction_to_other_drone = np.linalg.norm(xyz[0:2] - state_vector[0:2])
             if (direction_to_other_drone < params["safety_radius"] + 0.1 and
                 np.allclose(np.linalg.norm(speed[0:2]), 0, atol=0.1) and
-                    np.linalg.norm(direction) > params["safety_radius"] + 0.2):
+                    norm_dir > params["safety_radius"] + 0.2):
                 unstable_vector += vector_rotation2(normalization(direction, 0.3), -np.pi / 2)
                 print(f"+ unstable_vector = {unstable_vector}")
     # Вычисляем новый вектор скорости (базовый алгоритм)
@@ -333,6 +333,71 @@ def compute_swarm_velocity(state_vector: Array6,
     # Ограничиваем скорость до max_speed
     new_velocity = saturation(new_velocity, params["max_speed"])
     return new_velocity
+def compute_swarm_velocity_pid(state_vector: Array6,
+                           env: dict,
+                           target_point: np.ndarray = np.array([0, 0]),
+                           params: Optional[dict] = None,
+                           ) -> np.ndarray:
+    """
+    Вычисляет желаемый вектор скорости для локального дрона на основе информации из env.
+    Логика:
+        - Attraction: направлен от текущей позиции к средней позиции остальных дронов.
+        - Repulsion: суммарное отталкивание от дронов, находящихся ближе, чем safety_radius.
+        - Новый вектор = current_velocity + attraction + 4 * repulsion,
+        затем ограничивается по ускорению и по максимальной скорости.
+    :param target_point: Целевая координата
+    :type target_point: np.ndarray
+
+    :return: numpy-массив [vx, vy]
+    :rtype: np.ndarray
+    """
+    if params is None:
+        params = {
+            "attraction_weight": 1.0,
+            "cohesion_weight": 1.0,
+            "alignment_weight": 1.0,
+            "repulsion_weight": 4.0,
+            "unstable_weight": 1.0,
+            "noise_weight": 1.0,
+            "safety_radius": 1.0,
+            "max_acceleration": 1,
+            "max_speed": 0.4,
+        }
+    local_pos = state_vector[0:2]
+    current_velocity = state_vector[3:5] 
+    # Attraction force: единичный вектор от текущей позиции к swarm_goal
+    direction = target_point - local_pos
+    norm_dir = np.linalg.norm(direction)
+    # Repulsion force: суммируем вклад от каждого дрона, если расстояние меньше safety_radius
+    repulsion_force = np.zeros(2)
+    # Вектор выведения дрона из равновесия (при стабилизации на границе дрона)
+    unstable_vector = np.zeros(2)
+    for state in env.values():
+        if len(state.data) >= 3:
+            xyz = state.data[1:4]
+            speed = state.data[4:7]
+            other_pos = np.array(xyz[0:2], dtype=float)
+            distance_vector = local_pos - other_pos
+            distance = np.linalg.norm(distance_vector)
+            if 0 < distance < params["safety_radius"]:
+                repulsion_force += distance_vector / (distance ** 2)
+                print(f"+ repulsion_force = {repulsion_force}")
+            direction_to_other_drone = np.linalg.norm(xyz[0:2] - state_vector[0:2])
+            if (direction_to_other_drone < params["safety_radius"] + 0.1 and
+                np.allclose(np.linalg.norm(speed[0:2]), 0, atol=0.1) and
+                    norm_dir > params["safety_radius"] + 0.2):
+                unstable_vector += vector_rotation2(normalization(direction, 0.3), -np.pi / 2)
+                print(f"+ unstable_vector = {unstable_vector}")
+    # Вычисляем новый вектор скорости (базовый алгоритм)
+    new_velocity = (current_velocity +
+                    params["repulsion_weight"] * repulsion_force +
+                    params["unstable_weight"] * unstable_vector)
+    # Ограничиваем изменение (акселерацию) до max_acceleration
+    new_velocity = limit_acceleration(current_velocity, new_velocity, max_acceleration=params["max_acceleration"])
+    # Ограничиваем скорость до max_speed
+    new_velocity = saturation(new_velocity, params["max_speed"])
+    return new_velocity
+
 
 def compute_swarm_velocity_boids(state_vector: np.ndarray,
                            env: dict,
