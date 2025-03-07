@@ -324,7 +324,10 @@ def compute_swarm_velocity(state_vector: Array6,
                 unstable_vector += vector_rotation2(normalization(direction, 0.3), -np.pi / 2)
                 print(f"+ unstable_vector = {unstable_vector}")
     # Вычисляем новый вектор скорости (базовый алгоритм)
-    new_velocity = current_velocity + attraction_force + 4 * repulsion_force + unstable_vector
+    new_velocity = (current_velocity +
+                    params["attraction_weight"] * attraction_force +
+                    params["repulsion_weight"] * repulsion_force +
+                    params["unstable_weight"] * unstable_vector)
     # Ограничиваем изменение (акселерацию) до max_acceleration
     new_velocity = limit_acceleration(current_velocity, new_velocity, max_acceleration=params["max_acceleration"])
     # Ограничиваем скорость до max_speed
