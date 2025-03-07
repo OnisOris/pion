@@ -210,8 +210,8 @@ class SwarmVisualizer2D:
     def draw_orientation(self, position, yaw, color):
         print("draw_orientation, yaw = ", yaw)
         arrow_length = 1.2  # фиксированная длина стрелки направления
-        dx = arrow_length * np.cos(yaw)
-        dy = arrow_length * np.sin(yaw)
+        dx = arrow_length * np.cos(yaw + np.pi/2)
+        dy = arrow_length * np.sin(yaw + np.pi/2)
         self.ax.quiver(
             position[0],
             position[1],
