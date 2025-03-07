@@ -2,7 +2,7 @@ import time
 import threading
 import select
 from pion.cython_pid import PIDController, AdaptiveController
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 from .functions import *
 from .pio import DroneBase
 from .annotation import *
@@ -95,6 +95,8 @@ class Pion(DroneBase):
                            max_speed=max_speed)
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag = True
+        # Флаг для остановки отдачи управляющих сигналов rc channels
+        self.rc_flag = False
         # Флаг для остановки цикла в _message_handler
         self.message_handler_flag = True
         self.mavlink_port = mavlink_port
@@ -112,6 +114,8 @@ class Pion(DroneBase):
         self.threads = []
         # Период отправления следующего вектора скорости
         self.period_send_speed = 0.05
+        # Период отправления rc каналов
+        self.period_send_rc = 0.05
         # Период приема всех сообщений с дрона
         self.period_message_handler = dt
         self.connection_lost = False
@@ -134,6 +138,7 @@ class Pion(DroneBase):
             [1] * 1
         ], dtype=np.float64)
         self.set_v_check_flag = False
+        self.set_rc_check_flag = False
         self.target_point: np.ndarray = np.array([0, 0, 2, 0])
         self.tracking = False
 
@@ -352,6 +357,32 @@ class Pion(DroneBase):
                                              vz=vz,
                                              yaw_rate=yaw_rate,
                                              mavlink_send_number=1)
+
+    def send_rc_channels(self, channel_1: int = 0xFF, channel_2: int = 0xFF,
+                         channel_3: int = 0xFF, channel_4: int = 0xFF) -> None:
+        """
+        Функция отправляет управляющие сигналы RC-каналов дрону. Отсылать необходимо в цикле.
+
+        :param channel_1: высота (throttle)
+        :type channel_1: int
+        :param channel_2: угол курса (yaw)
+        :type channel_2: int
+        :param channel_3: движение влево/вправо (roll)
+        :type channel_3: int
+        :param channel_4: движение вперед/назад (pitch)
+        :type channel_4: int
+        :return: None
+        """
+        # Фиксированные значения для каналов 5-8
+        channel_5 = 0xFF
+        channel_6 = 0xFF
+        channel_7 = 0xFF
+        channel_8 = 0xFF
+
+        self.mavlink_socket.mav.rc_channels_override_send(self.mavlink_socket.target_system,
+                                                          self.mavlink_socket.target_component, channel_1,
+                                                          channel_2, channel_3, channel_4, channel_5, channel_6,
+                                                          channel_7, channel_8)
 
     def _send_position_target_local_ned(self, coordinate_system,
                                         mask=0b0000_11_0_111_111_111,
@@ -575,6 +606,27 @@ class Pion(DroneBase):
         elif msg.get_type() == "BATTERY_STATUS":
             self.battery_voltage = msg.voltages[0] / 100
 
+    def rc_while(self) -> None:
+        """
+        Функция задает цикл while на отправку управляющих сигналов rc каналов с периодом period_send_rc
+        :return: None
+        """
+        self.set_rc_check_flag = True
+        while self.rc_flag:
+            self.send_rc_channels()
+            time.sleep(self.period_send_rc)
+        self.set_rc_check_flag = False
+
+    def set_rc(self):
+        """
+        Создает поток, который вызывает функцию rc_while() для параллельной отправки управляющего сигнала rc channels
+        :return:
+        """
+        if not self.set_rc_check_flag and not self.set_v_check_flag:
+            self.rc_flag = True
+            self.threads.append(threading.Thread(target=self.rc_while))
+            self.threads[-1].start()
+
     def v_while(self) -> None:
         """
         Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
@@ -615,6 +667,7 @@ class Pion(DroneBase):
         :return: None
         """
         self.speed_flag = False
+        self.rc_flag = False
         self.check_attitude_flag = False
         self.message_handler_flag = False
 
@@ -646,4 +699,33 @@ class Pion(DroneBase):
                 f"Arguments 'r', 'g', 'b' must have value in [0, 255]. But your values is r={r}, g={g}, b={b}.")
         self._send_command_long(command_name='LED', command=mavutil.mavlink.MAV_CMD_USER_1,
                                 param1=led_id, param2=r, param3=g, param4=b)
+
+    def led_custom(self, 
+                   mode: int = 1, 
+                   timer: int = 0, 
+                   color1: Tuple[int, int, int] = (0, 0, 0), 
+                   color2: Tuple[int, int, int] = (0, 0, 0)) -> None:
+        """
+        Управляет светодиодами устройства с Raspberry Pi, задавая два цвета и режим работы.
+    
+        Цвета передаются в виде кортежей (R, G, B), где каждое значение находится в диапазоне [0, 255].
+        Цветовые параметры кодируются в 24-битные числа и передаются в команду MAVLink.
+    
+        :param mode: Режим работы светодиодов
+        :type mode: int
+        :param timer: Время работы режима (например, длительность мигания)
+        :type timer: int
+        :param color1: Первый цвет в формате (R, G, B)
+        :type color1: Tuple[int, int, int]
+        :param color2: Второй цвет в формате (R, G, B)
+        :type color2: Tuple[int, int, int]
+        :return: None
+        """
+        param2 = (((color1[0] << 8) | color1[1]) << 8) | color1[2]
+        param3 = (((color2[0] << 8) | color2[1]) << 8) | color2[2]
+        param5 = mode
+        param6 = timer
+        return self._send_command_long('RPi_LED', mavutil.mavlink.MAV_CMD_USER_3, param2=param2, param3=param3,
+                                       param5=param5, param6=param6, target_system=0, target_component=0)
+
 
