@@ -700,3 +700,32 @@ class Pion(DroneBase):
         self._send_command_long(command_name='LED', command=mavutil.mavlink.MAV_CMD_USER_1,
                                 param1=led_id, param2=r, param3=g, param4=b)
 
+    def led_custom(self, 
+                   mode: int = 1, 
+                   timer: int = 0, 
+                   color1: Tuple[int, int, int] = (0, 0, 0), 
+                   color2: Tuple[int, int, int] = (0, 0, 0)) -> None:
+        """
+        Управляет светодиодами устройства с Raspberry Pi, задавая два цвета и режим работы.
+    
+        Цвета передаются в виде кортежей (R, G, B), где каждое значение находится в диапазоне [0, 255].
+        Цветовые параметры кодируются в 24-битные числа и передаются в команду MAVLink.
+    
+        :param mode: Режим работы светодиодов
+        :type mode: int
+        :param timer: Время работы режима (например, длительность мигания)
+        :type timer: int
+        :param color1: Первый цвет в формате (R, G, B)
+        :type color1: Tuple[int, int, int]
+        :param color2: Второй цвет в формате (R, G, B)
+        :type color2: Tuple[int, int, int]
+        :return: None
+        """
+        param2 = (((color1[0] << 8) | color1[1]) << 8) | color1[2]
+        param3 = (((color2[0] << 8) | color2[1]) << 8) | color2[2]
+        param5 = mode
+        param6 = timer
+        return self._send_command_long('RPi_LED', mavutil.mavlink.MAV_CMD_USER_3, param2=param2, param3=param3,
+                                       param5=param5, param6=param6, target_system=0, target_component=0)
+
+
