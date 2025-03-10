@@ -380,7 +380,7 @@ def compute_swarm_velocity_pid(state_vector: Array6,
             distance_vector = local_pos - other_pos
             distance = np.linalg.norm(distance_vector)
             if 0 < distance < params["safety_radius"]:
-                repulsion_force += distance_vector / (distance ** 2)
+                repulsion_force += normalization(distance_vector, 1) / ((distance + 1 - params["safety_radius"]) ** 2)
                 print(f"+ repulsion_force = {repulsion_force}")
             direction_to_other_drone = np.linalg.norm(xyz[0:2] - state_vector[0:2])
             if (direction_to_other_drone < params["safety_radius"] + 0.1 and
