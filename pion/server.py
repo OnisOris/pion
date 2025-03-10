@@ -127,7 +127,8 @@ class SwarmCommunicator:
     def __init__(self,
                  control_object: Any,
                  broadcast_port: int = 37020, 
-                 broadcast_interval: float = 0.05,
+                 broadcast_interval: float = 0.5,
+                 recive_interval: float = 0.05,
                  safety_radius: float = 1.,
                  max_speed: float = 1.,
                  ip = None,
@@ -165,6 +166,7 @@ class SwarmCommunicator:
         self.safety_radius = safety_radius
         self.max_speed = max_speed
         self.time_sleep_update_velocity = time_sleep_update_velocity
+        self.recive_interval = recive_interval
 
     def start(self) -> None:
         """
@@ -205,7 +207,7 @@ class SwarmCommunicator:
             if not self.receive_queue.empty():
                 incoming_state = self.receive_queue.get(block=False)
                 self.process_incoming_state(incoming_state)
-            time.sleep(self.broadcast_interval)
+            time.sleep(self.recive_interval)
 
     def stop(self) -> None:
         """
