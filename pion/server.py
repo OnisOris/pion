@@ -8,6 +8,8 @@ from typing import Any, Dict, Tuple, Union, Optional
 from .datagram import DDatagram  
 from .functions import vector_reached, compute_swarm_velocity, compute_swarm_velocity_boids
 from .commands import *
+import datetime
+import os
 
 
 
@@ -212,6 +214,23 @@ class SwarmCommunicator:
         self.running = False
         self.broadcast_server.running = False
 
+    def save_data(self) -> None:
+        """
+        Функция для сохранения данных задержек в работе кода
+        :return: None
+        """
+        current_date = datetime.date.today().isoformat()
+        current_time = str(datetime.datetime.now().time())
+        symbols_to_remove = ":"
+        for symbol in symbols_to_remove:
+            current_time = current_time.replace(symbol, "-")
+        main_path = f'./data/{current_date}_{current_time[0:5]}/'
+        os.makedirs(main_path, exist_ok=True)
+        try:
+            self.control_object.save_data('trajectory.npy', f'{main_path}/')
+        except Exception as e:
+            print(f"Ошибка сохранения данных: {e}")
+
 
     def process_incoming_state(self, state: Any) -> None:
         # Проверяем наличие target_id в сообщении
@@ -274,6 +293,8 @@ class SwarmCommunicator:
                     print(f"LED control executed: led_id={led_id}, r={r}, g={g}, b={b}")
                 except Exception as e:
                     print("Ошибка при выполнении LED control:", e)
+            elif state.command == CMD_SAVE:
+                self.save_data()
             else:
                 print("Получена неизвестная команда:", state.command)
         else:

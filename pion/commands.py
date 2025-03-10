@@ -8,3 +8,4 @@ CMD_SMART_GOTO = 7
 CMD_LED        = 8
 CMD_STOP       = 9
 CMD_SWARM_ON   = 10
+CMD_SAVE       = 11

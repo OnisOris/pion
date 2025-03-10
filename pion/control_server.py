@@ -121,6 +121,8 @@ class ControlServer:
                 self.send_command(CMD_SWARM_ON, [], target)
             elif cmd == "stop":
                 self.send_command(CMD_STOP, [], target)
+            elif cmd == "save":
+                self.send_command(CMD_SAVE, [], target)
             elif cmd == "disarm":
                 self.send_command(CMD_DISARM, [], target)
             elif cmd == "smart_goto":
