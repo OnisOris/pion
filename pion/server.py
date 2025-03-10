@@ -205,7 +205,7 @@ class SwarmCommunicator:
             if not self.receive_queue.empty():
                 incoming_state = self.receive_queue.get(block=False)
                 self.process_incoming_state(incoming_state)
-            time.sleep(0.05)
+            time.sleep(self.broadcast_interval)
 
     def stop(self) -> None:
         """
