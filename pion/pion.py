@@ -728,4 +728,13 @@ class Pion(DroneBase):
         return self._send_command_long('RPi_LED', mavutil.mavlink.MAV_CMD_USER_3, param2=param2, param3=param3,
                                        param5=param5, param6=param6, target_system=0, target_component=0)
 
+    def poweroff(self) -> None:
+        """
+        Функция отправляет команду на выключение Raspberry Pi.
+    
+        :return: None
+        """
+        return self._send_command_long(command_name='RPi_POWEROFF',
+                                   command=mavutil.mavlink.MAV_CMD_USER_2)
+
 
