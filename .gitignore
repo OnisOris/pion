@@ -183,10 +183,14 @@ latex/
 old_simulator.py
 pion/Doxyfile
 pion/Doxyfile.bak
-pion/cython_pid.c
+src/pion/cython_pid.c
 pion/html/
 pion/latex/
 pion/rtf/
 test2.py
 *.gv
+
+.python-version
+uv.lock
+
 

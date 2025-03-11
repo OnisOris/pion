@@ -1,3 +1,43 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "Cython", "numpy"]
+requires = ["setuptools>=75", "wheel", "Cython", "numpy"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "pion"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.9"
+authors = [
+    {name = "Pradyun Gedam", email = "pradyun@example.com"},
+]
+maintainers = [
+  {name = "Brett Cannon", email = "brett@example.com"}
+]
+dependencies = [
+    "numpy>=2.0.2",
+    "paramiko>=3.5.1",
+    "protobuf==5.29.3",
+    "pymavlink>=2.4.42",
+    "pyserial>=3.5",
+    "rich>=13.9.4",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.9",
+    "Operating System :: OS Independent",
+]
+license = {file = "LICENSE"}
+readme = {file = "README.md", content-type = "text/markdown"}
+
+[project.urls]
+# Homepage = "https://example.com"
+# Documentation = "https://readthedocs.org"
+Repository = "https://github.com/OnisOris/pion.git"
+Issues = "https://github.com/OnisOris/pion/issues"
+# Changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9.10",
+    "uv>=0.6.5",
+]
