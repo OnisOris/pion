@@ -1,6 +1,6 @@
 import threading
 import time
-from typing import Union
+from typing import Union, Optional
 import numpy as np
 from .annotation import *
 
@@ -305,6 +305,7 @@ class Trajectory_writer:
         """
         self.trajectory = np.zeros((len(list_of_names_columns),))
         self.columns = list_of_names_columns
+        self.stopped = False
 
     def vstack(self,
                vstack_array: NDArray[np.float64]) -> None:
@@ -315,7 +316,14 @@ class Trajectory_writer:
         :return: None
         :rtype: None
         """
-        self.trajectory = np.vstack([self.trajectory, vstack_array])
+        if not self.stopped:
+            self.trajectory = np.vstack([self.trajectory, vstack_array])
+
+    def stop(self) -> None:
+        """
+        Остановка записи траектории
+        """
+        self.stopped = True
 
     def get_trajectory(self) -> NDArray[np.float64]:
         """
