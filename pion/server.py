@@ -15,7 +15,7 @@ import os
 
 def get_unique_instance_id(ip: str, instance_number=None) -> str:
     octet = ip.split('.')[-1] if ip.count('.') == 3 else str(hash(ip) % 1000)
-    return f"{octet}-{instance_number}" if instance_number else octet
+    return f"{octet}{instance_number}" if instance_number else octet
 
 def get_numeric_id(unique_id: str) -> int:
     return abs(hash(unique_id)) % (10**12)
@@ -29,11 +29,12 @@ class UDPBroadcastClient:
     """
     Клиент для отправки UDP широковещательных сообщений.
     """
-    def __init__(self, port: int = 37020, unique_id = None) -> None:
+    def __init__(self, port: int = 37020, unique_id: int = 0) -> None:
         # Если unique_id задан, преобразуем его в число для конструктора DDatagram
-        numeric_id = get_numeric_id(unique_id) if unique_id else random.randint(0, int(1e12))
+        numeric_id = get_numeric_id(str(unique_id)) if unique_id else random.randint(0, int(1e12))
         self.encoder: DDatagram = DDatagram(id=numeric_id)
         self.port: int = port
+        self.unique_id: int = unique_id
         try:
             self.socket: socket.socket = socket.socket(
                 socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
@@ -62,10 +63,8 @@ class UDPBroadcastClient:
             pos = state.get("position", [0.0, 0.0, 0.0])  # Значения по умолчанию
             att = state.get("attitude", [0.0, 0.0, 0.0])
             t_speed = state.get("t_speed", [0.0, 0.0, 0.0, 0.0])
-            ip_str = state.get("ip", "0.0.0.0")
             try:
-                import ipaddress
-                ip_num = int(ipaddress.IPv4Address(ip_str))
+                ip_num = int(self.unique_id)
             except Exception:
                 ip_num = 0
             self.encoder.data = [ip_num] + pos + att + t_speed
