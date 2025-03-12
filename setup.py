@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages # , Extension
+from setuptools import setup, find_packages
 import numpy as np
 from Cython.Distutils.extension import Extension
 
