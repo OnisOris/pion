@@ -8,10 +8,10 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.9"
 authors = [
-    {name = "Pradyun Gedam", email = "pradyun@example.com"},
+    {name = "Michael", email = "onisoris@yandex.ru"},
 ]
 maintainers = [
-  {name = "Brett Cannon", email = "brett@example.com"}
+    {name = "Michael", email = "onisoris@yandex.ru"}
 ]
 dependencies = [
     "numpy>=2.0.2",
@@ -23,14 +23,19 @@ dependencies = [
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Independent Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
     "Programming Language :: Python :: 3.9",
-    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 license = {file = "LICENSE"}
 readme = {file = "README.md", content-type = "text/markdown"}
 
 [project.urls]
-# Homepage = "https://example.com"
+Homepage = "https://github.com/OnisOris/pion"
 # Documentation = "https://readthedocs.org"
 Repository = "https://github.com/OnisOris/pion.git"
 Issues = "https://github.com/OnisOris/pion/issues"
