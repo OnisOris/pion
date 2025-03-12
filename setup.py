@@ -6,7 +6,7 @@ from Cython.Distutils.extension import Extension
 extensions = [
     Extension(
         name="pion.cython_pid",
-        sources=["src/pion/cython_pid.pyx"],
+        sources=["pion/cython_pid.pyx"],
         include_dirs=[np.get_include()],
         cython_directives={"language_level": "3str"},
     ),

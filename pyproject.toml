@@ -46,3 +46,7 @@ dev = [
     "ruff>=0.9.10",
     "uv>=0.6.5",
 ]
+
+[tool.setuptools.packages.find]
+include = ["pion"]
+namespaces = false
