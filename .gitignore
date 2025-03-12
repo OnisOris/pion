@@ -183,7 +183,7 @@ latex/
 old_simulator.py
 pion/Doxyfile
 pion/Doxyfile.bak
-src/pion/cython_pid.c
+pion/cython_pid.c
 pion/html/
 pion/latex/
 pion/rtf/
