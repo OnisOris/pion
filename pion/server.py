@@ -52,7 +52,6 @@ class UDPBroadcastClient:
         try:
             # Преобразуем строковый id в числовой (для DDatagram)
             numeric_id = get_numeric_id(state.get("id", "0"))
-            # print("numeric_id = ", numeric_id)
             self.encoder.token = state.get("token", -1)
             self.encoder.id = numeric_id
             self.encoder.source = 0  
@@ -198,7 +197,7 @@ class SwarmCommunicator:
 
     def _receive_loop(self) -> None:
         """
-        Цикл обработки входящих сообщений.
+        Циклобработки входящих сообщений.
         """
         server_thread = threading.Thread(target=self.broadcast_server.start, daemon=True)
         server_thread.start()
@@ -234,7 +233,6 @@ class SwarmCommunicator:
 
 
     def process_incoming_state(self, state: Any) -> None:
-        # Проверяем наличие target_id в сообщении
         if state.target_id:
             if state.target_id != self.unique_id:
                 return
@@ -258,31 +256,37 @@ class SwarmCommunicator:
                 except Exception as e:
                     print("Ошибка при выполнении goto:", e)
             elif state.command == CMD_TAKEOFF:
+                self.stop_trp()
                 self.control_object.takeoff()
                 print("Команда takeoff выполнена")
             elif state.command == CMD_LAND:
+                self.stop_trp()
                 self.control_object.land()
                 print("Команда land выполнена")
             elif state.command == CMD_ARM:
+                self.stop_trp()
                 self.control_object.arm()
                 print("Команда arm выполнена")
             elif state.command == CMD_DISARM:
+                self.stop_trp()
                 self.control_object.disarm()
                 print("Команда disarm выполнена")
             elif state.command == CMD_STOP:
-                self.control_object.tracking = False
-                self.control_object.point_reached = True
-                self.control_object.speed_flag = False
+                self.stop_trp() 
                 print("Команды на достижение позиций остановлены")
             elif state.command == CMD_SWARM_ON:
                 try:
-                    self.control_object.tracking = True
-                    self.start_threading(self.smart_point_tacking)
+                    if self.control_object.tracking:
+                        print("Режим слежения за точкой уже включен")
+                    else:
+                        self.control_object.tracking = True
+                        self.start_threading(self.smart_point_tacking)
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
 
             elif state.command == CMD_SMART_GOTO:
                 try:
+                    self.stop_trp()
                     x, y, z, yaw = state.data
                     self.start_threading(self.smart_goto, x, y, z, yaw)
                 except Exception as e:
@@ -357,3 +361,11 @@ class SwarmCommunicator:
             self.update_swarm_control(self.control_object.target_point[0:2])
             time.sleep(self.time_sleep_update_velocity)
         self.t_speed = np.zeros(4)
+
+    def stop_trp(self):
+        """
+        Функция останавливает потоки, отправляющие вектора скорости на дрон
+        """
+        self.control_object.tracking = False
+        self.control_object.point_reached = True
+        self.control_object.speed_flag = False
