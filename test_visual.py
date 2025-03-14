@@ -12,6 +12,7 @@ def extract_ip_id(ip: str) -> str:
     Возвращает последний октет IP как строку.
     Если не получается, возвращает хэш в диапазоне [0, 1000).
     """
+    print(ip)
     parts = ip.split('.')
     if len(parts) == 4:
         try:
@@ -103,7 +104,7 @@ class SwarmVisualizer2D:
                 payload.data[5],  # Vy
                 payload.data[6]   # Vz
             ])
-            print(len(payload.data))
+            print(payload.data)
             attitude = np.array(payload.data[7:13]) if len(payload.data) >=7 else np.zeros(3) 
             t_speed = np.array(payload.data[13:17]) if len(payload.data) >=14 else np.zeros(4)
             if payload.id not in self.drones:
@@ -116,7 +117,7 @@ class SwarmVisualizer2D:
                     'trail': [],
                     'ip': ip,
                     'last_update': time.time(),
-                    'short_id': short_id
+                    'short_id': ip_num
                 }
             else:
                 self.drones[payload.id]['position'] = position
