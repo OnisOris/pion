@@ -190,3 +190,7 @@ pion/rtf/
 test2.py
 *.gv
 
+.python-version
+uv.lock
+
+
