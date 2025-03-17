@@ -3,7 +3,7 @@ from typing import Union, Optional
 import numpy.typing as npt
 from pymavlink import mavutil
 import socket
-from src.pion.annotation import Array6
+from pion.annotation import Array6
 
 def get_local_ip():
     """
