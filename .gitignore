@@ -167,7 +167,6 @@ git_ssh.sh
 src/pion/__pycache__/
 index.rst
 conf.py
-docs/
 data.npy
 file.csv
 plot.py
