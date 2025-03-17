@@ -1,11 +1,6 @@
 Usage
 =====
 
-.. autoclass:: pion.pion.Pion
-   :members:
-
-.. autoclass:: pion.cython_pid
-   :members:
 
 Installation
 ------------
