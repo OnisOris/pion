@@ -23,16 +23,9 @@ jobs:
         run: |
           sudo python3 scripts/setup_all.py
 
-      - name: Install dependencies
-        run: |
-          pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
-
-      - name: Build Cython module
-        run: |
-          python setup.py build_ext --inplace
-
       - name: Activate venv and run tests
         run: |
+          pip install .
           pytest tests/
 
   windows:
@@ -51,16 +44,9 @@ jobs:
         run: |
           python scripts/setup_all.py
 
-      - name: Install dependencies
-        run: |
-          pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
-
-      - name: Build Cython module
-        run: |
-          python setup.py build_ext --inplace
-
       - name: Activate venv and run tests
         run: |
+          pip install .
           pytest tests/
 
   arch:
@@ -81,12 +67,11 @@ jobs:
           source /opt/venv/bin/activate
           python scripts/setup_all.py
           pip install --upgrade pip
-          pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
 
       - name: Build Cython module and run tests
         run: |
           source /opt/venv/bin/activate
-          python setup.py build_ext --inplace
+          pip install .
           pytest tests/
   macos:
     name: Test on macOS
@@ -100,9 +85,6 @@ jobs:
       - name: Run setup_all.py on macOS
         run: |
           python3 scripts/setup_all.py
-      - name: Install dependencies
-        run: |
-          pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
       - name: Build Cython module
         run: |
           python setup.py build_ext --inplace
