@@ -1,11 +1,13 @@
-import time
-import threading
 import select
-from pion.cython_pid import PIDController, AdaptiveController
-from typing import Union, Tuple
+import threading
+import time
+from typing import Tuple, Union
+
+from pion.cython_pid import AdaptiveController, PIDController
+
+from .annotation import *
 from .functions import *
 from .pio import DroneBase
-from .annotation import *
 
 
 class Pion(DroneBase):
