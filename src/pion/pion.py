@@ -3,8 +3,9 @@ import threading
 import time
 from typing import Tuple, Union
 
+import numpy as np
 from pion.cython_pid import AdaptiveController, PIDController
-
+from pymavlink.dialects.v10.all import MAVLink_message
 from .annotation import *
 from .functions import *
 from .pio import DroneBase
@@ -45,6 +46,12 @@ class Pion(DroneBase):
         
         :param connection_method: Метод соединения, например, 'udpout' для MAVLink.
         :type connection_method: str
+
+        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy]
+        :type position: Union[Array6, Array4, None]
+
+        :param attitude: Начальное состояние дрона вида [roll, pitch, yaw, v_roll, v_pitch, v_yaw]
+        :type attitude: Union[Array6, None]
         
         :param combine_system: Системный код для комбинированной системы управления: 1, 2, 3
         :type combine_system: int
@@ -67,8 +74,8 @@ class Pion(DroneBase):
         :param start_message_handler_from_init: Старт message handler при создании объекта
         :type start_message_handler_from_init: bool
 
-        :param checking_components: Параметр для проверки номеров компонентов. Отключается для в сторонних симуляторах
-         во избежание ошибок.
+        :param checking_components: Параметр для проверки номеров компонентов. Отключается в сторонних симуляторах
+         для избежание ошибок.
         :type checking_components: bool
 
         :param accuracy: Максимальное отклонение от целевой позиции для функции goto_from_outside
@@ -96,53 +103,52 @@ class Pion(DroneBase):
                            dt=dt,
                            max_speed=max_speed)
         # Флаг для остановки цикла отдачи вектора скорости дрону
-        self.speed_flag = True
+        self.speed_flag: bool = True
         # Флаг для остановки отдачи управляющих сигналов rc channels
-        self.rc_flag = False
+        self.rc_flag: bool = False
         # Флаг для остановки цикла в _message_handler
-        self.message_handler_flag = True
-        self.mavlink_port = mavlink_port
+        self.message_handler_flag: bool = True
         # Последнее сообщение из _message_handler()
-        self._msg = None
+        self._msg: Optional["MAVLink_message"] = None
 
-        self.mavlink_socket = create_connection(connection_method=connection_method,
+        self.mavlink_socket: mavutil.mavfile = create_connection(connection_method=connection_method,
                                                 address=ip,
                                                 port_or_baudrate=mavlink_port)
-        self._heartbeat_timeout = 1
-        self._mavlink_send_number = 10
-        self.__is_socket_open = threading.Event()
+        self._heartbeat_timeout: float = 1.
+        self._mavlink_send_number: int = 10
+        self.__is_socket_open: threading.Event = threading.Event()
         self.__is_socket_open.set()
         # Список потоков
         self.threads = []
         # Период отправления следующего вектора скорости
-        self.period_send_speed = 0.05
+        self.period_send_speed: float = 0.05
         # Период отправления rc каналов
-        self.period_send_rc = 0.05
+        self.period_send_rc: float = 0.05
         # Период приема всех сообщений с дрона
-        self.period_message_handler = dt
-        self.connection_lost = False
-        self.max_speed = 1
+        self.period_message_handler: float = dt
+        self.connection_lost: bool = False
+        self.max_speed: float = 1.
         # Используется для хранения последних count_of_checking_points данных в виде [x, y, z] для верификации достижения таргетной точки
-        self.last_points = np.zeros((count_of_checking_points, self.dimension))
-        self.last_angles = np.zeros(20)
+        self.last_points: np.ndarray = np.zeros((count_of_checking_points, self.dimension))
+        self.last_angles: np.ndarray = np.zeros(20)
         if start_message_handler_from_init:
-            self._message_handler_thread = threading.Thread(target=self._message_handler, args=(combine_system,))
-            self._message_handler_thread.daemon = True
+            self._message_handler_thread: threading.Thread = threading.Thread(target=self._message_handler,
+                                                                              args=(combine_system,))
             self._message_handler_thread.start()
-        self.position_pid_matrix = np.array([
+        self.position_pid_matrix: np.ndarray = np.array([
             [0.5] * self.dimension,
             [0.0] * self.dimension,
             [0.7] * self.dimension
         ], dtype=np.float64)
-        self.yaw_pid_matrix = np.array([
+        self.yaw_pid_matrix: np.ndarray = np.array([
             [1] * 1,
             [0] * 1,
             [1] * 1
         ], dtype=np.float64)
-        self.set_v_check_flag = False
-        self.set_rc_check_flag = False
+        self.set_v_check_flag: bool = False
+        self.set_rc_check_flag: bool = False
         self.target_point: np.ndarray = np.array([0, 0, 2, 0])
-        self.tracking = False
+        self.tracking: bool = False
 
 
     @property
@@ -226,12 +232,21 @@ class Pion(DroneBase):
                                              yaw=yaw,
                                              mavlink_send_number=10)
 
-    def start_track_point(self):
-        self.threads.append(threading.Thread(target=self.point_tacking))
-        self.threads[-1].start()
+    def start_track_point(self) -> None:
+        """
+        Старт режима слежения за точкой дроном. Целевая точка меняется в поле self.target_point
+        :return: None
+        :rtype: None
+        """
+        start_threading(self.point_tracking)
+        self.threads.append(threading.Thread(target=self.point_tracking))
 
-
-    def point_tacking(self):
+    def point_tracking(self):
+        """
+        Функция слежения за точкой. Целевая точка меняется в поле self.target_point.
+        :return: None
+        :rtype: None
+        """
         self.set_v()
         self.goto_yaw(0)
         self._pid_position_controller = PIDController(*self.position_pid_matrix) 
@@ -247,11 +262,6 @@ class Pion(DroneBase):
             self.position_controller(self.target_point[0:3], dt)
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
-
-
-
-
-
 
     def goto_from_outside(self,
                           x: Union[float, int],

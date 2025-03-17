@@ -107,10 +107,10 @@ class DroneBase(Pio, ABC):
 
  
         # Время создания экземпляра
-        self.t0 = time.time()
-        self.ip = ip
-        self.mavlink_port = mavlink_port
-        self.name = name
+        self.t0: float = time.time()
+        self.ip: str = ip
+        self.mavlink_port: int = mavlink_port
+        self.name: str = name
         self.mass = mass
         self.dimension = dimension
         self.dt = dt

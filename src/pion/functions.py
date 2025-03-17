@@ -1,9 +1,22 @@
 import numpy as np
-from typing import Union, Optional
+from typing import Union, Optional, Callable
 import numpy.typing as npt
 from pymavlink import mavutil
 import socket
 from pion.annotation import Array6
+import threading
+
+def start_threading(function: Callable, *args) -> threading.Thread:
+    """
+    Функция принимает ссылку на функцию и запускает поток
+    :param function: Ссылка на функцию
+    :type function: Callable
+    :return: Запущенный поток
+    :rtype: threading.Thread
+    """
+    thread = threading.Thread(target=function, args=args)
+    thread.start()
+    return thread
 
 def get_local_ip():
     """

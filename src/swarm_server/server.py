@@ -6,12 +6,10 @@ import random
 import numpy as np
 from typing import Any, Dict, Tuple, Union, Optional
 from .datagram import DDatagram  
-from src.pion.functions import vector_reached, compute_swarm_velocity, compute_swarm_velocity_boids
+from pion.functions import vector_reached, compute_swarm_velocity, start_threading
 from .commands import *
 import datetime
 import os
-
-
 
 def get_unique_instance_id(ip: str, instance_number=None) -> str:
     octet = ip.split('.')[-1] if ip.count('.') == 3 else str(hash(ip) % 1000)
@@ -19,7 +17,6 @@ def get_unique_instance_id(ip: str, instance_number=None) -> str:
 
 def get_numeric_id(unique_id: str) -> int:
     return abs(hash(unique_id)) % (10**12)
-
 
 #####################################
 # UDP Broadcast Client & Server
@@ -280,7 +277,7 @@ class SwarmCommunicator:
                         print("Режим слежения за точкой уже включен")
                     else:
                         self.control_object.tracking = True
-                        self.start_threading(self.smart_point_tacking)
+                        start_threading(self.smart_point_tacking)
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
 
@@ -288,7 +285,7 @@ class SwarmCommunicator:
                 try:
                     self.stop_trp()
                     x, y, z, yaw = state.data
-                    self.start_threading(self.smart_goto, x, y, z, yaw)
+                    start_threading(self.smart_goto, x, y, z, yaw)
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
             elif state.command == CMD_LED:
@@ -320,10 +317,6 @@ class SwarmCommunicator:
                                    yaw: Union[float, int] = 0,
                                    accuracy: Union[float, int] = 5e-2):
         thread = threading.Thread(target=self.smart_goto, args=(x, y, z, yaw, accuracy,))
-        thread.start()
-
-    def start_threading(self, function, *args, **kwargs):
-        thread = threading.Thread(target=function, args=args)
         thread.start()
 
     def smart_goto(self,

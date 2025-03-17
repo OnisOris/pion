@@ -1,5 +1,3 @@
-import numpy as np
-from pymavlink import mavutil
 import time
 import select
 from .controller import PIDController
