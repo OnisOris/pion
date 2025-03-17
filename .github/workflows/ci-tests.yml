@@ -87,9 +87,10 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - name: Run setup_all.py on macOS
+      - name: Run setup_all.py on macOS and setup pion
         run: |
           python3 scripts/setup_all.py
+          pip install .
       - name: Activate venv and run tests
         run: |
           pip install pytest
