@@ -75,21 +75,21 @@ python по инструкции.
 
 Далее при установке поставьте галки, как на картинках, а также перейдите в Customize installation.
 
- ![окно установки 1](./img/python_install.jpg)
+ ![окно установки 1](docs/img/python_install.jpg)
 
 Доставьте все галки в "Advanced Options"
 
 
- ![окно установки 2](./img/python_install2.jpg)
+ ![окно установки 2](docs/img/python_install2.jpg)
 
 Здесь тоже доставьте галки
 
 
- ![окно установки 3](./img/python_install3.jpg)
+ ![окно установки 3](docs/img/python_install3.jpg)
 
 Проверьте, что у вас установлен vs build tools с нужными пакетами:
 
-![vsbt](./img/windows_vsbt.jpg)
+![vsbt](docs/img/windows_vsbt.jpg)
 
 ## Создание вирутального окружения
 В терминале перейдите в ваш проект и выполните команду:
@@ -145,8 +145,10 @@ source ./.venv/bin/activate
 
 # Подключение
 Для подключения к дрону достаточно создать экземпляр класса Pion
+
 ```python
-from pion import Pion
+from src.pion import Pion
+
 ip = "127.0.0.1"
 port = 8000
 drone = Pion(ip=ip, mavlink_port=port)
@@ -155,15 +157,15 @@ drone = Pion(ip=ip, mavlink_port=port)
 
 # Подробное описание с примерами
 
-- [Pion](./description/pion.md) - класс управления реальными дронами
+- [Pion](docs/pion.md) - класс управления реальными дронами
 
-- [Spion](./description/spion.md) - класс дрона-симулятора
+- [Spion](docs/spion.md) - класс дрона-симулятора
 
-- [Apion](./description/apion.md) - Класс с реализацией асинхронного управления
+- [Apion](docs/apion.md) - Класс с реализацией асинхронного управления
 
-- [Simulator](./description/simulator.md) - Классы симуляторов
+- [Simulator](docs/simulator.md) - Классы симуляторов
 
-- [Pio](./description/pio.md) - Асбстрактные классы
+- [Pio](docs/pio.md) - Асбстрактные классы
 
 
 

@@ -47,6 +47,5 @@ dev = [
     "uv>=0.6.5",
 ]
 
-[tool.setuptools.packages.find]
-include = ["pion"]
-namespaces = false
+[tool.uv.workspace]
+members = ["numbers"]

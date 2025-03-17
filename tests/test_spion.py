@@ -1,4 +1,4 @@
-from pion import Spion
+from pion.spion import Spion
 import numpy as np
 from pion.cython_pid import PIDController
 

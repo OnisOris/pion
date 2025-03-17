@@ -164,7 +164,7 @@ data/
 save/
 pion_venv/
 git_ssh.sh
-./pion/__pycache__/
+src/pion/__pycache__/
 index.rst
 conf.py
 docs/
@@ -173,7 +173,7 @@ file.csv
 plot.py
 traj.npy
 traj.py
-./pion/cython_pid.c
+src/pion/cython_pid.c
 
 Doxyfile
 flowchart.gv
@@ -181,12 +181,12 @@ flowchart.png
 html/
 latex/
 old_simulator.py
-pion/Doxyfile
-pion/Doxyfile.bak
-pion/cython_pid.c
-pion/html/
-pion/latex/
-pion/rtf/
+src/pion/Doxyfile
+src/pion/Doxyfile.bak
+src/pion/cython_pid.c
+src/pion/html/
+src/pion/latex/
+src/pion/rtf/
 test2.py
 *.gv
 
