@@ -119,7 +119,7 @@ class Pion(DroneBase):
         self.__is_socket_open: threading.Event = threading.Event()
         self.__is_socket_open.set()
         # Список потоков
-        self.threads = []
+        self.threads: list = []
         # Период отправления следующего вектора скорости
         self.period_send_speed: float = 0.05
         # Период отправления rc каналов
@@ -241,7 +241,7 @@ class Pion(DroneBase):
         start_threading(self.point_tracking)
         self.threads.append(threading.Thread(target=self.point_tracking))
 
-    def point_tracking(self):
+    def point_tracking(self) -> None:
         """
         Функция слежения за точкой. Целевая точка меняется в поле self.target_point.
         :return: None
@@ -264,25 +264,25 @@ class Pion(DroneBase):
         self.t_speed = np.zeros(4)
 
     def goto_from_outside(self,
-                          x: Union[float, int],
-                          y: Union[float, int],
-                          z: Union[float, int],
-                          yaw: Union[float, int],
-                          accuracy: Union[float, int, None] = None) -> None:
+                          x: float,
+                          y: float,
+                          z: float,
+                          yaw: float,
+                          accuracy: Optional[float] = None) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed
         :param x: координата по x
-        :type x: Union[float, int]
+        :type x: float
         :param y: координата по y
-        :type y: Union[float, int]
+        :type y: float
         :param z: координата по z
-        :type z: Union[float, int]
+        :type z: float
         :param yaw: координата по yaw
-        :type yaw: Union[float, int]
+        :type yaw: float
         :param accuracy: Погрешность целевой точки
-        :type accuracy: Union[float, int, None]
+        :type accuracy: Optional[float]
         :return: None
         """
         self.tracking = False
@@ -317,9 +317,9 @@ class Pion(DroneBase):
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed
         :param yaw:  координата по yaw (радианы)
-        :type yaw: Union[float, int]
+        :type yaw: float
         :param accuracy: Погрешность целевой точки
-        :type accuracy: Union[float, int]
+        :type accuracy: float
         :return: None
         """
         self.tracking = False
@@ -342,20 +342,21 @@ class Pion(DroneBase):
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
 
-    def send_speed(self, vx: Union[float, int],
-                   vy: Union[float, int],
-                   vz: Union[float, int],
-                   yaw_rate: Union[float, int]) -> None:
+    def send_speed(self,
+                   vx: float,
+                   vy: float,
+                   vz: float,
+                   yaw_rate: float) -> None:
         """
         Функция задает вектор скорости дрону. Отсылать необходимо в цикле.
         :param vx: скорость по оси x (м/с)
-        :type vx: Union[float, int]
+        :type vx: float
         :param vy: скорость по оси y (м/с)
-        :type vy: Union[float, int]
+        :type vy: float
         :param vz:  скорость по оси z (м/с)
-        :type vz: Union[float, int]
+        :type vz: float
         :param yaw_rate:  скорость поворота по оси z (рад/с)
-        :type yaw_rate: Union[float, int]
+        :type yaw_rate: float
         :return: None
         """
         # _ _ _ _ yaw_rate yaw   force_set   afz afy afx   vz vy vx   z y x
@@ -370,8 +371,11 @@ class Pion(DroneBase):
                                              yaw_rate=yaw_rate,
                                              mavlink_send_number=1)
 
-    def send_rc_channels(self, channel_1: int = 0xFF, channel_2: int = 0xFF,
-                         channel_3: int = 0xFF, channel_4: int = 0xFF) -> None:
+    def send_rc_channels(self,
+                         channel_1: int = 0xFF,
+                         channel_2: int = 0xFF,
+                         channel_3: int = 0xFF, 
+                         channel_4: int = 0xFF) -> None:
         """
         Функция отправляет управляющие сигналы RC-каналов дрону. Отсылать необходимо в цикле.
 
@@ -629,7 +633,7 @@ class Pion(DroneBase):
             time.sleep(self.period_send_rc)
         self.set_rc_check_flag = False
 
-    def set_rc(self):
+    def set_rc(self) -> None:
         """
         Создает поток, который вызывает функцию rc_while() для параллельной отправки управляющего сигнала rc channels
         :return:

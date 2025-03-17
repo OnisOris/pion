@@ -6,6 +6,7 @@ from collections import deque
 from rich.table import Table
 from rich.live import Live
 import threading
+from pion.cython_pid import PIDController
 
 
 class Pio(ABC):
@@ -55,8 +56,8 @@ class DroneBase(Pio, ABC):
                  name: str = "baseclass",
                  mass: float = 0.3,
                  dimension: int = 3,
-                 position: Union[Array6, Array4, None] = None,
-                 attitude: Union[Array6, None] = None,
+                 position: Optional[Union[Array6, Array4]] = None,
+                 attitude: Optional[Array6] = None,
                  count_of_checking_points: int = 20,
                  logger: bool = False,
                  checking_components: bool = True,
@@ -83,10 +84,10 @@ class DroneBase(Pio, ABC):
         :type dimension: int
 
         :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy]
-        :type position: Union[Array6, Array4, None]
+        :type position: Optional[Union[Array6, Array4]] 
 
         :param attitude: Начальное состояние дрона вида [roll, pitch, yaw, v_roll, v_pitch, v_yaw]
-        :type attitude: Union[Array6, None]
+        :type attitude: Optional[Array6]
 
         :param dt: Период приема всех сообщений с дрона или шаг времени в симуляции в Spion
         :type dt: float
@@ -111,14 +112,13 @@ class DroneBase(Pio, ABC):
         self.ip: str = ip
         self.mavlink_port: int = mavlink_port
         self.name: str = name
-        self.mass = mass
-        self.dimension = dimension
-        self.dt = dt
-        self.logger = logger
-        self.logs = {}
-        self.checking_components = checking_components
-        self.dimension = dimension
-        self._pid_position_controller = None
+        self.mass: float = mass
+        self.dt: float = dt
+        self.logger: bool = logger
+        self.logs: dict = {}
+        self.checking_components: bool = checking_components
+        self.dimension: int = dimension
+        self._pid_position_controller: PIDController = None
         if position is None:
             position = np.zeros(self.dimension * 2)
         else:
@@ -127,38 +127,37 @@ class DroneBase(Pio, ABC):
         if attitude is None:
             attitude = np.zeros(6)
         # Вектор, подобный LOCAL_POSITION_NED из mavlink
-        self._position = position
+        self._position: Union[Array4, Array6] = position
         # Вектор, подобный ATTITUDE из mavlink
-        self._attitude = attitude
+        self._attitude: Array6 = attitude
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
         self.t_speed = np.zeros(4)  # [vx, vy, vz, yaw_rate]
-        self.position_pid_matrix = np.array([
+        self.position_pid_matrix: np.ndarray = np.array([
             [0.5] * self.dimension,
             [0.] * self.dimension,
             [2.] * self.dimension
         ], dtype=np.float64)
-        self._heartbeat_timeout = 1
-        self._heartbeat_send_time = time.time()
+        self._heartbeat_timeout: float = 1.
+        self._heartbeat_send_time: float = time.time()
         # Используется для хранения последних count_of_checking_points данных в виде [x, y, z, yaw] для верификации достижения таргетной точки
-        self.last_points = np.zeros((count_of_checking_points, 4))
+        self.last_points: np.ndarray = np.zeros((count_of_checking_points, 4))
         # Напряжение батареи дрона (Вольты)
-        self.battery_voltage = None
+        self.battery_voltage: Optional[float] = None
         # Флаг для запуска и остановки сохранения координат
-        self.check_attitude_flag = False
-        # Информация, включающая
+        self.check_attitude_flag: bool = False
+        # trajectory - информация, включающая
         # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
         # которая складывается в матрицу (n, 17/14), где n - число точек в траектории
         # если размерность 2, то z составляющая убирается из траектории и размерность вектора равна 14, а не 17
-        self.trajectory = np.zeros((2, self._position.shape[0] + self._attitude.shape[0] + self.t_speed.shape[0] + 1))
-        self.accuracy = accuracy
-        self.point_reached = False
-        self.max_speed = max_speed
-        self._handler_lock = threading.Lock()
-        self._speed_control_lock = threading.Lock()
-        self._live = None
-        self._table = None
+        self.trajectory: Union[Array14, Array17] = np.zeros((2, self._position.shape[0] + self._attitude.shape[0] + self.t_speed.shape[0] + 1))
+        self.accuracy: float = accuracy
+        self.point_reached: bool = False
+        self.max_speed: float = max_speed
+        self._handler_lock: threading.Lock = threading.Lock()
+        self._speed_control_lock: threading.Lock = threading.Lock()
+        self._live: Optional[Live] = None
         self.target_point: np.ndarray = np.array([0, 0, 2, 0])
-        self.tracking = False
+        self.tracking: bool = False
 
     @property
     def position(self) -> Union[Array6, Array4]:
@@ -420,11 +419,5 @@ class DroneBase(Pio, ABC):
             self._live.start()
         else:
             self._live.update(table)
-
-    def detect(self) -> None:
-        """
-        Метод детектирования (чего-либо)
-        """
-        pass
 
 
