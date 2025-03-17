@@ -21,7 +21,7 @@ jobs:
 
       - name: Run setup_all.py on Ubuntu
         run: |
-          sudo python3 setup_all.py
+          sudo python3 scripts/setup_all.py
 
       - name: Install dependencies
         run: |
@@ -49,7 +49,7 @@ jobs:
 
       - name: Run setup_all.py on Windows
         run: |
-          python setup_all.py
+          python scripts/setup_all.py
 
       - name: Install dependencies
         run: |
@@ -79,7 +79,7 @@ jobs:
         run: |
           python -m venv /opt/venv
           source /opt/venv/bin/activate
-          python setup_all.py
+          python scripts/setup_all.py
           pip install --upgrade pip
           pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
 
@@ -99,7 +99,7 @@ jobs:
           python-version: '3.x'
       - name: Run setup_all.py on macOS
         run: |
-          python3 setup_all.py
+          python3 scripts/setup_all.py
       - name: Install dependencies
         run: |
           pip install numpy cython setuptools pytest wheel pymavlink rich protobuf
