@@ -43,7 +43,9 @@ Issues = "https://github.com/OnisOris/pion/issues"
 
 [dependency-groups]
 dev = [
+    "furo>=2024.8.6",
     "ruff>=0.9.10",
+    "sphinx>=8.1.3",
     "uv>=0.6.5",
 ]
 
