@@ -92,5 +92,6 @@ jobs:
           python3 scripts/setup_all.py
       - name: Activate venv and run tests
         run: |
+          pip install pytest
           pytest tests/
 
