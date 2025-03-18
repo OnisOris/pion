@@ -123,7 +123,7 @@ class DroneBase(Pio, ABC):
             position = np.zeros(self.dimension * 2)
         else:
             if position.shape not in [(4,), (6,)]:
-                raise ValueError(f"Размерность вектора position должна быть равна 4 или 6")
+                raise ValueError("Размерность вектора position должна быть равна 4 или 6")
         if attitude is None:
             attitude = np.zeros(6)
         # Вектор, подобный LOCAL_POSITION_NED из mavlink
@@ -381,9 +381,9 @@ class DroneBase(Pio, ABC):
         :return: None
         """
         self.logs.update({"xyz":  f"{np.round(self.position[0:self.dimension], 3)} \n",
-                         f"speed": f"{np.round(self.position[self.dimension:self.dimension * 2], 3)} \n",
-                         f"t_speed": f"{np.round(self.t_speed, 3)} \n",
-                          f"battery voltage": f"{self.battery_voltage} \n"})
+                         "speed": f"{np.round(self.position[self.dimension:self.dimension * 2], 3)} \n",
+                         "t_speed": f"{np.round(self.t_speed, 3)} \n",
+                          "battery voltage": f"{self.battery_voltage} \n"})
         self.print_latest_logs(self.logs, 5, "Таблица с сообщениями")
 
 

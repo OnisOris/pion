@@ -346,7 +346,7 @@ class SwarmCommunicator:
 
 
     def smart_point_tacking(self):
-        print(f"Smart point tracking")
+        print("Smart point tracking")
         self.control_object.set_v()
         self.control_object.point_reached = False
         self.control_object.tracking = True

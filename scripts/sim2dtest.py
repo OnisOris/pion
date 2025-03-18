@@ -4,7 +4,7 @@ import time
 
 args = sys.argv
 
-drone = Spion(ip=f"10.1.100.200", mavlink_port=5656, mass=0.3, dt=0.05, logger=True, dimension=2)
+drone = Spion(ip="10.1.100.200", mavlink_port=5656, mass=0.3, dt=0.05, logger=True, dimension=2)
 print("---")
 print("Main arm ------------<")
 drone.arm()

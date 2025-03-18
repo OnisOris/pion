@@ -4,7 +4,7 @@ import time
 from typing import Tuple, Union
 
 import numpy as np
-from pion.cython_pid import AdaptiveController, PIDController
+from pion.cython_pid import PIDController
 from pymavlink.dialects.v10.all import MAVLink_message
 from .annotation import *
 from .functions import *

@@ -4,7 +4,7 @@ import time
 import numpy as np
 np.set_printoptions(suppress=True)  # Отключить экспоненциальный формат
 args = sys.argv
-drone = Pion(ip=f"127.0.0.1", 
+drone = Pion(ip="127.0.0.1", 
              mavlink_port=5656, 
              logger=True, dt=0., 
              count_of_checking_points=5)

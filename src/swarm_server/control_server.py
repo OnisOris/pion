@@ -3,7 +3,7 @@ from .datagram import DDatagram
 import readline
 import atexit
 import os
-from .server import UDPBroadcastClient, UDPBroadcastServer
+from .server import UDPBroadcastClient
 from queue import Queue
 from .commands import *
                 
