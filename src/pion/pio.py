@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from .annotation import *
+from numpy.typing import NDArray
+from .annotation import  Array17, Array14, Array6, Array4, Array3, Array2
+from typing import Union, Optional, Annotated, Any, Literal
 import time
 from collections import deque
 from rich.table import Table
@@ -117,7 +119,8 @@ class DroneBase(Pio, ABC):
         self.logger: bool = logger
         self.logs: dict = {}
         self.checking_components: bool = checking_components
-        self.dimension: int = dimension
+        # Размерность дрона (2 или 3 измерения)
+        self.dimension: Annotated[int, Literal[3, 4]] = dimension
         self._pid_position_controller: PIDController = None
         if position is None:
             position = np.zeros(self.dimension * 2)
@@ -127,7 +130,7 @@ class DroneBase(Pio, ABC):
         if attitude is None:
             attitude = np.zeros(6)
         # Вектор, подобный LOCAL_POSITION_NED из mavlink
-        self._position: Union[Array4, Array6] = position
+        self._position: Annotated[NDArray[Any], (self.dimension*2,)] = position
         # Вектор, подобный ATTITUDE из mavlink
         self._attitude: Array6 = attitude
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
@@ -157,6 +160,7 @@ class DroneBase(Pio, ABC):
         self._speed_control_lock: threading.Lock = threading.Lock()
         self._live: Optional[Live] = None
         self.target_point: np.ndarray = np.array([0, 0, 2, 0])
+        # Флаг включения режима трекинга за точкой в отдельном потока: дрон будет следовать за точкой из поля target_point
         self.tracking: bool = False
 
     @property
@@ -190,7 +194,7 @@ class DroneBase(Pio, ABC):
         """
         self.position[0:self.dimension] = position
     @property
-    def yaw(self) -> np.ndarray:
+    def yaw(self) -> float:
         """
         Геттер вернет yaw
         :return: np.ndarray

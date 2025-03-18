@@ -2,8 +2,10 @@ from .simulator import Simulator, Point
 from .pio import DroneBase
 from .functions import vector_reached, update_array
 from pion.cython_pid import PIDController  # Cython-версия PIDController
-from .annotation import *
+from typing import Union, Optional, Any, Annotated
+from .annotation import Array6, Array4, Array3, Array2
 import numpy as np
+from numpy.typing import NDArray
 import time
 import threading
 
@@ -16,8 +18,8 @@ class Spion(Simulator, DroneBase):
                  ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
                  connection_method: str = 'udpout',
-                 position: Union[Array6, Array4, None] = None,
-                 attitude: Union[Array6, None] = None,
+                 position: Optional[Union[Array6, Array4]] = None,
+                 attitude: Optional[Union[Array6, Array4]] = None,
                  combine_system: int = 0,
                  count_of_checking_points: int = 20,
                  name: str = 'simulator',
@@ -96,41 +98,38 @@ class Spion(Simulator, DroneBase):
                            dt=dt,
                            max_speed=max_speed)
         # Создание объекта Point3D
-        self.simulation_objects = np.array([Point(mass, self._position[0:self.dimension],
+        self.simulation_objects: NDArray[Any] = np.array([Point(mass, self._position[0:self.dimension],
                                                   self._position[self.dimension:self.dimension * 2])])
-        self.connection_method = connection_method
-        self.combine_system = combine_system
-        self.count_of_checking_points = count_of_checking_points
+        self.connection_method: str = connection_method
+        self.combine_system: int = combine_system
+        self.count_of_checking_points: int = count_of_checking_points
 
-        self.position_pid_matrix = np.array([
+        self.position_pid_matrix:  Annotated[NDArray[Any], (3, self.dimension)] = np.array([
             [1.0] * self.dimension,
             [0.0] * self.dimension,
             [0.0] * self.dimension
         ], dtype=np.float64)
 
-        self.velocity_pid_matrix = np.array([
+        self.velocity_pid_matrix: Annotated[NDArray[Any], (3, self.dimension)] = np.array([
             [3.0] * self.dimension,
             [0.0] * self.dimension,
             [0.1] * self.dimension
         ], dtype=np.float64)
         Simulator.__init__(self, self.simulation_objects, dt=dt, dimension=self.dimension)
-
-        self.max_speed = 2
+        self.max_speed: float = 2.
         # Период отправления следующего вектора скорости
-        self.period_send_speed = 0.05
-        self.speed_flag = True
-        self._pid_velocity_controller = None
-        self.battery_voltage = 8
-        self._heartbeat_send_time = time.time()
-        self._heartbeat_timeout = 3
+        self.period_send_speed: float = 0.05
+        self.speed_flag: bool = True
+        self._pid_velocity_controller: Optional[PIDController] = None
+        self._heartbeat_send_time: float = time.time()
+        self._heartbeat_timeout: float = 3.
         # Границы симуляции
-        self.lower_bound = np.array([-5.5, -5.5, 0])
-        self.upper_bound = np.array([5.5, 5.5, 4])
-        self.point_reached = False
-
-        self._message_thread = None  # Поток для _message_handler
-        self.last_points = np.zeros((count_of_checking_points, self.dimension))
-        if start_message_handler_from_init:
+        self.lower_bound: Array3 = np.array([-5.5, -5.5, 0])
+        self.upper_bound: Array3 = np.array([5.5, 5.5, 4])
+        self.point_reached: bool = False
+        self._message_thread: Optional[threading.Thread] = None  # Поток для _message_handler
+        self.last_points: Annotated[NDArray[Any], (count_of_checking_points, self.dimension)] = np.zeros((count_of_checking_points, self.dimension))
+        if start_message_handler_from_init: 
             self.start_message_handler()
 
     @property
@@ -154,16 +153,27 @@ class Spion(Simulator, DroneBase):
     def speed(self) -> Union[Array2, Array3]:
         """
         Функция вернет скорость [vx, vy, vz]
-        :return: Union[Array2, Array3]
+        :return: Скорость [vx, vy, vz]
+        :rtype: Union[Array2, Array3]
         """
         return self.simulation_objects[0].speed
 
-    def takeoff(self):
+    def takeoff(self) -> None:
+        """
+        Функция взлета дрона
+        :return: None
+        :rtype: None
+        """
         super().takeoff()
         self.goto(self.position[0], self.position[1], 1.5, 0)
 
 
-    def land(self):
+    def land(self) -> None:
+        """
+        Функция посадки дрона
+        :return: None
+        :rtype: None
+        """
         super().land()
         self.goto(self.position[0], self.position[1], 0, 0)
 
@@ -171,6 +181,8 @@ class Spion(Simulator, DroneBase):
     def start_message_handler(self) -> None:
         """
         Запуск потока _message_handler
+        :return: None
+        :rtype: None
         """
         if not self.simulation_turn_on:
             self.simulation_turn_on = True
@@ -182,6 +194,8 @@ class Spion(Simulator, DroneBase):
     def stop_message_handler(self) -> None:
         """
         Остановка потока _message_handler
+        :return: None
+        :rtype: None
         """
         if self.simulation_turn_on:
             self.simulation_turn_on = False
@@ -193,7 +207,9 @@ class Spion(Simulator, DroneBase):
 
     def _step_messege_handler(self) -> None:
         """
-
+        Функция одного шага симуляции дрона
+        :return: None
+        :rtype: None
         """
         self.velocity_controller()
         for object_channel, simulation_object in enumerate(self.simulation_objects):
@@ -203,9 +219,11 @@ class Spion(Simulator, DroneBase):
             self.print_information()
 
 
-    def _message_handler(self, *args):
+    def _message_handler(self, *args) -> None:
         """
-        Основной цикл обработки сообщений.
+        Основной цикл обработки сообщений
+        :return: None
+        :rtype: None
         """
         last_time = time.time()
         self._pid_position_controller = PIDController(*self.position_pid_matrix)
@@ -225,14 +243,28 @@ class Spion(Simulator, DroneBase):
                         self.attitude_write()
             time.sleep(0.01)
 
-    def velocity_controller(self):
+    def velocity_controller(self) -> None:
+        """
+        Функция высчитывает необходимую силу для внутренней модели self.simulation_objects для
+        достижения таргетной скорости из t_speed
+        :return: None
+        :rtype: None
+        """
         signal = self._pid_velocity_controller.compute_control(
             target_position=np.array(self.t_speed[0:self.dimension], dtype=np.float64),
             current_position=np.array(self.simulation_objects[0].speed, dtype=np.float64),
             dt=self.dt)
         self.set_force(signal, 0)
 
-    def position_controller(self, position_xyz: Array3):
+    def position_controller(self,
+                            position_xyz: Array3) -> None:
+        """
+        Функция высчитывает необходимую скорость для достижения таргетной позицыы position_xyz
+        :param position_xyz: Таргетная позиция дрона
+        :type position_xyz: Array3
+        :return: None
+        :rtype: None
+        """
         signal = np.clip(
             self._pid_position_controller.compute_control(
                 target_position=np.array(position_xyz, dtype=np.float64),
@@ -243,26 +275,25 @@ class Spion(Simulator, DroneBase):
         self.t_speed = np.hstack([signal, np.array([0]*(4-self.dimension))])
 
     def goto(self,
-             x: Union[float, int],
-             y: Union[float, int],
-             z: Union[float, int],
-             yaw: Union[float, int],
-             accuracy: Union[float, int] = None) -> None:
+             x: float,
+             y: float,
+             z: float,
+             yaw: float,
+             accuracy: Optional[float] = None) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в
         управление t_speed.
-        Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed
         :param x: координата по x
-        :type x: Union[float, int]
+        :type x: float
         :param y: координата по y
-        :type: Union[float, int]
+        :type: float
         :param z:  координата по z (не используется, если self.dimension = 2)
-        :type: Union[float, int]
+        :type: float
         :param yaw:  координата по yaw
-        :type: Union[float, int]
+        :type: float
         :param accuracy: Погрешность целевой точки 
-        :type: Union[float, int]
+        :type: float
         :return: None
         """
         if self.dimension == 2:
@@ -301,44 +332,45 @@ class Spion(Simulator, DroneBase):
             self.t_speed = np.zeros(self.dimension + 1)
 
     def goto_from_outside(self,
-                          x: Union[float, int],
-                          y: Union[float, int],
-                          z: Union[float, int],
-                          yaw: Union[float, int],
-                          accuracy: Union[float, int] = 5e-2) -> None:
+                          x: float,
+                          y: float,
+                          z: float,
+                          yaw: float,
+                          accuracy: float = 5e-2) -> None:
         """
         Функция симулятор оригинальной функции в Pion, полностью повторяет функционал goto в данном классе
         :param x: координата по x
-        :type x: Union[float, int]
+        :type x: float
         :param y: координата по y
-        :type: Union[float, int]
+        :type: float
         :param z:  координата по z
-        :type: Union[float, int]
+        :type: float
         :param yaw:  координата по yaw
-        :type: Union[float, int]
+        :type: float
         :param accuracy: Погрешность целевой точки
-        :type: Union[float, int]
+        :type: float
         :return: None
         """
         self.goto(x, y, z, yaw, accuracy)
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Останавливает все потоки, завершает симуляцию
+        :return: None
+        :rtype: None
         """
+        self.tracking = False
         self.speed_flag = False
         self.simulation_turn_on = False
         print("Simulation stopped")
 
     def borders(self) -> None:
-
         """
         Функция накладывает границы симуляции для дрона
         :return: None
-
+        :rtype: None
         """
         position = self.simulation_objects[0].position
-
         # Проверка на достижение границы и добавление отскока
         for i in range(self.dimension):
             if position[i] <= self.lower_bound[i]:
@@ -349,6 +381,5 @@ class Spion(Simulator, DroneBase):
                 position[i] -= 0.1
                 print("upper bound")
                 self.point_reached = True
-
         # Применение ограничения с np.clip
         self.simulation_objects[0].position = np.clip(position, self.lower_bound, self.upper_bound)

@@ -1,8 +1,8 @@
 import socket
 import time
 import paramiko 
-from src.swarm_server.datagram import DDatagram
-from src.pion.pio import DroneBase
+from swarm_server.datagram import DDatagram
+from .pio import DroneBase
 
 # Определяем UDP-порт и коды команд
 UDP_PORT = 37020

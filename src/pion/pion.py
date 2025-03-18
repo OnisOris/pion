@@ -1,13 +1,14 @@
 import select
 import threading
 import time
-from typing import Tuple, Union
-
+from numpy.typing import NDArray
+from typing import Tuple, Union, Optional, Annotated, Any
 import numpy as np
 from pion.cython_pid import PIDController
 from pymavlink.dialects.v10.all import MAVLink_message
-from .annotation import *
-from .functions import *
+from .annotation import Array6, Array4, Array3, Array2
+from .functions import create_connection, start_threading, vector_reached, scalar_reached, update_array, update_vector
+from pymavlink import mavutil
 from .pio import DroneBase
 
 
@@ -21,8 +22,8 @@ class Pion(DroneBase):
                  ip: str = '10.1.100.114',
                  mavlink_port: int = 5656,
                  connection_method: str = 'udpout',
-                 position: Union[Array6, Array4, None] = None,
-                 attitude: Union[Array6, Array4, None] = None,
+                 position: Optional[Union[Array6, Array4]] = None,
+                 attitude: Optional[Union[Array6, Array4]] = None,
                  combine_system: int = 0,
                  count_of_checking_points: int = 20,
                  name: str = "Pion",
@@ -129,8 +130,9 @@ class Pion(DroneBase):
         self.connection_lost: bool = False
         self.max_speed: float = 1.
         # Используется для хранения последних count_of_checking_points данных в виде [x, y, z] для верификации достижения таргетной точки
-        self.last_points: np.ndarray = np.zeros((count_of_checking_points, self.dimension))
-        self.last_angles: np.ndarray = np.zeros(20)
+        self.last_points: Annotated[NDArray[Any], (count_of_checking_points,)] = np.zeros((count_of_checking_points, self.dimension))
+        # Используется для хранения последних 14 значений yaw в матрице для верификации достижения таргетного угла по z
+        self.last_angles: Annotated[NDArray[Any], (14,)]  = np.zeros(14) 
         if start_message_handler_from_init:
             self._message_handler_thread: threading.Thread = threading.Thread(target=self._message_handler,
                                                                               args=(combine_system,))
