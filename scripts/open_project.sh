@@ -1,1 +1,1 @@
-nvim ./pion/server.py ./pion/control_server.py ./pion/commands.py ./test.py ./pion/pion.py ./pion/spion.py  ./pion/annotation.py ./pion/pio.py ./pion/apion.py ./pion/functions.py ./pion/simulator.py ./pion/controller.py
+nvim ./src/swarm_server/server.py ./src/swarm_server/control_server.py ./src/swarm_server/commands.py ./scripts/test.py ./src/pion/pion.py ./src/pion/spion.py  ./src/pion/annotation.py ./src/pion/pio.py ./src/pion/apion.py ./src/pion/functions.py ./src/pion/simulator.py ./src.pion/controller.py
