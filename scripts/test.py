@@ -1,4 +1,4 @@
-from src.pion import Pion
+from pion import Pion
 import sys
 import time
 import numpy as np
