@@ -147,7 +147,7 @@ source ./.venv/bin/activate
 Для подключения к дрону достаточно создать экземпляр класса Pion
 
 ```python
-from src.pion import Pion
+from pion import Pion
 
 ip = "127.0.0.1"
 port = 8000
