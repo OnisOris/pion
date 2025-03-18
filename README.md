@@ -75,21 +75,21 @@ python по инструкции.
 
 Далее при установке поставьте галки, как на картинках, а также перейдите в Customize installation.
 
- ![окно установки 1](docs/img/python_install.jpg)
+ ![окно установки 1](docs/source/img/python_install.jpg)
 
 Доставьте все галки в "Advanced Options"
 
 
- ![окно установки 2](docs/img/python_install2.jpg)
+ ![окно установки 2](docs/source/img/python_install2.jpg)
 
 Здесь тоже доставьте галки
 
 
- ![окно установки 3](docs/img/python_install3.jpg)
+ ![окно установки 3](docs/source/img/python_install3.jpg)
 
 Проверьте, что у вас установлен vs build tools с нужными пакетами:
 
-![vsbt](docs/img/windows_vsbt.jpg)
+![vsbt](docs/source/img/windows_vsbt.jpg)
 
 ## Создание вирутального окружения
 В терминале перейдите в ваш проект и выполните команду:
