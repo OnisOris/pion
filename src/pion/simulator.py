@@ -1,13 +1,14 @@
 import threading
 import time
-from typing import Union
+from numpy.typing import NDArray
+from typing import Union, Literal, Annotated, Any
 import numpy as np
-from .annotation import *
+from .annotation import Array3, Array2
 
 
 class Point:
     def __init__(self,
-                 mass: float = 1,
+                 mass: float = 1.,
                  position: Union[Array2, Array3] = np.array([0, 0, 0], dtype=np.float64),
                  speed: Union[Array2, Array3] = np.array([0, 0, 0], dtype=np.float64),
                  trajectory_write: bool = False,
@@ -30,16 +31,16 @@ class Point:
             raise ValueError("Начальная координата должна иметь схожую размерность со своей скоростью")
         if position.shape not in [(2,), (3,)]:
             raise ValueError("Размерность точки должна быть равна 2 или 3")
-        self.dimension = position.shape[0]
-        self.trajectory = Trajectory_writer(['x', 'y', 'vx', 'vy', 't'] if self.dimension == 2 else
+        self.dimension: Annotated[int, Literal[2, 3]] = position.shape[0]
+        self.trajectory: Trajectory_writer = Trajectory_writer(['x', 'y', 'vx', 'vy', 't'] if self.dimension == 2 else
                                             ['x', 'y', 'z', 'vx', 'vy', 'vz', 't'])
-        self.trajectory_write = trajectory_write
-        self.mass = mass
-        self.initial_position = np.array(position, dtype=np.float64)
-        self.position = np.array(position, dtype=np.float64)
-        self.speed = np.array(speed, dtype=np.float64)
-        self.time = 0.0
-        self.drag_coefficient = drag_coefficient  # Сохраняем коэффициент сопротивления
+        self.trajectory_write: bool = trajectory_write
+        self.mass: float = mass
+        self.initial_position: Annotated[NDArray[Any], (self.dimension,)] = position
+        self.position: Annotated[NDArray[Any], (self.dimension,)] = np.array(position, dtype=np.float64)
+        self.speed: Annotated[NDArray[Any], (self.dimension,)] = np.array(speed, dtype=np.float64)
+        self.time: float = 0.0
+        self.drag_coefficient: float = drag_coefficient 
 
     def rk4_step(self,
                  acceleration: Union[Array2, Array3],
@@ -118,12 +119,12 @@ class Simulator:
         Введем локальные определения: 
         канал объекта - порядковый номер объекта в self.simulation_object.
         """
-        self.dimension = dimension
-        self.simulation_objects = simulation_objects
-        self.simulation_turn_on = False
-        self.dt = dt
-        self.forces = np.zeros((np.shape(simulation_objects)[0], dimension))
-        self.threading_list = []
+        self.dimension: Annotated[int, Literal[2, 3]] = dimension
+        self.simulation_objects: np.ndarray = simulation_objects
+        self.simulation_turn_on: bool = False
+        self.dt: float = dt
+        self.forces: np.ndarray = np.zeros((np.shape(simulation_objects)[0], dimension))
+        self.threading_list: list = []
 
     def start_simulation_while(self) -> None:
         """
@@ -231,7 +232,7 @@ class Simulator_th(Simulator):
             thread.start()
 
     def start_simulation_for(self,
-                             steps: int = 100):
+                             steps: int = 100) -> None:
         """
         Запускает симуляцию для всех объектов в отдельных потоках, используя цикл `for`.
 
