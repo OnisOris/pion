@@ -21,7 +21,7 @@ class Point:
         :param position: начальная позиция объекта в пространстве [x, y, z]
         :type position: Union[Array2, Array3]
         :param speed: начальная скорость объекта [vx, vy, vz]
-        type speed: Union[Array2, Array3]
+        :type speed: Union[Array2, Array3]
         :param trajectory_write: записывать ли траекторию
         :type trajectory_write: bool
         :param drag_coefficient: коэффициент сопротивления воздуха
