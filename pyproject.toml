@@ -36,7 +36,7 @@ readme = {file = "README.md", content-type = "text/markdown"}
 
 [project.urls]
 Homepage = "https://github.com/OnisOris/pion"
-# Documentation = "https://readthedocs.org"
+Documentation = "https://onisoris.github.io/pion"
 Repository = "https://github.com/OnisOris/pion.git"
 Issues = "https://github.com/OnisOris/pion/issues"
 # Changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
