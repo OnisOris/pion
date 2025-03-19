@@ -110,7 +110,7 @@ class Simulator:
     Класс симулятора, моделирующий поведение материальной точки
     """
     def __init__(self,
-                 simulation_objects: NDArray[Point],
+                 simulation_objects: NDArray[Any],
                  dt: float = 0.01,
                  dimension: int = 3):
         """
@@ -297,12 +297,12 @@ class Simulator_realtime_th(Simulator_realtime, Simulator_th):
 
 class Trajectory_writer:
     def __init__(self,
-                 list_of_names_columns: Union[list[str], NDArray[str]]):
+                 list_of_names_columns: Union[list[str], NDArray[Any]]):
         """
         Специальный класс для записи и хранения траектории размером
         nx[len(list_of_names_columns)], n - количество точек.
         :param list_of_names_columns: названия колонн
-        :type list_of_names_columns: Union[list[str], NDArray[str]]
+        :type list_of_names_columns: Union[list[str], NDArray[Any]]
         """
         self.trajectory = np.zeros((len(list_of_names_columns),))
         self.columns = list_of_names_columns
