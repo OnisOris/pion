@@ -49,7 +49,7 @@ SDK для управления дронами `geoscan pioneer base <https://ge
 
 .. code:: bash
 
-   python3-dev
+   sudo apt install python3-dev
 
 Если вы используете несистемный python, то вы должны поставить пакет для вашей версии python:
 
@@ -202,7 +202,7 @@ python по инструкции.
 
 .. code-block:: python
 
-   from src.pion import Pion
+   from pion import Pion
 
    ip = "127.0.0.1"
    port = 8000
