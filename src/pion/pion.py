@@ -679,6 +679,7 @@ class Pion(DroneBase):
     def set_v(self) -> None:
         """
         Создает поток, который вызывает функцию :py:meth:`Pion.v_while` для параллельной отправки вектора скорости
+
         :return: None
         """
         if not self.set_v_check_flag:
