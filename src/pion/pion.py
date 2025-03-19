@@ -157,6 +157,7 @@ class Pion(DroneBase):
     def speed(self) -> Union[Array2, Array3]:
         """
         Функция вернет скорость [vx, vy, vz]
+
         :return: Union[Array2, Array3]
         """
         return self._position[self.dimension:self.dimension * 2]
@@ -164,6 +165,7 @@ class Pion(DroneBase):
     def arm(self) -> None:
         """
         Включает двигатели
+
         :return: None
         """
         super().arm()
@@ -175,6 +177,7 @@ class Pion(DroneBase):
     def disarm(self) -> None:
         """
         Отключает двигатели
+
         :return: None
         """
         super().disarm()
@@ -186,6 +189,7 @@ class Pion(DroneBase):
     def takeoff(self) -> None:
         """
         Взлет дрона
+
         :return: None
         """
         super().takeoff()
@@ -196,6 +200,7 @@ class Pion(DroneBase):
     def land(self) -> None:
         """
         Посадка дрона
+        
         :return: None
         """
         super().land()
@@ -238,6 +243,7 @@ class Pion(DroneBase):
     def start_track_point(self) -> None:
         """
         Старт режима слежения за точкой дроном. Целевая точка меняется в поле self.target_point
+
         :return: None
         :rtype: None
         """
@@ -247,6 +253,7 @@ class Pion(DroneBase):
     def point_tracking(self) -> None:
         """
         Функция слежения за точкой. Целевая точка меняется в поле self.target_point.
+
         :return: None
         :rtype: None
         """
@@ -276,6 +283,7 @@ class Pion(DroneBase):
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed
+        
         :param x: координата по x
         :type x: float
         :param y: координата по y
@@ -319,6 +327,7 @@ class Pion(DroneBase):
         Функция берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed
+
         :param yaw:  координата по yaw (радианы)
         :type yaw: float
         :param accuracy: Погрешность целевой точки
@@ -352,6 +361,7 @@ class Pion(DroneBase):
                    yaw_rate: float) -> None:
         """
         Функция задает вектор скорости дрону. Отсылать необходимо в цикле.
+
         :param vx: скорость по оси x (м/с)
         :type vx: float
         :param vy: скорость по оси y (м/с)
@@ -425,6 +435,7 @@ class Pion(DroneBase):
         Параметры включают систему координат, маску для указания активных полей,
         координаты (x, y, z), скорости (vx, vy, vz), ускорения и скорость поворота
         по оси yaw
+
         :param coordinate_system: Система координат (например, NED).
         :type coordinate_system: int
 
@@ -556,6 +567,7 @@ class Pion(DroneBase):
     def _send_heartbeat(self) -> None:
         """
         Отправляет сообщение HEARTBEAT для поддержания активного соединения с дроном
+
         :return: None
         """
         self.mavlink_socket.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
@@ -569,6 +581,7 @@ class Pion(DroneBase):
                          combine_system: int = 0) -> None:
         """   
         Обрабатывает сообщения от дрона и отправляет heartbeat, обновляя координаты дрона
+
         :param combine_system: Определяет, с каких источников будут считываться данные:
                                 0 — только локус, 1 — локус и оптика, 2 — только оптика.
         :type combine_system: int
@@ -605,6 +618,7 @@ class Pion(DroneBase):
                          src_component: Optional[int] = None) -> None:
         """
         Обрабатывает одно сообщение и обновляет данные (позиция, ориентация, батарея)
+
         :param msg: Сообщение MAVLink
         :param src_component: Источник данных, по которому фильтруется сообщение.
         :return: None
@@ -628,6 +642,7 @@ class Pion(DroneBase):
     def rc_while(self) -> None:
         """
         Функция задает цикл while на отправку управляющих сигналов rc каналов с периодом period_send_rc
+
         :return: None
         """
         self.set_rc_check_flag = True
@@ -639,6 +654,7 @@ class Pion(DroneBase):
     def set_rc(self) -> None:
         """
         Создает поток, который вызывает функцию rc_while() для параллельной отправки управляющего сигнала rc channels
+
         :return:
         """
         if not self.set_rc_check_flag and not self.set_v_check_flag:
@@ -649,6 +665,7 @@ class Pion(DroneBase):
     def v_while(self) -> None:
         """
         Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
+
         :return: None
         """
         self.set_v_check_flag = True
@@ -662,6 +679,7 @@ class Pion(DroneBase):
     def set_v(self) -> None:
         """
         Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
+
         :return: None
         """
         if not self.set_v_check_flag:
@@ -672,6 +690,7 @@ class Pion(DroneBase):
     def reboot_board(self) -> None:
         """
         Функция для перезагрузки дрона
+
         :return: None
         """
         self._send_command_long(command_name='REBOOT_BOARD',
@@ -683,6 +702,7 @@ class Pion(DroneBase):
     def stop(self) -> None:
         """
         Останавливает все потоки внутри приложения
+
         :return: None
         """
         self.speed_flag = False
