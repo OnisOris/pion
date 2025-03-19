@@ -144,6 +144,7 @@ class Spion(Simulator, DroneBase):
     def position(self, position: Union[Array6, Array4]) -> None:
         """
         Сеттер для _position
+
         :return: None
         """
         self.simulation_objects[0].position = position[0:self.dimension]
@@ -153,6 +154,7 @@ class Spion(Simulator, DroneBase):
     def speed(self) -> Union[Array2, Array3]:
         """
         Функция вернет скорость [vx, vy, vz]
+
         :return: Скорость [vx, vy, vz]
         :rtype: Union[Array2, Array3]
         """
@@ -161,6 +163,7 @@ class Spion(Simulator, DroneBase):
     def takeoff(self) -> None:
         """
         Функция взлета дрона
+
         :return: None
         :rtype: None
         """
@@ -247,6 +250,7 @@ class Spion(Simulator, DroneBase):
         """
         Функция высчитывает необходимую силу для внутренней модели self.simulation_objects для
         достижения таргетной скорости из t_speed
+
         :return: None
         :rtype: None
         """
