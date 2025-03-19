@@ -165,8 +165,6 @@ save/
 pion_venv/
 git_ssh.sh
 src/pion/__pycache__/
-index.rst
-conf.py
 data.npy
 file.csv
 plot.py

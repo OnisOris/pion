@@ -218,10 +218,11 @@ class Pion(DroneBase):
         :param z: Координата по оси Z (высота) в ENU (East-North-Up) системе координат.
         :type z: float | int
         :param yaw: Угол курса, на который должен повернуться дрон. По умолчанию 0.
-        :type yaw: float | int, optional
+        :type yaw: float | int, Optional
         :return: None
+
         :note: Координаты задаются в ENU (East-North-Up) системе координат, но будут автоматически преобразованы 
-        в NED (North-East-Down).
+            в NED (North-East-Down).
         """
         self.tracking = False
         mask = 0b0000_10_0_111_111_000
@@ -698,7 +699,7 @@ class Pion(DroneBase):
         Управление светодиодами на дроне
 
         :param led_id: Идентификатор светодиода, который нужно управлять. Допустимые значения: 0, 1, 2, 3, 255.
-        255 — для управления всеми светодиодами одновременно.
+            255 — для управления всеми светодиодами одновременно.
         :type led_id: int
         :param r: Значение интенсивности красного канала (от 0 до 255).
         :type r: int
