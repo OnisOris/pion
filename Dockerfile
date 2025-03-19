@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     git
 
 # Копируем файл setup_all.py в контейнер
-COPY setup_all.py /opt/setup_all.py
+COPY ./scripts/setup_all.py /opt/setup_all.py
 
 # Устанавливаем рабочую директорию
 WORKDIR /opt
