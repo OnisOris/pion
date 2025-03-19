@@ -136,6 +136,7 @@ class Spion(Simulator, DroneBase):
     def position(self) -> Union[Array6, Array4]:
         """
         Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
+
         :return: np.ndarray
         """
         return np.hstack([self.simulation_objects[0].position, self.simulation_objects[0].speed])
@@ -144,6 +145,7 @@ class Spion(Simulator, DroneBase):
     def position(self, position: Union[Array6, Array4]) -> None:
         """
         Сеттер для _position
+
         :return: None
         """
         self.simulation_objects[0].position = position[0:self.dimension]
@@ -153,6 +155,7 @@ class Spion(Simulator, DroneBase):
     def speed(self) -> Union[Array2, Array3]:
         """
         Функция вернет скорость [vx, vy, vz]
+
         :return: Скорость [vx, vy, vz]
         :rtype: Union[Array2, Array3]
         """
@@ -161,6 +164,7 @@ class Spion(Simulator, DroneBase):
     def takeoff(self) -> None:
         """
         Функция взлета дрона
+
         :return: None
         :rtype: None
         """
@@ -171,6 +175,7 @@ class Spion(Simulator, DroneBase):
     def land(self) -> None:
         """
         Функция посадки дрона
+
         :return: None
         :rtype: None
         """
@@ -181,6 +186,7 @@ class Spion(Simulator, DroneBase):
     def start_message_handler(self) -> None:
         """
         Запуск потока _message_handler
+
         :return: None
         :rtype: None
         """
@@ -194,6 +200,7 @@ class Spion(Simulator, DroneBase):
     def stop_message_handler(self) -> None:
         """
         Остановка потока _message_handler
+
         :return: None
         :rtype: None
         """
@@ -208,6 +215,7 @@ class Spion(Simulator, DroneBase):
     def _step_messege_handler(self) -> None:
         """
         Функция одного шага симуляции дрона
+
         :return: None
         :rtype: None
         """
@@ -222,6 +230,7 @@ class Spion(Simulator, DroneBase):
     def _message_handler(self, *args) -> None:
         """
         Основной цикл обработки сообщений
+
         :return: None
         :rtype: None
         """
@@ -247,6 +256,7 @@ class Spion(Simulator, DroneBase):
         """
         Функция высчитывает необходимую силу для внутренней модели self.simulation_objects для
         достижения таргетной скорости из t_speed
+
         :return: None
         :rtype: None
         """
@@ -260,6 +270,7 @@ class Spion(Simulator, DroneBase):
                             position_xyz: Array3) -> None:
         """
         Функция высчитывает необходимую скорость для достижения таргетной позицыы position_xyz
+
         :param position_xyz: Таргетная позиция дрона
         :type position_xyz: Array3
         :return: None
@@ -284,16 +295,13 @@ class Spion(Simulator, DroneBase):
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в
         управление t_speed.
         Максимальная скорость обрезается np.clip по полю self.max_speed
+
         :param x: координата по x
-        :type x: float
         :param y: координата по y
-        :type: float
         :param z:  координата по z (не используется, если self.dimension = 2)
-        :type: float
         :param yaw:  координата по yaw
-        :type: float
         :param accuracy: Погрешность целевой точки 
-        :type: float
+
         :return: None
         """
         if self.dimension == 2:
@@ -339,16 +347,13 @@ class Spion(Simulator, DroneBase):
                           accuracy: float = 5e-2) -> None:
         """
         Функция симулятор оригинальной функции в Pion, полностью повторяет функционал goto в данном классе
+
         :param x: координата по x
-        :type x: float
         :param y: координата по y
-        :type: float
         :param z:  координата по z
-        :type: float
         :param yaw:  координата по yaw
-        :type: float
         :param accuracy: Погрешность целевой точки
-        :type: float
+
         :return: None
         """
         self.goto(x, y, z, yaw, accuracy)
@@ -356,6 +361,7 @@ class Spion(Simulator, DroneBase):
     def stop(self) -> None:
         """
         Останавливает все потоки, завершает симуляцию
+
         :return: None
         :rtype: None
         """
@@ -367,6 +373,7 @@ class Spion(Simulator, DroneBase):
     def borders(self) -> None:
         """
         Функция накладывает границы симуляции для дрона
+
         :return: None
         :rtype: None
         """

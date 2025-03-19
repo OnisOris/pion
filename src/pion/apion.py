@@ -77,8 +77,8 @@ class Apion(Pion):
                       ampl: Union[float, int]) -> None:
         """
         Асинхронная функция, которая отправляет вектор скорости в цикле.
+        
         :param ampl: множитель вектора скорости
-        :type: Union[float, int]
         """
         while self.speed_flag:
             # Увеличиваем вектор скорости на амплитуду
@@ -93,6 +93,7 @@ class Apion(Pion):
     async def main(self) -> None:
         """
         Главная асинхронная функция для запуска обработки сообщений и отправки скоростей.
+
         :return: None
         """
         # Запуск обработчика сообщений
@@ -108,6 +109,7 @@ class Apion(Pion):
     def stop(self) -> None:
         """
         Останавливает все асинхронные задачи внутри приложения.
+
         :return: None
         """
         self.speed_flag = False
@@ -118,8 +120,8 @@ class Apion(Pion):
                           ampl: Union[float, int] = 1) -> None:
         """
         Асинхронно запускает цикл, который вызывает функцию v_while() для параллельной отправки вектора скорости.
+
         :param ampl: Амплитуда усиления вектора скорости.
-        :type: Union[float, int]
         """
         self.speed_flag = True
         await self.v_while(ampl)
@@ -132,16 +134,13 @@ class Apion(Pion):
                                 accuracy: Union[float, int] = 8e-2) -> None:
         """
         Асинхронная функция для перемещения дрона к указанной точке с учетом управления yaw.
+
         :param x: координата по x
-        :type x: Union[float, int]
         :param y: координата по y
-        :type: Union[float, int]
         :param z:  координата по z
-        :type: Union[float, int]
         :param yaw: координата по yaw
-        :type: Union[float, int]
         :param accuracy: Погрешность целевой точки 
-        :type: Union[float, int]
+
         :return: None
         """
         await self.goto_yaw(yaw)
@@ -170,10 +169,9 @@ class Apion(Pion):
                        accuracy: Union[float, int] = 0.087) -> None:
         """
         Асинхронная функция для поворота дрона на указанный угол yaw.
+
         :param yaw:  координата по yaw (радианы)
-        :type: Union[float, int]
         :param accuracy: Погрешность целевой точки
-        :type: Union[float, int] 
         :return: None
         """
         pid_controller = PIDController(1, 0, 1)

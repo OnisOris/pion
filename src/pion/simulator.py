@@ -21,7 +21,7 @@ class Point:
         :param position: начальная позиция объекта в пространстве [x, y, z]
         :type position: Union[Array2, Array3]
         :param speed: начальная скорость объекта [vx, vy, vz]
-        type speed: Union[Array2, Array3]
+        :type speed: Union[Array2, Array3]
         :param trajectory_write: записывать ли траекторию
         :type trajectory_write: bool
         :param drag_coefficient: коэффициент сопротивления воздуха
@@ -75,6 +75,7 @@ class Point:
              dt: float) -> None:
         """
         Шаг симуляции. Вычисляются следующие значения координат и скорости в зависимости от дискретного шага dt
+
         :param: force: сила воздействия на точку
         :type force: Union[Array2, Array3]
         :param dt: дискретный шаг времени
@@ -100,6 +101,7 @@ class Point:
     def get_trajectory(self) -> NDArray[np.float64]:
         """
         Функция возвращает траекторию точки
+
         :return: траектория точки
         :rtype: NDArray[np.float64]
         """
@@ -129,6 +131,7 @@ class Simulator:
     def start_simulation_while(self) -> None:
         """
         Функция запускает последовательную симуляцию всех симулируемых объектов
+
         :return: None
         :rtype: None
         """
@@ -193,6 +196,7 @@ class Simulator:
                      steps: int = 100) -> None:
         """
         Фукнция запускает симуляцию объекта.
+
         :param type_of_cycle: тип симуляции - while или for, если for, то нужно указать steps
         :type type_of_cycle: str
         :param steps: количество шагов симуляции для цикла for
@@ -221,6 +225,7 @@ class Simulator_th(Simulator):
         """
         Функция запускает симуляцию всех объектов в self.simulation_object в отдельных потоках
         через цикл while с полем-флагом выключения self.simulation_turn_on
+
         :return: None
         :rtype: None
         """
@@ -260,6 +265,7 @@ class Simulator_realtime(Simulator):
         """
         Фукнция запускает симуляцию объектов в отдельных потоках, но с
         синхронизацией с реальным временем.
+
         :param type_of_cycle: тип симуляции - while или for, если for, то нужно указать steps
         :type type_of_cycle: str
         :param steps: количество шагов симуляции для цикла for
@@ -301,6 +307,7 @@ class Trajectory_writer:
         """
         Специальный класс для записи и хранения траектории размером
         nx[len(list_of_names_columns)], n - количество точек.
+
         :param list_of_names_columns: названия колонн
         :type list_of_names_columns: Union[list[str], NDArray[Any]]
         """
@@ -312,6 +319,7 @@ class Trajectory_writer:
                vstack_array: NDArray[np.float64]) -> None:
         """
         Функция объединяет входящие вектора с матрицей trajectory
+
         :param vstack_array: массив размерности len(list_of_names_columns)
         :type vstack_array: NDArray[np.float64]
         :return: None
@@ -329,6 +337,7 @@ class Trajectory_writer:
     def get_trajectory(self) -> NDArray[np.float64]:
         """
         Функция возвращает записанную траекторию
+
         :return: NDArray[np.float64]
         :rtype: None
         """

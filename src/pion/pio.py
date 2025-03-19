@@ -43,6 +43,7 @@ class Pio(ABC):
     def _send_heartbeat(self):
         """
         Отправляет сообщение HEARTBEAT для поддержания активного соединения с дроном.
+
         :return: None
         """
         pass
@@ -167,6 +168,7 @@ class DroneBase(Pio, ABC):
     def position(self) -> Union[Array6, Array4]:
         """
         Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
+
         :return: np.ndarray
         """
         return self._position
@@ -175,6 +177,7 @@ class DroneBase(Pio, ABC):
     def position(self, position: Union[Array6, Array4]) -> None:
         """
         Сеттер для _position
+
         :return: None
         """
         self._position = position
@@ -182,6 +185,7 @@ class DroneBase(Pio, ABC):
     def xyz(self) -> Union[Array3, Array2]:
         """
         Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
+
         :return: np.ndarray
         """
         return self.position[0:self.dimension]
@@ -190,6 +194,7 @@ class DroneBase(Pio, ABC):
     def xyz(self, position: Union[Array3, Array2]) -> None:
         """
         Сеттер для _position
+
         :return: None
         """
         self.position[0:self.dimension] = position
@@ -197,6 +202,7 @@ class DroneBase(Pio, ABC):
     def yaw(self) -> float:
         """
         Геттер вернет yaw
+
         :return: np.ndarray
         """
         return self.attitude[2]
@@ -205,6 +211,7 @@ class DroneBase(Pio, ABC):
     def attitude(self) -> Union[Array6, Array4]:
         """
         Функция вернет ndarray (6,) с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
+
         :return: np.ndarray
         """
         return self._attitude
@@ -213,6 +220,7 @@ class DroneBase(Pio, ABC):
     def attitude(self, attitude: Union[Array6, Array4]) -> None:
         """
         Сеттер для _attitude
+
         :return: None
         """
         self._attitude = attitude
@@ -220,6 +228,7 @@ class DroneBase(Pio, ABC):
     def arm(self) -> None:
         """
         Включает двигатели
+
         :return: None
         """
         if self.logger:
@@ -228,6 +237,7 @@ class DroneBase(Pio, ABC):
     def disarm(self) -> None:
         """
         Отключает двигатели
+
         :return: None
         """
         if self.logger:
@@ -236,6 +246,7 @@ class DroneBase(Pio, ABC):
     def takeoff(self) -> None:
         """
         Взлет дрона
+
         :return: None
         """
         if self.logger:
@@ -244,6 +255,7 @@ class DroneBase(Pio, ABC):
     def land(self) -> None:
         """
         Посадка дрона
+
         :return: None
         """
         if self.logger:
@@ -254,6 +266,7 @@ class DroneBase(Pio, ABC):
     def heartbeat(self) -> None:
         """
         Функция проверки heartbeat дрона
+
         :return: None
         """
         if time.time() - self._heartbeat_send_time >= self._heartbeat_timeout:
@@ -262,6 +275,7 @@ class DroneBase(Pio, ABC):
     def _send_heartbeat(self) -> None:
         """
         Отправляет сообщение HEARTBEAT для поддержания активного соединения с дроном.
+
         :return: None
         """
         pass
@@ -273,10 +287,10 @@ class DroneBase(Pio, ABC):
         Берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
         Для использования необходимо включить цикл v_while для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed.
+
         :param yaw:  координата по yaw (радианы)
-        :type: Union[float, int]
         :param accuracy: Погрешность целевой точки
-        :type: Union[float, int]
+
         :return: None
         """
         return None
@@ -309,10 +323,9 @@ class DroneBase(Pio, ABC):
         """
         Функция для сохранения траектории в файл
         columns=['x', 'y', 'z', 'vx', 'vy', 'yaw', 'pitch', 'roll','Vyaw', 'Vpitch', 'Vroll', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
+
         :param file_name: название файла
-        :type: str
         :param path: путь сохранения
-        :type: str
         :return: None
         """
         self.stop()
@@ -321,6 +334,7 @@ class DroneBase(Pio, ABC):
     def check_battery(self) -> None:
         """
         Проверяет статус батареи
+
         :return: None
         """
         voltage = self.battery_voltage
@@ -335,6 +349,7 @@ class DroneBase(Pio, ABC):
     def reboot_board(self) -> None:
         """
         Функция для перезагрузки дрона
+
         :return: None
         """
         pass
@@ -342,6 +357,7 @@ class DroneBase(Pio, ABC):
     def attitude_write(self) -> None:
         """
         Функция для записи траектории в numpy массив. Записывается только уникальная координата
+
         :return:
         """
         t = time.time() - self.t0
@@ -352,6 +368,7 @@ class DroneBase(Pio, ABC):
     def set_v(self) -> None:
         """
         Создает поток, который вызывает функцию v_while() для параллельной отправки вектора скорости
+
         :return: None
         """
         pass
@@ -361,6 +378,7 @@ class DroneBase(Pio, ABC):
                             dt: float) -> None:
         """
         Фнкция формирования управляющего сигнала в сторону position_xyz
+
         :param position_xyz: Целевая координата
         :type position_xyz: Union[Array3, Array2]
 
@@ -382,6 +400,7 @@ class DroneBase(Pio, ABC):
     def print_information(self) -> None:
         """
         Функция обновляет словарь с логами self.logs
+
         :return: None
         """
         self.logs.update({"xyz":  f"{np.round(self.position[0:self.dimension], 3)} \n",
@@ -397,6 +416,7 @@ class DroneBase(Pio, ABC):
                           name: str = "Название") -> None:
         """
         Функция обновляет результаты в таблице логов
+
         :param log_dict: Словарь с логами заполнения таблицы
         :type log_dict: dict
 
