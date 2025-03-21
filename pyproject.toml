@@ -51,3 +51,16 @@ dev = [
 
 [tool.uv.workspace]
 members = ["numbers"]
+
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+extend-select = [
+  "D205",   # pydocstyle
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
