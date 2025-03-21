@@ -3,7 +3,7 @@ from .datagram import DDatagram
 import platform
 if platform.system() == "Windows":
     try:
-        import pyreadline as readline
+        import pyreadline3 as readline
     except ImportError:
         raise ImportError(
             "pyreadline is required on Windows. Please install it via 'pip install pyreadline'."
