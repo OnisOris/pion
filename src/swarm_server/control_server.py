@@ -1,6 +1,15 @@
 import socket
 from .datagram import DDatagram
-import readline
+import platform
+if platform.system() == "Windows":
+    try:
+        import pyreadline as readline
+    except ImportError:
+        raise ImportError(
+            "pyreadline is required on Windows. Please install it via 'pip install pyreadline'."
+        )
+else:
+    import readline
 import atexit
 import os
 from .server import UDPBroadcastClient

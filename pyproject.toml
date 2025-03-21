@@ -20,6 +20,7 @@ dependencies = [
     "pymavlink>=2.4.42",
     "pyserial>=3.5",
     "rich>=13.9.4",
+    "pyreadline; sys_platform == 'win32'",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
