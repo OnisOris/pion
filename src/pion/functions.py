@@ -6,9 +6,40 @@ import socket
 from pion.annotation import Array6
 import threading
 
+def get_unique_instance_id(ip: str, instance_number=None) -> int:
+    """
+    Формирование id из номера устройства ip, либо из его hash, если
+    точек не 3
+    """
+    octet = ip.split('.')[-1] if ip.count('.') == 3 else str(hash(ip) % 1000)
+    return int(f"{octet}{instance_number}") if instance_number else int(octet)
+
+def get_numeric_id(unique_id: int) -> int:
+    """
+    Функция для сокращения максимальной длинны id
+    """
+    return abs(unique_id) % (10**12)
+
+def extract_ip_id(ip: str) -> int:
+    """
+    Возвращает последний октет IP как строку.
+    Если не получается, возвращает хэш в диапазоне [0, 1000).
+
+    """
+    parts = ip.split('.')
+    if len(parts) == 4:
+        try:
+            return int(parts[-1])
+        except ValueError:
+            pass
+    print(f"Ip = {ip}, \n Extract ip td = {str(abs(hash(ip)) % 1000)}")
+    return abs(hash(ip)) % 1000
+
+
 def start_threading(function: Callable, *args) -> threading.Thread:
     """
     Функция принимает ссылку на функцию и запускает поток
+    
     :param function: Ссылка на функцию
     :type function: Callable
     :return: Запущенный поток
