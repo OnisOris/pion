@@ -169,9 +169,10 @@ drone = Pion(ip=ip, mavlink_port=port)
 
 
 
-
 Дополнительные примеры с инструкцией можно найти по ссылкам:
+
 https://github.com/OnisOris/pion_examples
+
 https://github.com/OnisOris/Danalysis
 
 
