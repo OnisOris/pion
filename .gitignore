@@ -185,6 +185,7 @@ src/pion/html/
 src/pion/latex/
 src/pion/rtf/
 test2.py
+testscripts/
 *.gv
 
 .python-version
