@@ -5,7 +5,7 @@ import atexit
 import os
 from .server import UDPBroadcastClient
 from queue import Queue
-from .commands import *
+from .commands import CMD
                 
 history_file = os.path.join(os.path.expanduser("~"), ".my_console_history")
 
@@ -48,7 +48,7 @@ class ControlServer:
     Команды: set_speed, goto, takeoff, land, arm, disarm, smart_goto, led
     """
     def __init__(self, broadcast_port: int = 37020):
-        self.client = UDPBroadcastClient(port=broadcast_port, unique_id="control_server") 
+        self.client = UDPBroadcastClient(port=broadcast_port, unique_id=666) 
         self.broadcast_port = broadcast_port
         # Здесь network_prefix больше не используется, поскольку target задается как уникальный id
         self.receive_queue = Queue()
@@ -56,9 +56,9 @@ class ControlServer:
         print("Управляющая консоль запущена. Используйте 'all' или уникальный id (например, 105 или 105-2) в качестве target.")
 
 
-    def send_command(self, command: int, data: list, target: str = "<broadcast>") -> None:
+    def send_command(self, command: CMD, data: list, target: str = "<broadcast>") -> None:
         dt = DDatagram()
-        dt.command = command
+        dt.command = command.value
         dt.data = data
         if target != "<broadcast>":
             # Передаём target_id, чтобы команда адресовалась конкретному экземпляру
@@ -99,7 +99,7 @@ class ControlServer:
                     continue
                 try:
                     vx, vy, vz, yaw_rate = map(float, parts[2:6])
-                    self.send_command(CMD_SET_SPEED, [vx, vy, vz, yaw_rate], target)
+                    self.send_command(CMD.SET_SPEED, [vx, vy, vz, yaw_rate], target)
                 except ValueError:
                     print("Неверные параметры для set_speed")
             elif cmd == "goto":
@@ -108,30 +108,30 @@ class ControlServer:
                     continue
                 try:
                     x, y, z, yaw = map(float, parts[2:6])
-                    self.send_command(CMD_GOTO, [x, y, z, yaw], target)
+                    self.send_command(CMD.GOTO, [x, y, z, yaw], target)
                 except ValueError:
                     print("Неверные параметры для goto")
             elif cmd == "takeoff":
-                self.send_command(CMD_TAKEOFF, [], target)
+                self.send_command(CMD.TAKEOFF, [], target)
             elif cmd == "land":
-                self.send_command(CMD_LAND, [], target)
+                self.send_command(CMD.LAND, [], target)
             elif cmd == "arm":
-                self.send_command(CMD_ARM, [], target)
+                self.send_command(CMD.ARM, [], target)
             elif cmd == "trp":
-                self.send_command(CMD_SWARM_ON, [], target)
+                self.send_command(CMD.SWARM_ON, [], target)
             elif cmd == "stop":
-                self.send_command(CMD_STOP, [], target)
+                self.send_command(CMD.STOP, [], target)
             elif cmd == "save":
-                self.send_command(CMD_SAVE, [], target)
+                self.send_command(CMD.SAVE, [], target)
             elif cmd == "disarm":
-                self.send_command(CMD_DISARM, [], target)
+                self.send_command(CMD.DISARM, [], target)
             elif cmd == "smart_goto":
                 if len(parts) != 6:
                     print("Использование: [target] smart_goto x y z yaw")
                     continue
                 try:
                     x, y, z, yaw = map(float, parts[2:6])
-                    self.send_command(CMD_SMART_GOTO, [x, y, z, yaw], target)
+                    self.send_command(CMD.SMART_GOTO, [x, y, z, yaw], target)
                 except ValueError:
                     print("Неверные параметры для smart_goto")
             elif cmd == "led":
@@ -141,7 +141,7 @@ class ControlServer:
                 try:
                     led_id = int(parts[2])
                     r, g, b = map(int, parts[3:6])
-                    self.send_command(CMD_LED, [led_id, r, g, b], target)
+                    self.send_command(CMD.LED, [led_id, r, g, b], target)
                     print(f"Команда LED отправлена: led_id={led_id}, r={r}, g={g}, b={b}")
                 except ValueError:
                     print("Неверные параметры для led")

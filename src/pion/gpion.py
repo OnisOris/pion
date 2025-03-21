@@ -3,15 +3,10 @@ import time
 import paramiko 
 from swarm_server.datagram import DDatagram
 from .pio import DroneBase
-
+from .functions import extract_ip_id
+from swarm_server.commands import CMD
+from typing import Optional
 # Определяем UDP-порт и коды команд
-UDP_PORT = 37020
-CMD_SET_SPEED = 1
-CMD_GOTO      = 2
-CMD_TAKEOFF   = 3
-CMD_LAND      = 4
-CMD_ARM       = 5
-CMD_DISARM    = 6
 
 class Gpion(DroneBase):
     """
@@ -34,7 +29,8 @@ class Gpion(DroneBase):
                            dt=dt,
                            max_speed=2.)
         # Настраиваем UDP-сокет для отправки команд
-        self.udp_port = UDP_PORT
+        self.udp_port = CMD.UDP_PORT
+        self.target_id: int = extract_ip_id(self.ip)
         if start_from_init:
             self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
             # Опция BROADCAST для универсальности
@@ -42,45 +38,68 @@ class Gpion(DroneBase):
             print(f"Gpion создан для {name} с IP {ip}")
 
     # Реализация методов управления, переопределенных для отправки UDP-команд через protobuf
-    def send_speed(self, vx: float, vy: float, vz: float, yaw_rate: float) -> None:
+    def send_speed(self,
+                   vx: float,
+                   vy: float,
+                   vz: float,
+                   yaw_rate: float) -> None:
+        """
+        Реализация метода Pion.send_speed: отправка вектора скорости на дрон по broadcast
+
+        :param vx: скорость по оси x (м/с)
+        :type vx: float
+        :param vy: скорость по оси y (м/с)
+        :type vy: float
+        :param vz:  скорость по оси z (м/с)
+        :type vz: float
+        :param yaw_rate:  скорость поворота по оси z (рад/с)
+        :type yaw_rate: float
+        :return: None
+        """
         dtg = DDatagram()
-        dtg.command = CMD_SET_SPEED
+        dtg.command = CMD.SET_SPEED
         dtg.data = [vx, vy, vz, yaw_rate]
-        dtg.target_ip = self.ip
+        dtg.target_id = self.target_id
         serialized = dtg.export_serialized()
         self.udp_socket.sendto(serialized, (self.ip, self.udp_port))
         print(f"UDP команда set_speed отправлена на {self.ip}: {vx}, {vy}, {vz}, {yaw_rate}")
 
-    def goto(self, x: float, y: float, z: float, yaw: float) -> None:
+    def send_package(self, 
+                     command: CMD,
+                     data: Optional[list] = None):
         dtg = DDatagram()
-        dtg.command = CMD_GOTO
-        dtg.data = [x, y, z, yaw]
-        dtg.target_ip = self.ip
+        dtg.command = command.value
+        dtg.data = data or []
+        dtg.target_id = self.target_id
         serialized = dtg.export_serialized()
         self.udp_socket.sendto(serialized, (self.ip, self.udp_port))
-        print(f"UDP команда goto отправлена на {self.ip}: {x}, {y}, {z}, {yaw}")
+        print(f"UDP команда {CMD.name} отправлена на {self.ip}")
+
+    def goto(self,
+             x: float,
+             y: float,
+             z: float,
+             yaw: float) -> None:
+        point =  [x, y, z, yaw]
+        self.send_package(CMD.GOTO, point)
+        print(f"Точка {x}, {y}, {z}, {yaw}")
 
     def takeoff(self) -> None:
-        dtg = DDatagram()
-        dtg.command = CMD_TAKEOFF
-        dtg.data = []
-        dtg.target_ip = self.ip
-        serialized = dtg.export_serialized()
-        self.udp_socket.sendto(serialized, (self.ip, self.udp_port))
+        self.send_package(CMD.TAKEOFF, [])
         print(f"UDP команда takeoff отправлена на {self.ip}")
 
     def land(self) -> None:
         dtg = DDatagram()
-        dtg.command = CMD_LAND
+        dtg.command = CMD.LAND
         dtg.data = []
-        dtg.target_ip = self.ip
+        dtg.target_id = self.target_id
         serialized = dtg.export_serialized()
         self.udp_socket.sendto(serialized, (self.ip, self.udp_port))
         print(f"UDP команда land отправлена на {self.ip}")
 
     def arm(self) -> None:
         dtg = DDatagram()
-        dtg.command = CMD_ARM
+        dtg.command = CMD.ARM
         dtg.data = []
         dtg.target_ip = self.ip
         serialized = dtg.export_serialized()
@@ -89,7 +108,7 @@ class Gpion(DroneBase):
 
     def disarm(self) -> None:
         dtg = DDatagram()
-        dtg.command = CMD_DISARM
+        dtg.command = CMD.DISARM
         dtg.data = []
         dtg.target_ip = self.ip
         serialized = dtg.export_serialized()

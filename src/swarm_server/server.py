@@ -6,17 +6,10 @@ import random
 import numpy as np
 from typing import Any, Dict, Tuple, Union, Optional
 from .datagram import DDatagram  
-from pion.functions import vector_reached, compute_swarm_velocity, start_threading
+from pion.functions import vector_reached, compute_swarm_velocity, start_threading, get_unique_instance_id, get_numeric_id
 from .commands import *
 import datetime
 import os
-
-def get_unique_instance_id(ip: str, instance_number=None) -> str:
-    octet = ip.split('.')[-1] if ip.count('.') == 3 else str(hash(ip) % 1000)
-    return f"{octet}{instance_number}" if instance_number else octet
-
-def get_numeric_id(unique_id: str) -> int:
-    return abs(hash(unique_id)) % (10**12)
 
 #####################################
 # UDP Broadcast Client & Server
@@ -26,9 +19,10 @@ class UDPBroadcastClient:
     """
     Клиент для отправки UDP широковещательных сообщений.
     """
-    def __init__(self, port: int = 37020, unique_id: int = 0) -> None:
-        # Если unique_id задан, преобразуем его в число для конструктора DDatagram
-        numeric_id = get_numeric_id(str(unique_id)) if unique_id else random.randint(0, int(1e12))
+    def __init__(self,
+                 port: int = 37020,
+                 unique_id: int = 0) -> None:
+        numeric_id = get_numeric_id(unique_id) if unique_id else random.randint(0, int(1e12))
         self.encoder: DDatagram = DDatagram(id=numeric_id)
         self.port: int = port
         self.unique_id: int = unique_id
@@ -41,7 +35,8 @@ class UDPBroadcastClient:
         except Exception as error:
             print("Broadcast client initialization failure:", error)
 
-    def send(self, state: Dict[str, Any]) -> None:
+    def send(self,
+             state: Dict[str, Any]) -> None:
         """
         Сериализует и отправляет данные по широковещательной рассылке.
         Добавляем поле target_id, если команда адресована конкретному устройству.
@@ -73,7 +68,10 @@ class UDPBroadcastServer:
     """
     Сервер для приёма UDP широковещательных сообщений.
     """
-    def __init__(self, server_to_agent_queue: Queue[Any], port: int = 37020, unique_id: Optional[str] = None) -> None:
+    def __init__(self,
+                 server_to_agent_queue: Queue[Any],
+                 port: int = 37020,
+                 unique_id: Optional[int] = None) -> None:
         numeric_id = get_numeric_id(unique_id) if unique_id else random.randint(0, int(1e12))
         self.encoder: DDatagram = DDatagram(id=numeric_id)
         self.decoder: DDatagram = DDatagram(id=numeric_id)
@@ -151,7 +149,7 @@ class SwarmCommunicator:
         # Определяем IP для формирования уникального id
         local_ip = ip if ip is not None else self.control_object.ip
         # Генерируем уникальный id с использованием instance_number, если он передан
-        self.unique_id: str = get_unique_instance_id(local_ip, instance_number=instance_number)
+        self.unique_id: int = get_unique_instance_id(local_ip, instance_number=instance_number)
         print("Уникальный id для этого экземпляра:", self.unique_id)
         self.numeric_id = get_numeric_id(self.unique_id)
         self.broadcast_client = UDPBroadcastClient(port=self.broadcast_port, unique_id=self.unique_id)
@@ -234,14 +232,14 @@ class SwarmCommunicator:
             if state.target_id != self.unique_id:
                 return
         if hasattr(state, "command") and state.command != 0:
-            if state.command == CMD_SET_SPEED:
+            if state.command == CMD.SET_SPEED:
                 try:
                     vx, vy, vz, yaw_rate = state.data
                     self.control_object.send_speed(vx, vy, vz, yaw_rate)
                     print(f"Команда set_speed выполнена: {vx}, {vy}, {vz}, {yaw_rate}")
                 except Exception as e:
                     print("Ошибка при выполнении set_speed:", e)
-            elif state.command == CMD_GOTO:
+            elif state.command == CMD.GOTO:
                 try:
                     x, y, z, yaw = state.data
                     if self.control_object.tracking:
@@ -252,26 +250,26 @@ class SwarmCommunicator:
                         print(f"Команда goto выполнена: {x}, {y}, {z}, {yaw}")
                 except Exception as e:
                     print("Ошибка при выполнении goto:", e)
-            elif state.command == CMD_TAKEOFF:
+            elif state.command == CMD.TAKEOFF:
                 self.stop_trp()
                 self.control_object.takeoff()
                 print("Команда takeoff выполнена")
-            elif state.command == CMD_LAND:
+            elif state.command == CMD.LAND:
                 self.stop_trp()
                 self.control_object.land()
                 print("Команда land выполнена")
-            elif state.command == CMD_ARM:
+            elif state.command == CMD.ARM:
                 self.stop_trp()
                 self.control_object.arm()
                 print("Команда arm выполнена")
-            elif state.command == CMD_DISARM:
+            elif state.command == CMD.DISARM:
                 self.stop_trp()
                 self.control_object.disarm()
                 print("Команда disarm выполнена")
-            elif state.command == CMD_STOP:
+            elif state.command == CMD.STOP:
                 self.stop_trp() 
                 print("Команды на достижение позиций остановлены")
-            elif state.command == CMD_SWARM_ON:
+            elif state.command == CMD.SWARM_ON:
                 try:
                     if self.control_object.tracking:
                         print("Режим слежения за точкой уже включен")
@@ -281,21 +279,21 @@ class SwarmCommunicator:
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
 
-            elif state.command == CMD_SMART_GOTO:
+            elif state.command == CMD.SMART_GOTO:
                 try:
                     self.stop_trp()
                     x, y, z, yaw = state.data
                     start_threading(self.smart_goto, x, y, z, yaw)
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
-            elif state.command == CMD_LED:
+            elif state.command == CMD.LED:
                 try:
                     led_id, r, g, b = state.data
                     self.control_object.led_control(led_id, r, g, b)
                     print(f"LED control executed: led_id={led_id}, r={r}, g={g}, b={b}")
                 except Exception as e:
                     print("Ошибка при выполнении LED control:", e)
-            elif state.command == CMD_SAVE:
+            elif state.command == CMD.SAVE:
                 self.save_data()
             else:
                 print("Получена неизвестная команда:", state.command)
