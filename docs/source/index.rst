@@ -41,6 +41,7 @@ https://github.com/OnisOris/Danalysis
    :caption: Оглавление:
 
    Установка модуля Pion <user/install>
+   Описание работы скриптов <examples/index>
    pion
    spion
    apion

@@ -73,7 +73,7 @@ python по инструкции.
 
 После этого активируйте виртуальное окружение:
 
-.. code-block:: bash
+.. code-block:: powershell
 
    venv\Scripts\activate.bat
 
