@@ -1,28 +1,41 @@
-import socket
-import time
-from queue import Queue
-import threading
-import random
-import numpy as np
-from typing import Any, Dict, Tuple, Union, Optional
-from .datagram import DDatagram  
-from pion.functions import vector_reached, compute_swarm_velocity, start_threading, get_unique_instance_id, get_numeric_id
-from .commands import *
 import datetime
 import os
+import random
+import socket
+import threading
+import time
+from queue import Queue
+from typing import Any, Dict, Optional, Tuple, Union
+
+import numpy as np
+
+from pion.functions import (
+    compute_swarm_velocity,
+    get_numeric_id,
+    get_unique_instance_id,
+    start_threading,
+    vector_reached,
+)
+
+from .commands import CMD
+from .datagram import DDatagram
 
 #####################################
 # UDP Broadcast Client & Server
 #####################################
 
+
 class UDPBroadcastClient:
     """
     Клиент для отправки UDP широковещательных сообщений.
     """
-    def __init__(self,
-                 port: int = 37020,
-                 unique_id: int = 0) -> None:
-        numeric_id = get_numeric_id(unique_id) if unique_id else random.randint(0, int(1e12))
+
+    def __init__(self, port: int = 37020, unique_id: int = 0) -> None:
+        numeric_id = (
+            get_numeric_id(unique_id)
+            if unique_id
+            else random.randint(0, int(1e12))
+        )
         self.encoder: DDatagram = DDatagram(id=numeric_id)
         self.port: int = port
         self.unique_id: int = unique_id
@@ -35,10 +48,10 @@ class UDPBroadcastClient:
         except Exception as error:
             print("Broadcast client initialization failure:", error)
 
-    def send(self,
-             state: Dict[str, Any]) -> None:
+    def send(self, state: Dict[str, Any]) -> None:
         """
         Сериализует и отправляет данные по широковещательной рассылке.
+
         Добавляем поле target_id, если команда адресована конкретному устройству.
         """
         try:
@@ -46,12 +59,16 @@ class UDPBroadcastClient:
             numeric_id = get_numeric_id(state.get("id", "0"))
             self.encoder.token = state.get("token", -1)
             self.encoder.id = numeric_id
-            self.encoder.source = 0  
+            self.encoder.source = 0
             self.encoder.command = state.get("command", 0)
             if "target_id" in state:
-                self.encoder.target_id = state["target_id"]  # Используем строковый target_id
-  
-            pos = state.get("position", [0.0, 0.0, 0.0])  # Значения по умолчанию
+                self.encoder.target_id = state[
+                    "target_id"
+                ]  # Используем строковый target_id
+
+            pos = state.get(
+                "position", [0.0, 0.0, 0.0]
+            )  # Значения по умолчанию
             att = state.get("attitude", [0.0, 0.0, 0.0])
             t_speed = state.get("t_speed", [0.0, 0.0, 0.0, 0.0])
             try:
@@ -64,15 +81,23 @@ class UDPBroadcastClient:
         except Exception as error:
             print("Error sending broadcast message:", error)
 
+
 class UDPBroadcastServer:
     """
     Сервер для приёма UDP широковещательных сообщений.
     """
-    def __init__(self,
-                 server_to_agent_queue: Queue[Any],
-                 port: int = 37020,
-                 unique_id: Optional[int] = None) -> None:
-        numeric_id = get_numeric_id(unique_id) if unique_id else random.randint(0, int(1e12))
+
+    def __init__(
+        self,
+        server_to_agent_queue: Queue[Any],
+        port: int = 37020,
+        unique_id: Optional[int] = None,
+    ) -> None:
+        numeric_id = (
+            get_numeric_id(unique_id)
+            if unique_id
+            else random.randint(0, int(1e12))
+        )
         self.encoder: DDatagram = DDatagram(id=numeric_id)
         self.decoder: DDatagram = DDatagram(id=numeric_id)
         self.server_to_agent_queue: Queue[Any] = server_to_agent_queue
@@ -107,6 +132,7 @@ class UDPBroadcastServer:
                 print("Datagram reception error:", error)
                 time.sleep(0.1)
 
+
 #####################################
 # SwarmCommunicator
 #####################################
@@ -115,19 +141,23 @@ class UDPBroadcastServer:
 class SwarmCommunicator:
     """
     Компонент для обмена данными в роевой архитектуре.
+
     Каждый экземпляр получает уникальный идентификатор на основе IP и порядкового номера.
     """
-    def __init__(self,
-                 control_object: Any,
-                 broadcast_port: int = 37020, 
-                 broadcast_interval: float = 0.5,
-                 recive_interval: float = 0.05,
-                 safety_radius: float = 1.,
-                 max_speed: float = 1.,
-                 ip = None,
-                 instance_number = None,
-                 time_sleep_update_velocity: float = 0.1,
-                 params: Optional[dict] = None) -> None:
+
+    def __init__(
+        self,
+        control_object: Any,
+        broadcast_port: int = 37020,
+        broadcast_interval: float = 0.5,
+        recive_interval: float = 0.05,
+        safety_radius: float = 1.0,
+        max_speed: float = 1.0,
+        ip=None,
+        instance_number=None,
+        time_sleep_update_velocity: float = 0.1,
+        params: Optional[dict] = None,
+    ) -> None:
         if params is None:
             self.params = {
                 "attraction_weight": 1.0,
@@ -149,11 +179,19 @@ class SwarmCommunicator:
         # Определяем IP для формирования уникального id
         local_ip = ip if ip is not None else self.control_object.ip
         # Генерируем уникальный id с использованием instance_number, если он передан
-        self.unique_id: int = get_unique_instance_id(local_ip, instance_number=instance_number)
+        self.unique_id: int = get_unique_instance_id(
+            local_ip, instance_number=instance_number
+        )
         print("Уникальный id для этого экземпляра:", self.unique_id)
         self.numeric_id = get_numeric_id(self.unique_id)
-        self.broadcast_client = UDPBroadcastClient(port=self.broadcast_port, unique_id=self.unique_id)
-        self.broadcast_server = UDPBroadcastServer(server_to_agent_queue=self.receive_queue, port=self.broadcast_port, unique_id=self.unique_id)
+        self.broadcast_client = UDPBroadcastClient(
+            port=self.broadcast_port, unique_id=self.unique_id
+        )
+        self.broadcast_server = UDPBroadcastServer(
+            server_to_agent_queue=self.receive_queue,
+            port=self.broadcast_port,
+            unique_id=self.unique_id,
+        )
         self.running: bool = True
         self.env = {}
         self.safety_radius = safety_radius
@@ -164,10 +202,15 @@ class SwarmCommunicator:
     def start(self) -> None:
         """
         Запускает параллельные потоки: один для рассылки собственного состояния,
+
         второй – для приёма сообщений от других дронов.
         """
-        self.broadcast_thread = threading.Thread(target=self._broadcast_loop, daemon=True)
-        self.receive_thread = threading.Thread(target=self._receive_loop, daemon=True)
+        self.broadcast_thread = threading.Thread(
+            target=self._broadcast_loop, daemon=True
+        )
+        self.receive_thread = threading.Thread(
+            target=self._receive_loop, daemon=True
+        )
         self.broadcast_thread.start()
         self.receive_thread.start()
 
@@ -178,11 +221,11 @@ class SwarmCommunicator:
         while self.running:
             try:
                 state: Dict[str, Any] = {
-                    "id": self.unique_id,        # теперь id – уникальный строковый идентификатор
+                    "id": self.unique_id,  # теперь id – уникальный строковый идентификатор
                     "ip": self.control_object.ip,
                     "position": self.control_object.position.tolist(),
                     "attitude": self.control_object.attitude.tolist(),
-                    "t_speed": self.control_object.t_speed.tolist()
+                    "t_speed": self.control_object.t_speed.tolist(),
                     # Можно добавить поле command, если требуется
                 }
                 self.broadcast_client.send(state)
@@ -194,7 +237,9 @@ class SwarmCommunicator:
         """
         Циклобработки входящих сообщений.
         """
-        server_thread = threading.Thread(target=self.broadcast_server.start, daemon=True)
+        server_thread = threading.Thread(
+            target=self.broadcast_server.start, daemon=True
+        )
         server_thread.start()
         while self.running:
             if not self.receive_queue.empty():
@@ -212,6 +257,7 @@ class SwarmCommunicator:
     def save_data(self) -> None:
         """
         Функция для сохранения данных задержек в работе кода
+
         :return: None
         """
         current_date = datetime.date.today().isoformat()
@@ -219,13 +265,12 @@ class SwarmCommunicator:
         symbols_to_remove = ":"
         for symbol in symbols_to_remove:
             current_time = current_time.replace(symbol, "-")
-        main_path = f'./data/{current_date}_{current_time[0:5]}/'
+        main_path = f"./data/{current_date}_{current_time[0:5]}/"
         os.makedirs(main_path, exist_ok=True)
         try:
-            self.control_object.save_data('trajectory.npy', f'{main_path}/')
+            self.control_object.save_data("trajectory.npy", f"{main_path}/")
         except Exception as e:
             print(f"Ошибка сохранения данных: {e}")
-
 
     def process_incoming_state(self, state: Any) -> None:
         if state.target_id:
@@ -236,7 +281,9 @@ class SwarmCommunicator:
                 try:
                     vx, vy, vz, yaw_rate = state.data
                     self.control_object.send_speed(vx, vy, vz, yaw_rate)
-                    print(f"Команда set_speed выполнена: {vx}, {vy}, {vz}, {yaw_rate}")
+                    print(
+                        f"Команда set_speed выполнена: {vx}, {vy}, {vz}, {yaw_rate}"
+                    )
                 except Exception as e:
                     print("Ошибка при выполнении set_speed:", e)
             elif state.command == CMD.GOTO:
@@ -244,7 +291,9 @@ class SwarmCommunicator:
                     x, y, z, yaw = state.data
                     if self.control_object.tracking:
                         print(f"Smart tracking to {x, y, 1.5}")
-                        self.control_object.target_point= np.array([x, y, 1.5, 0])
+                        self.control_object.target_point = np.array(
+                            [x, y, 1.5, 0]
+                        )
                     else:
                         self.control_object.goto_from_outside(x, y, z, yaw)
                         print(f"Команда goto выполнена: {x}, {y}, {z}, {yaw}")
@@ -267,7 +316,7 @@ class SwarmCommunicator:
                 self.control_object.disarm()
                 print("Команда disarm выполнена")
             elif state.command == CMD.STOP:
-                self.stop_trp() 
+                self.stop_trp()
                 print("Команды на достижение позиций остановлены")
             elif state.command == CMD.SWARM_ON:
                 try:
@@ -290,7 +339,9 @@ class SwarmCommunicator:
                 try:
                     led_id, r, g, b = state.data
                     self.control_object.led_control(led_id, r, g, b)
-                    print(f"LED control executed: led_id={led_id}, r={r}, g={g}, b={b}")
+                    print(
+                        f"LED control executed: led_id={led_id}, r={r}, g={g}, b={b}"
+                    )
                 except Exception as e:
                     print("Ошибка при выполнении LED control:", e)
             elif state.command == CMD.SAVE:
@@ -305,24 +356,39 @@ class SwarmCommunicator:
                 self.env[state.ip] = state
 
     def update_swarm_control(self, target_point) -> None:
-        new_vel = compute_swarm_velocity(self.control_object.position, self.env, target_point)
+        new_vel = compute_swarm_velocity(
+            self.control_object.position, self.env, target_point
+        )
         self.control_object.t_speed = np.array([new_vel[0], new_vel[1], 0, 0])
-    
-    def start_threading_smart_goto(self,
-                                   x: Union[float, int],
-                                   y: Union[float, int],
-                                   z: Union[float, int],
-                                   yaw: Union[float, int] = 0,
-                                   accuracy: Union[float, int] = 5e-2):
-        thread = threading.Thread(target=self.smart_goto, args=(x, y, z, yaw, accuracy,))
+
+    def start_threading_smart_goto(
+        self,
+        x: Union[float, int],
+        y: Union[float, int],
+        z: Union[float, int],
+        yaw: Union[float, int] = 0,
+        accuracy: Union[float, int] = 5e-2,
+    ):
+        thread = threading.Thread(
+            target=self.smart_goto,
+            args=(
+                x,
+                y,
+                z,
+                yaw,
+                accuracy,
+            ),
+        )
         thread.start()
 
-    def smart_goto(self,
-                   x: Union[float, int],
-                   y: Union[float, int],
-                   z: Union[float, int],
-                   yaw: Union[float, int] = 0,
-                   accuracy: Union[float, int] = 5e-2) -> None:
+    def smart_goto(
+        self,
+        x: Union[float, int],
+        y: Union[float, int],
+        z: Union[float, int],
+        yaw: Union[float, int] = 0,
+        accuracy: Union[float, int] = 5e-2,
+    ) -> None:
         print(f"Smart goto to {x, y, z, yaw}")
         self.control_object.set_v()
         self.control_object.goto_yaw(yaw)
@@ -330,18 +396,20 @@ class SwarmCommunicator:
         self.control_object.point_reached = False
         time.sleep(self.control_object.period_send_speed)
         while not self.control_object.point_reached:
-            self.control_object.point_reached = vector_reached(target_point,
-                                                               self.control_object.last_points[:,:2],
-                                                               accuracy=accuracy) and np.allclose(
-                                                                   self.control_object.position[3:6],
-                                                                   np.array([0, 0, 0]),
-                                                                   atol=1e-2)
+            self.control_object.point_reached = vector_reached(
+                target_point,
+                self.control_object.last_points[:, :2],
+                accuracy=accuracy,
+            ) and np.allclose(
+                self.control_object.position[3:6],
+                np.array([0, 0, 0]),
+                atol=1e-2,
+            )
             self.update_swarm_control(np.array([x, y]))
             time.sleep(self.time_sleep_update_velocity)
         print("smart end")
         time.sleep(0.5)
         self.control_object.t_speed = np.zeros(4)
-
 
     def smart_point_tacking(self):
         print("Smart point tracking")

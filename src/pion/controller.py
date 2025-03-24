@@ -1,12 +1,16 @@
-import numpy as np
 from typing import Union
+
+import numpy as np
 import numpy.typing as npt
 
+
 class PIDController:
-    def __init__(self, 
-                 kp: Union[float, int, list, npt.NDArray[np.float64]], 
-                 ki: Union[float, int, list, npt.NDArray[np.float64]], 
-                 kd: Union[float, int, list, npt.NDArray[np.float64]]):
+    def __init__(
+        self,
+        kp: Union[float, int, list, npt.NDArray[np.float64]],
+        ki: Union[float, int, list, npt.NDArray[np.float64]],
+        kd: Union[float, int, list, npt.NDArray[np.float64]],
+    ):
         """
         Инициализация ПИД-регулятора с коэффициентами пропорциональности, интеграла и дифференциала.
 
@@ -29,10 +33,12 @@ class PIDController:
         self.previous_error = None
         self.integral = np.zeros_like(self.kp, dtype=np.float64)
 
-    def compute_control(self, 
-                        target_position: Union[float, np.ndarray, list],
-                        current_position: Union[float, np.ndarray, list], 
-                        dt: Union[float, int] = 0.) -> Union[float, np.ndarray]:
+    def compute_control(
+        self,
+        target_position: Union[float, np.ndarray, list],
+        current_position: Union[float, np.ndarray, list],
+        dt: Union[float, int] = 0.0,
+    ) -> Union[float, np.ndarray]:
         """
         Вычисляет управляющий сигнал на основе ПИД-регулирования для произвольного количества осей.
 
@@ -62,7 +68,7 @@ class PIDController:
         i_term = self.ki * self.integral
 
         # Дифференциальная составляющая (разность ошибок)
-        if dt == 0.:
+        if dt == 0.0:
             derivative = 0
         elif self.previous_error is not None:
             derivative = (error - self.previous_error) / dt
@@ -77,7 +83,3 @@ class PIDController:
         control_signal = p_term + i_term + d_term
 
         return control_signal
-
-
-
-

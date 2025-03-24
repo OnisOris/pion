@@ -10,7 +10,7 @@
 
    sudo curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_linux.sh | sudo bash
 
-После выполнения скрипта активируйте виртуальное окружение 
+После выполнения скрипта активируйте виртуальное окружение
 
 .. code:: bash
 
@@ -50,4 +50,3 @@
 .. code-block:: bash
 
    pip install git+https://github.com/OnisOris/pion
-

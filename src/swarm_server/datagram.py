@@ -1,15 +1,17 @@
 import hashlib
-from .datagram_pb2 import *
 import random
+
+from .datagram_pb2 import Datagram
+
 
 class DDatagram:
     def __init__(self, id: int = random.randint(0, int(1e12))):
         self.token = -1
-        self.id = id         
+        self.id = id
         self.source = 0
         self.command = 0
         self.data = []
-        self.target_id = "" 
+        self.target_id = ""
 
     def to_proto(self) -> Datagram:
         """Создаёт protobuf-объект из текущих данных."""
@@ -19,7 +21,7 @@ class DDatagram:
             source=self.source,
             command=self.command,
             data=self.data,
-            target_id=self.target_id  # передаем новое поле
+            target_id=self.target_id,  # передаем новое поле
         )
         proto.hash = self._calculate_hash(proto)  # Добавляем хеш
         return proto
@@ -58,4 +60,3 @@ class DDatagram:
         proto_copy.CopyFrom(proto)
         proto_copy.hash = ""  # Очищаем поле хеша перед вычислением
         return hashlib.md5(proto_copy.SerializeToString()).hexdigest()
-

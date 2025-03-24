@@ -60,7 +60,7 @@ jobs:
       image: archlinux:latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Install system dependencies
         run: |
           pacman -Syu --noconfirm python python-pip git gcc
@@ -95,4 +95,3 @@ jobs:
         run: |
           pip install pytest
           pytest tests/
-

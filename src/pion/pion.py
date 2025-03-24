@@ -1,50 +1,64 @@
 import select
 import threading
 import time
-from numpy.typing import NDArray
-from typing import Tuple, Union, Optional, Annotated, Any
+from typing import Annotated, Any, Optional, Tuple, Union
+
 import numpy as np
-from pion.cython_pid import PIDController
-from pymavlink.dialects.v10.all import MAVLink_message
-from .annotation import Array6, Array4, Array3, Array2
-from .functions import create_connection, start_threading, vector_reached, scalar_reached, update_array, update_vector
+from numpy.typing import NDArray
 from pymavlink import mavutil
+from pymavlink.dialects.v10.all import MAVLink_message
+
+from pion.cython_pid import PIDController
+
+from .annotation import Array2, Array3, Array4, Array6
+from .functions import (
+    create_connection,
+    scalar_reached,
+    start_threading,
+    update_array,
+    update_vector,
+    vector_reached,
+)
 from .pio import DroneBase
 
 
 class Pion(DroneBase):
     """
-    Класс Pion предназначен для управления дроном через протокол MAVLink. Он включает функционал для инициализации
+    Класс Pion предназначен для управления дроном через протокол MAVLink.
+
+    Он включает функционал для инициализации
     соединения, отправки команд дрону, обработки сообщений, и управления движением. Pion также поддерживает
     многопоточность для выполнения различных параллельных задач
     """
-    def __init__(self,
-                 ip: str = '10.1.100.114',
-                 mavlink_port: int = 5656,
-                 connection_method: str = 'udpout',
-                 position: Optional[Union[Array6, Array4]] = None,
-                 attitude: Optional[Union[Array6, Array4]] = None,
-                 combine_system: int = 0,
-                 count_of_checking_points: int = 20,
-                 name: str = "Pion",
-                 mass: float = 0.3,
-                 dt: float = 0.,
-                 logger: bool = False,
-                 start_message_handler_from_init: bool = True,
-                 checking_components: bool = True,
-                 accuracy: float = 5e-2,
-                 max_speed: float = 2.,
-                 dimension: int = 3):
+
+    def __init__(
+        self,
+        ip: str = "10.1.100.114",
+        mavlink_port: int = 5656,
+        connection_method: str = "udpout",
+        position: Optional[Union[Array6, Array4]] = None,
+        attitude: Optional[Union[Array6, Array4]] = None,
+        combine_system: int = 0,
+        count_of_checking_points: int = 20,
+        name: str = "Pion",
+        mass: float = 0.3,
+        dt: float = 0.0,
+        logger: bool = False,
+        start_message_handler_from_init: bool = True,
+        checking_components: bool = True,
+        accuracy: float = 5e-2,
+        max_speed: float = 2.0,
+        dimension: int = 3,
+    ):
         """
-        Инициализация класса Pion, устанавливающего MAVLink соединение с дроном 
-        и управляющего взаимодействием по передаче и приему данных.
+        Инициализация класса Pion, устанавливающего MAVLink соединение с дроном и управляющего взаимодействием по передаче и приему данных.
 
         :param ip: IP-адрес для подключения к дрону
         :type ip: str
-        
+
         :param mavlink_port: Порт для MAVLink соединения.
         :type mavlink_port: int
-        
+
         :param connection_method: Метод соединения, например, 'udpout' для MAVLink.
         :type connection_method: str
 
@@ -53,13 +67,13 @@ class Pion(DroneBase):
 
         :param attitude: Начальное состояние дрона вида [roll, pitch, yaw, v_roll, v_pitch, v_yaw]
         :type attitude: Union[Array6, None]
-        
+
         :param combine_system: Системный код для комбинированной системы управления: 1, 2, 3
         :type combine_system: int
-        
+
         :param count_of_checking_points: Количество последних точек, используемых для проверки достижения цели.
         :type count_of_checking_points: int
-        
+
         :param name: Название экземпляра
         :type name: str
 
@@ -89,20 +103,22 @@ class Pion(DroneBase):
         :type dimension: int
         """
 
-        DroneBase.__init__(self,
-                           ip=ip,
-                           mavlink_port=mavlink_port,
-                           name=name,
-                           mass=mass,
-                           dimension=dimension,
-                           position=position,
-                           attitude=attitude,
-                           count_of_checking_points=count_of_checking_points,
-                           logger=logger,
-                           checking_components=checking_components,
-                           accuracy=accuracy,
-                           dt=dt,
-                           max_speed=max_speed)
+        DroneBase.__init__(
+            self,
+            ip=ip,
+            mavlink_port=mavlink_port,
+            name=name,
+            mass=mass,
+            dimension=dimension,
+            position=position,
+            attitude=attitude,
+            count_of_checking_points=count_of_checking_points,
+            logger=logger,
+            checking_components=checking_components,
+            accuracy=accuracy,
+            dt=dt,
+            max_speed=max_speed,
+        )
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag: bool = True
         # Флаг для остановки отдачи управляющих сигналов rc channels
@@ -112,10 +128,12 @@ class Pion(DroneBase):
         # Последнее сообщение из _message_handler()
         self._msg: Optional["MAVLink_message"] = None
 
-        self.mavlink_socket: mavutil.mavfile = create_connection(connection_method=connection_method,
-                                                address=ip,
-                                                port_or_baudrate=mavlink_port)
-        self._heartbeat_timeout: float = 1.
+        self.mavlink_socket: mavutil.mavfile = create_connection(
+            connection_method=connection_method,
+            address=ip,
+            port_or_baudrate=mavlink_port,
+        )
+        self._heartbeat_timeout: float = 1.0
         self._mavlink_send_number: int = 10
         self.__is_socket_open: threading.Event = threading.Event()
         self.__is_socket_open.set()
@@ -128,30 +146,33 @@ class Pion(DroneBase):
         # Период приема всех сообщений с дрона
         self.period_message_handler: float = dt
         self.connection_lost: bool = False
-        self.max_speed: float = 1.
+        self.max_speed: float = 1.0
         # Используется для хранения последних count_of_checking_points данных в виде [x, y, z] для верификации достижения таргетной точки
-        self.last_points: Annotated[NDArray[Any], (count_of_checking_points,)] = np.zeros((count_of_checking_points, self.dimension))
+        self.last_points: Annotated[
+            NDArray[Any], (count_of_checking_points,)
+        ] = np.zeros((count_of_checking_points, self.dimension))
         # Используется для хранения последних 14 значений yaw в матрице для верификации достижения таргетного угла по z
-        self.last_angles: Annotated[NDArray[Any], (14,)]  = np.zeros(14) 
+        self.last_angles: Annotated[NDArray[Any], (14,)] = np.zeros(14)
         if start_message_handler_from_init:
-            self._message_handler_thread: threading.Thread = threading.Thread(target=self._message_handler,
-                                                                              args=(combine_system,))
+            self._message_handler_thread: threading.Thread = threading.Thread(
+                target=self._message_handler, args=(combine_system,)
+            )
             self._message_handler_thread.start()
-        self.position_pid_matrix: np.ndarray = np.array([
-            [0.5] * self.dimension,
-            [0.0] * self.dimension,
-            [0.7] * self.dimension
-        ], dtype=np.float64)
-        self.yaw_pid_matrix: np.ndarray = np.array([
-            [1] * 1,
-            [0] * 1,
-            [1] * 1
-        ], dtype=np.float64)
+        self.position_pid_matrix: np.ndarray = np.array(
+            [
+                [0.5] * self.dimension,
+                [0.0] * self.dimension,
+                [0.7] * self.dimension,
+            ],
+            dtype=np.float64,
+        )
+        self.yaw_pid_matrix: np.ndarray = np.array(
+            [[1] * 1, [0] * 1, [1] * 1], dtype=np.float64
+        )
         self.set_v_check_flag: bool = False
         self.set_rc_check_flag: bool = False
         self.target_point: np.ndarray = np.array([0, 0, 2, 0])
         self.tracking: bool = False
-
 
     @property
     def speed(self) -> Union[Array2, Array3]:
@@ -160,7 +181,7 @@ class Pion(DroneBase):
 
         :return: Union[Array2, Array3]
         """
-        return self._position[self.dimension:self.dimension * 2]
+        return self._position[self.dimension : self.dimension * 2]
 
     def arm(self) -> None:
         """
@@ -169,10 +190,12 @@ class Pion(DroneBase):
         :return: None
         """
         super().arm()
-        self._send_command_long(command_name='ARM',
-                                command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
-                                param1=1,
-                                mavlink_send_number=self._mavlink_send_number)
+        self._send_command_long(
+            command_name="ARM",
+            command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+            param1=1,
+            mavlink_send_number=self._mavlink_send_number,
+        )
 
     def disarm(self) -> None:
         """
@@ -181,10 +204,12 @@ class Pion(DroneBase):
         :return: None
         """
         super().disarm()
-        self._send_command_long(command_name='DISARM',
-                                command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
-                                param1=0,
-                                mavlink_send_number=self._mavlink_send_number)
+        self._send_command_long(
+            command_name="DISARM",
+            command=mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+            param1=0,
+            mavlink_send_number=self._mavlink_send_number,
+        )
 
     def takeoff(self) -> None:
         """
@@ -193,26 +218,32 @@ class Pion(DroneBase):
         :return: None
         """
         super().takeoff()
-        self._send_command_long(command_name='TAKEOFF',
-                                command=mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
-                                mavlink_send_number=self._mavlink_send_number)
+        self._send_command_long(
+            command_name="TAKEOFF",
+            command=mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
+            mavlink_send_number=self._mavlink_send_number,
+        )
 
     def land(self) -> None:
         """
         Посадка дрона
-        
+
         :return: None
         """
         super().land()
-        self._send_command_long(command_name='LAND',
-                                command=mavutil.mavlink.MAV_CMD_NAV_LAND,
-                                mavlink_send_number=self._mavlink_send_number)
+        self._send_command_long(
+            command_name="LAND",
+            command=mavutil.mavlink.MAV_CMD_NAV_LAND,
+            mavlink_send_number=self._mavlink_send_number,
+        )
 
-    def goto(self,
-             x: Union[float, int],
-             y: Union[float, int],
-             z: Union[float, int],
-             yaw: Union[float, int]) -> None:
+    def goto(
+        self,
+        x: Union[float, int],
+        y: Union[float, int],
+        z: Union[float, int],
+        yaw: Union[float, int],
+    ) -> None:
         """
         Полет к указанной точке в текущей системе координат навигации.
 
@@ -226,19 +257,21 @@ class Pion(DroneBase):
         :type yaw: float | int, Optional
         :return: None
 
-        :note: Координаты задаются в ENU (East-North-Up) системе координат, но будут автоматически преобразованы 
+        :note: Координаты задаются в ENU (East-North-Up) системе координат, но будут автоматически преобразованы
             в NED (North-East-Down).
         """
         self.tracking = False
         mask = 0b0000_10_0_111_111_000
         x, y, z = y, x, -z
-        self._send_position_target_local_ned(coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
-                                             mask=mask,
-                                             x=x,
-                                             y=y,
-                                             z=z,
-                                             yaw=yaw,
-                                             mavlink_send_number=10)
+        self._send_position_target_local_ned(
+            coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
+            mask=mask,
+            x=x,
+            y=y,
+            z=z,
+            yaw=yaw,
+            mavlink_send_number=10,
+        )
 
     def start_track_point(self) -> None:
         """
@@ -259,7 +292,9 @@ class Pion(DroneBase):
         """
         self.set_v()
         self.goto_yaw(0)
-        self._pid_position_controller = PIDController(*self.position_pid_matrix) 
+        self._pid_position_controller = PIDController(
+            *self.position_pid_matrix
+        )
         self.point_reached = False
         last_time = time.time()
         time.sleep(self.period_send_speed)
@@ -273,17 +308,20 @@ class Pion(DroneBase):
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
 
-    def goto_from_outside(self,
-                          x: float,
-                          y: float,
-                          z: float,
-                          yaw: float,
-                          accuracy: Optional[float] = None) -> None:
+    def goto_from_outside(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        yaw: float,
+        accuracy: Optional[float] = None,
+    ) -> None:
         """
         Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
+
         Для использования необходимо включить цикл :py:meth:`Pion.v_while` для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed
-        
+
         :param x: координата по x
         :type x: float
         :param y: координата по y
@@ -305,7 +343,9 @@ class Pion(DroneBase):
             target_point = np.array([x, y, z])
         if accuracy is None:
             accuracy = self.accuracy
-        self._pid_position_controller = PIDController(*self.position_pid_matrix) 
+        self._pid_position_controller = PIDController(
+            *self.position_pid_matrix
+        )
         self.point_reached = False
         last_time = time.time()
         time.sleep(self.period_send_speed)
@@ -313,18 +353,17 @@ class Pion(DroneBase):
             current_time = time.time()
             dt = current_time - last_time
             last_time = current_time
-            self.point_reached = vector_reached(target_point,
-                                                self.last_points,
-                                                accuracy=accuracy)
+            self.point_reached = vector_reached(
+                target_point, self.last_points, accuracy=accuracy
+            )
             self.position_controller(target_point, dt)
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
 
-    def goto_yaw(self,
-                 yaw: float = 0.,
-                 accuracy: float = 0.057) -> None:
+    def goto_yaw(self, yaw: float = 0.0, accuracy: float = 0.057) -> None:
         """
         Функция берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
+
         Для использования необходимо включить цикл :py:meth:`Pion.v_while` для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed
 
@@ -344,21 +383,26 @@ class Pion(DroneBase):
             current_time = time.time()
             dt = current_time - last_time
             last_time = current_time
-            self.point_reached = scalar_reached(yaw, self.last_angles, accuracy=accuracy)
-            signal = -pid_controller.compute_control(np.array([yaw], dtype=np.float64),
-                                                     np.array([self.yaw],
-                                                              dtype=np.float64),
-                                                     dt=dt)[0]
-            self.t_speed = np.array([*np.zeros(3), np.clip(signal,
-                                                           -self.max_speed, self.max_speed)])
+            self.point_reached = scalar_reached(
+                yaw, self.last_angles, accuracy=accuracy
+            )
+            signal = -pid_controller.compute_control(
+                np.array([yaw], dtype=np.float64),
+                np.array([self.yaw], dtype=np.float64),
+                dt=dt,
+            )[0]
+            self.t_speed = np.array(
+                [
+                    *np.zeros(3),
+                    np.clip(signal, -self.max_speed, self.max_speed),
+                ]
+            )
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
 
-    def send_speed(self,
-                   vx: float,
-                   vy: float,
-                   vz: float,
-                   yaw_rate: float) -> None:
+    def send_speed(
+        self, vx: float, vy: float, vz: float, yaw_rate: float
+    ) -> None:
         """
         Функция задает вектор скорости дрону. Отсылать необходимо в цикле.
 
@@ -376,19 +420,23 @@ class Pion(DroneBase):
         mask = 0b0000_01_0_111_000_111
         # ENU coordinates to NED coordinates
         vx, vy, vz = vy, vx, -vz
-        self._send_position_target_local_ned(coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
-                                             mask=mask,
-                                             vx=vx,
-                                             vy=vy,
-                                             vz=vz,
-                                             yaw_rate=yaw_rate,
-                                             mavlink_send_number=1)
+        self._send_position_target_local_ned(
+            coordinate_system=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
+            mask=mask,
+            vx=vx,
+            vy=vy,
+            vz=vz,
+            yaw_rate=yaw_rate,
+            mavlink_send_number=1,
+        )
 
-    def send_rc_channels(self,
-                         channel_1: int = 0xFF,
-                         channel_2: int = 0xFF,
-                         channel_3: int = 0xFF, 
-                         channel_4: int = 0xFF) -> None:
+    def send_rc_channels(
+        self,
+        channel_1: int = 0xFF,
+        channel_2: int = 0xFF,
+        channel_3: int = 0xFF,
+        channel_4: int = 0xFF,
+    ) -> None:
         """
         Функция отправляет управляющие сигналы RC-каналов дрону. Отсылать необходимо в цикле.
 
@@ -408,30 +456,41 @@ class Pion(DroneBase):
         channel_7 = 0xFF
         channel_8 = 0xFF
 
-        self.mavlink_socket.mav.rc_channels_override_send(self.mavlink_socket.target_system,
-                                                          self.mavlink_socket.target_component, channel_1,
-                                                          channel_2, channel_3, channel_4, channel_5, channel_6,
-                                                          channel_7, channel_8)
+        self.mavlink_socket.mav.rc_channels_override_send(
+            self.mavlink_socket.target_system,
+            self.mavlink_socket.target_component,
+            channel_1,
+            channel_2,
+            channel_3,
+            channel_4,
+            channel_5,
+            channel_6,
+            channel_7,
+            channel_8,
+        )
 
-    def _send_position_target_local_ned(self, coordinate_system,
-                                        mask=0b0000_11_0_111_111_111,
-                                        x: Union[float, int] = 0,
-                                        y: Union[float, int] = 0,
-                                        z: Union[float, int] = 0,
-                                        vx: Union[float, int] = 0,
-                                        vy: Union[float, int] = 0,
-                                        vz: Union[float, int] = 0,
-                                        afx: Union[float, int] = 0,
-                                        afy: Union[float, int] = 0,
-                                        afz: Union[float, int] = 0,
-                                        yaw: Union[float, int] = 0,
-                                        yaw_rate: Union[float, int] = 0,
-                                        target_system=None,
-                                        target_component=None,
-                                        mavlink_send_number=1) -> None:
+    def _send_position_target_local_ned(
+        self,
+        coordinate_system,
+        mask=0b0000_11_0_111_111_111,
+        x: Union[float, int] = 0,
+        y: Union[float, int] = 0,
+        z: Union[float, int] = 0,
+        vx: Union[float, int] = 0,
+        vy: Union[float, int] = 0,
+        vz: Union[float, int] = 0,
+        afx: Union[float, int] = 0,
+        afy: Union[float, int] = 0,
+        afz: Union[float, int] = 0,
+        yaw: Union[float, int] = 0,
+        yaw_rate: Union[float, int] = 0,
+        target_system=None,
+        target_component=None,
+        mavlink_send_number=1,
+    ) -> None:
         """
-        Функция отправляет команду MAVLink для установки целевой позиции
-        или скорости в локальной системе координат NED (North, East, Down). 
+        Функция отправляет команду MAVLink для установки целевой позиции или скорости в локальной системе координат NED (North, East, Down).
+
         Параметры включают систему координат, маску для указания активных полей,
         координаты (x, y, z), скорости (vx, vy, vz), ускорения и скорость поворота
         по оси yaw
@@ -439,7 +498,7 @@ class Pion(DroneBase):
         :param coordinate_system: Система координат (например, NED).
         :type coordinate_system: int
 
-        :param int mask: Битовая маска для указания, какие измерения будут проигнорированы в сообщении MAVLink. 
+        :param int mask: Битовая маска для указания, какие измерения будут проигнорированы в сообщении MAVLink.
         Соответствует спецификации MAVLink `POSITION_TARGET_TYPEMASK`:
         - Биты 0-2: Игнорировать позицию (x, y, z)
         - Биты 3-5: Игнорировать скорость (vx, vy, vz)
@@ -476,45 +535,50 @@ class Pion(DroneBase):
         :type target_component: int, optional
         :param mavlink_send_number: Количество отправок команды.
         :type mavlink_send_number: int
-        :return: None        
+        :return: None
         """
         if target_system is None:
             target_system = self.mavlink_socket.target_system
         if target_component is None:
             target_component = self.mavlink_socket.target_component
         for _ in range(mavlink_send_number):
-            self.mavlink_socket.mav.set_position_target_local_ned_send(0,
-                                                                       target_system,
-                                                                       target_component,
-                                                                       coordinate_system,
-                                                                       mask,
-                                                                       x,
-                                                                       y,
-                                                                       z,
-                                                                       vx,
-                                                                       vy,
-                                                                       vz,
-                                                                       afx,
-                                                                       afy,
-                                                                       afz,
-                                                                       yaw,
-                                                                       yaw_rate)
+            self.mavlink_socket.mav.set_position_target_local_ned_send(
+                0,
+                target_system,
+                target_component,
+                coordinate_system,
+                mask,
+                x,
+                y,
+                z,
+                vx,
+                vy,
+                vz,
+                afx,
+                afy,
+                afz,
+                yaw,
+                yaw_rate,
+            )
 
-    def _send_command_long(self,
-                           command_name: str,
-                           command: int,
-                           param1: Union[float, int] = 0,
-                           param2: Union[float, int] = 0,
-                           param3: Union[float, int] = 0,
-                           param4: Union[float, int] = 0,
-                           param5: Union[float, int] = 0,
-                           param6: Union[float, int] = 0,
-                           param7: Union[float, int] = 0,
-                           target_system=None,
-                           target_component=None,
-                           mavlink_send_number: int = 1) -> None:
+    def _send_command_long(
+        self,
+        command_name: str,
+        command: int,
+        param1: Union[float, int] = 0,
+        param2: Union[float, int] = 0,
+        param3: Union[float, int] = 0,
+        param4: Union[float, int] = 0,
+        param5: Union[float, int] = 0,
+        param6: Union[float, int] = 0,
+        param7: Union[float, int] = 0,
+        target_system=None,
+        target_component=None,
+        mavlink_send_number: int = 1,
+    ) -> None:
         """
-        Отправляет команду типа COMMAND_LONG через MAVLink
+        Отправляет команду типа COMMAND_LONG через MAVLink.
+
         :param command_name: Имя команды для логирования.
         :type command_name: str
         :param command: Команда MAVLink.
@@ -549,17 +613,19 @@ class Pion(DroneBase):
             target_component = self.mavlink_socket.target_component
         confirm = 0
         while True:
-            self.mavlink_socket.mav.command_long_send(target_system,
-                                                      target_component,
-                                                      command,
-                                                      confirm,
-                                                      param1,
-                                                      param2,
-                                                      param3,
-                                                      param4,
-                                                      param5,
-                                                      param6,
-                                                      param7)
+            self.mavlink_socket.mav.command_long_send(
+                target_system,
+                target_component,
+                command,
+                confirm,
+                param1,
+                param2,
+                param3,
+                param4,
+                param5,
+                param6,
+                param7,
+            )
             confirm += 1
             if confirm >= mavlink_send_number:
                 break
@@ -570,16 +636,17 @@ class Pion(DroneBase):
 
         :return: None
         """
-        self.mavlink_socket.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
-                                               mavutil.mavlink.MAV_AUTOPILOT_INVALID,
-                                               0,
-                                               0,
-                                               0)
+        self.mavlink_socket.mav.heartbeat_send(
+            mavutil.mavlink.MAV_TYPE_GCS,
+            mavutil.mavlink.MAV_AUTOPILOT_INVALID,
+            0,
+            0,
+            0,
+        )
         self._heartbeat_send_time = time.time()
 
-    def _message_handler(self,
-                         combine_system: int = 0) -> None:
-        """   
+    def _message_handler(self, combine_system: int = 0) -> None:
+        """
         Обрабатывает сообщения от дрона и отправляет heartbeat, обновляя координаты дрона
 
         :param combine_system: Определяет, с каких источников будут считываться данные:
@@ -592,7 +659,7 @@ class Pion(DroneBase):
         src_component_map = {
             0: 1,  # Только локус
             1: None,  # Локус и оптика (неважно, откуда приходит)
-            2: 26  # Только оптика
+            2: 26,  # Только оптика
         }
         src_component = src_component_map.get(combine_system)
 
@@ -602,7 +669,12 @@ class Pion(DroneBase):
                     break
                 self.heartbeat()
                 # Проверка, доступно ли новое сообщение для чтения
-                rlist, _, _ = select.select([self.mavlink_socket.port.fileno()], [], [], self.period_message_handler)
+                rlist, _, _ = select.select(
+                    [self.mavlink_socket.port.fileno()],
+                    [],
+                    [],
+                    self.period_message_handler,
+                )
                 if rlist:
                     self._msg = self.mavlink_socket.recv_msg()
                     if self._msg is not None:
@@ -613,9 +685,9 @@ class Pion(DroneBase):
                     self.print_information()
                 time.sleep(self.period_message_handler)
 
-    def _process_message(self,
-                         msg,
-                         src_component: Optional[int] = None) -> None:
+    def _process_message(
+        self, msg, src_component: Optional[int] = None
+    ) -> None:
         """
         Обрабатывает одно сообщение и обновляет данные (позиция, ориентация, батарея)
 
@@ -625,16 +697,32 @@ class Pion(DroneBase):
         """
         # Проверяем источник компонента, если задан
         if self.checking_components:
-            if src_component is not None and msg._header.srcComponent != src_component:
+            if (
+                src_component is not None
+                and msg._header.srcComponent != src_component
+            ):
                 return
         if msg.get_type() == "LOCAL_POSITION_NED":
             if self.dimension == 3:
-                self.position = np.array([msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz])
+                self.position = np.array(
+                    [msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz]
+                )
             else:
                 self.position = np.array([msg.x, msg.y, msg.vx, msg.vy])
-            self.last_points = update_array(self.last_points, self.position[0:self.dimension])
+            self.last_points = update_array(
+                self.last_points, self.position[0 : self.dimension]
+            )
         elif msg.get_type() == "ATTITUDE":
-            self.attitude = np.array([msg.roll, msg.pitch, msg.yaw, msg.rollspeed, msg.pitchspeed, msg.yawspeed])
+            self.attitude = np.array(
+                [
+                    msg.roll,
+                    msg.pitch,
+                    msg.yaw,
+                    msg.rollspeed,
+                    msg.pitchspeed,
+                    msg.yawspeed,
+                ]
+            )
             self.last_angles = update_vector(self.last_angles, self.yaw)
         elif msg.get_type() == "BATTERY_STATUS":
             self.battery_voltage = msg.voltages[0] / 100
@@ -693,11 +781,13 @@ class Pion(DroneBase):
 
         :return: None
         """
-        self._send_command_long(command_name='REBOOT_BOARD',
-                                command=mavutil.mavlink.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN,
-                                target_component=1,
-                                param1=1,
-                                mavlink_send_number=self._mavlink_send_number)
+        self._send_command_long(
+            command_name="REBOOT_BOARD",
+            command=mavutil.mavlink.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN,
+            target_component=1,
+            param1=1,
+            mavlink_send_number=self._mavlink_send_number,
+        )
 
     def stop(self) -> None:
         """
@@ -710,11 +800,7 @@ class Pion(DroneBase):
         self.check_attitude_flag = False
         self.message_handler_flag = False
 
-    def led_control(self,
-                    led_id=255,
-                    r=0,
-                    g=0,
-                    b=0) -> None:
+    def led_control(self, led_id=255, r=0, g=0, b=0) -> None:
         """
         Управление светодиодами на дроне
 
@@ -732,18 +818,28 @@ class Pion(DroneBase):
         """
         if led_id not in [255, 0, 1, 2, 3]:
             raise ValueError(
-                f"Argument 'led_id' must have one of the following values: 0, 1, 2, 3, 255. But your value is {led_id}.")
+                f"Argument 'led_id' must have one of the following values: 0, 1, 2, 3, 255. But your value is {led_id}."
+            )
         if r < 0 or r > 255 or g < 0 or g > 255 or b < 0 or b > 255:
             raise ValueError(
-                f"Arguments 'r', 'g', 'b' must have value in [0, 255]. But your values is r={r}, g={g}, b={b}.")
-        self._send_command_long(command_name='LED', command=mavutil.mavlink.MAV_CMD_USER_1,
-                                param1=led_id, param2=r, param3=g, param4=b)
+                f"Arguments 'r', 'g', 'b' must have value in [0, 255]. But your values is r={r}, g={g}, b={b}."
+            )
+        self._send_command_long(
+            command_name="LED",
+            command=mavutil.mavlink.MAV_CMD_USER_1,
+            param1=led_id,
+            param2=r,
+            param3=g,
+            param4=b,
+        )
 
-    def led_custom(self,
-                   mode: int = 1,
-                   timer: int = 0,
-                   color1: Tuple[int, int, int] = (0, 0, 0),
-                   color2: Tuple[int, int, int] = (0, 0, 0)) -> None:
+    def led_custom(
+        self,
+        mode: int = 1,
+        timer: int = 0,
+        color1: Tuple[int, int, int] = (0, 0, 0),
+        color2: Tuple[int, int, int] = (0, 0, 0),
+    ) -> None:
         """
         Управляет светодиодами устройства с Raspberry Pi, задавая два цвета и режим работы.
 
@@ -764,16 +860,23 @@ class Pion(DroneBase):
         param3 = (((color2[0] << 8) | color2[1]) << 8) | color2[2]
         param5 = mode
         param6 = timer
-        return self._send_command_long('RPi_LED', mavutil.mavlink.MAV_CMD_USER_3, param2=param2, param3=param3,
-                                       param5=param5, param6=param6, target_system=0, target_component=0)
+        return self._send_command_long(
+            "RPi_LED",
+            mavutil.mavlink.MAV_CMD_USER_3,
+            param2=param2,
+            param3=param3,
+            param5=param5,
+            param6=param6,
+            target_system=0,
+            target_component=0,
+        )
 
     def poweroff(self) -> None:
         """
         Функция отправляет команду на выключение Raspberry Pi.
-    
+
         :return: None
         """
-        return self._send_command_long(command_name='RPi_POWEROFF',
-                                   command=mavutil.mavlink.MAV_CMD_USER_2)
-
-
+        return self._send_command_long(
+            command_name="RPi_POWEROFF", command=mavutil.mavlink.MAV_CMD_USER_2
+        )

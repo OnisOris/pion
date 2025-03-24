@@ -1,18 +1,24 @@
 import threading
 import time
-from numpy.typing import NDArray
-from typing import Union, Literal, Annotated, Any
+from typing import Annotated, Any, Literal, Union
+
 import numpy as np
-from .annotation import Array3, Array2
+from numpy.typing import NDArray
+
+from .annotation import Array2, Array3
 
 
 class Point:
-    def __init__(self,
-                 mass: float = 1.,
-                 position: Union[Array2, Array3] = np.array([0, 0, 0], dtype=np.float64),
-                 speed: Union[Array2, Array3] = np.array([0, 0, 0], dtype=np.float64),
-                 trajectory_write: bool = False,
-                 drag_coefficient: float = 0.01):  # Добавлен параметр для сопротивления воздуха
+    def __init__(
+        self,
+        mass: float = 1.0,
+        position: Union[Array2, Array3] = np.array(
+            [0, 0, 0], dtype=np.float64
+        ),
+        speed: Union[Array2, Array3] = np.array([0, 0, 0], dtype=np.float64),
+        trajectory_write: bool = False,
+        drag_coefficient: float = 0.01,
+    ):  # Добавлен параметр для сопротивления воздуха
         """
         Инициализация объекта Point3D
 
@@ -28,23 +34,32 @@ class Point:
         :type drag_coefficient: float
         """
         if not position.shape == speed.shape:
-            raise ValueError("Начальная координата должна иметь схожую размерность со своей скоростью")
+            raise ValueError(
+                "Начальная координата должна иметь схожую размерность со своей скоростью"
+            )
         if position.shape not in [(2,), (3,)]:
             raise ValueError("Размерность точки должна быть равна 2 или 3")
         self.dimension: Annotated[int, Literal[2, 3]] = position.shape[0]
-        self.trajectory: Trajectory_writer = Trajectory_writer(['x', 'y', 'vx', 'vy', 't'] if self.dimension == 2 else
-                                            ['x', 'y', 'z', 'vx', 'vy', 'vz', 't'])
+        self.trajectory: Trajectory_writer = Trajectory_writer(
+            ["x", "y", "vx", "vy", "t"]
+            if self.dimension == 2
+            else ["x", "y", "z", "vx", "vy", "vz", "t"]
+        )
         self.trajectory_write: bool = trajectory_write
         self.mass: float = mass
-        self.initial_position: Annotated[NDArray[Any], (self.dimension,)] = position
-        self.position: Annotated[NDArray[Any], (self.dimension,)] = np.array(position, dtype=np.float64)
-        self.speed: Annotated[NDArray[Any], (self.dimension,)] = np.array(speed, dtype=np.float64)
+        self.initial_position: Annotated[NDArray[Any], (self.dimension,)] = (
+            position
+        )
+        self.position: Annotated[NDArray[Any], (self.dimension,)] = np.array(
+            position, dtype=np.float64
+        )
+        self.speed: Annotated[NDArray[Any], (self.dimension,)] = np.array(
+            speed, dtype=np.float64
+        )
         self.time: float = 0.0
-        self.drag_coefficient: float = drag_coefficient 
+        self.drag_coefficient: float = drag_coefficient
 
-    def rk4_step(self,
-                 acceleration: Union[Array2, Array3],
-                 dt: float) -> None:
+    def rk4_step(self, acceleration: Union[Array2, Array3], dt: float) -> None:
         """
         Шаг симуляции с использованием метода Рунге-Кутты 4-го порядка
 
@@ -70,9 +85,7 @@ class Point:
         self.speed += (k1v + 2 * k2v + 2 * k3v + k4v) / 6
         self.position += (k1x + 2 * k2x + 2 * k3x + k4x) / 6
 
-    def step(self,
-             force: Union[Array2, Array3],
-             dt: float) -> None:
+    def step(self, force: Union[Array2, Array3], dt: float) -> None:
         """
         Шаг симуляции. Вычисляются следующие значения координат и скорости в зависимости от дискретного шага dt
 
@@ -84,19 +97,23 @@ class Point:
         :rtype: None
         """
         if force.shape != (self.dimension,):
-            raise ValueError(f"Сила должна иметь размерность {self.dimension}, но имеет размерность:  {force.shape}")
-        
+            raise ValueError(
+                f"Сила должна иметь размерность {self.dimension}, но имеет размерность:  {force.shape}"
+            )
+
         # Расчет силы сопротивления (линейное сопротивление)
         drag_force = -self.drag_coefficient * self.speed
-        
+
         # Суммарная сила: внешняя сила + сила сопротивления
         total_force = force + drag_force
-        
+
         # Используем сумму сил для расчета ускорения
         self.rk4_step(total_force / self.mass, dt=dt)
         self.time += dt
         if self.trajectory_write:
-            self.trajectory.vstack(np.hstack([self.position, self.speed, self.time]))
+            self.trajectory.vstack(
+                np.hstack([self.position, self.speed, self.time])
+            )
 
     def get_trajectory(self) -> NDArray[np.float64]:
         """
@@ -107,25 +124,33 @@ class Point:
         """
         return self.trajectory.get_trajectory()
 
+
 class Simulator:
     """
     Класс симулятора, моделирующий поведение материальной точки
     """
-    def __init__(self,
-                 simulation_objects: NDArray[Any],
-                 dt: float = 0.01,
-                 dimension: int = 3):
+
+    def __init__(
+        self,
+        simulation_objects: NDArray[Any],
+        dt: float = 0.01,
+        dimension: int = 3,
+    ):
         """
-        Класс принимает в себя массив numpy с объектами, в которых реализован метод step, принимающий dt - дискретный
+        Класс принимает в себя массив numpy с объектами,
+
+        в которых реализован метод step, принимающий dt - дискретный
         шаг вычисления, а также в которых есть поля speed и position.
-        Введем локальные определения: 
+        Введем локальные определения:
         канал объекта - порядковый номер объекта в self.simulation_object.
         """
         self.dimension: Annotated[int, Literal[2, 3]] = dimension
         self.simulation_objects: np.ndarray = simulation_objects
         self.simulation_turn_on: bool = False
         self.dt: float = dt
-        self.forces: np.ndarray = np.zeros((np.shape(simulation_objects)[0], dimension))
+        self.forces: np.ndarray = np.zeros(
+            (np.shape(simulation_objects)[0], dimension)
+        )
         self.threading_list: list = []
 
     def start_simulation_while(self) -> None:
@@ -135,10 +160,9 @@ class Simulator:
         :return: None
         :rtype: None
         """
-        self.object_cycle('while')
+        self.object_cycle("while")
 
-    def start_simulation_for(self,
-                             steps: int = 100) -> None:
+    def start_simulation_for(self, steps: int = 100) -> None:
         """
         Запускает симуляцию для всех объектов, используя цикл `for`
 
@@ -147,11 +171,9 @@ class Simulator:
         :return: None
         :rtype: None
         """
-        self.object_cycle('for', steps)
+        self.object_cycle("for", steps)
 
-    def step(self,
-             simulation_object: Point,
-             object_channel: int) -> None:
+    def step(self, simulation_object: Point, object_channel: int) -> None:
         """
         Выполняет один шаг симуляции для объекта.
 
@@ -164,9 +186,7 @@ class Simulator:
         """
         simulation_object.step(self.forces[object_channel], self.dt)
 
-    def set_force(self,
-                  force: Array3,
-                  object_channel: int) -> None:
+    def set_force(self, force: Array3, object_channel: int) -> None:
         """
         Устанавливает силу для объекта на указанном канале.
 
@@ -191,9 +211,9 @@ class Simulator:
             position_matrix = np.vstack([position_matrix, obj.position])
         return position_matrix[1:]
 
-    def object_cycle(self,
-                     type_of_cycle: str = 'while',
-                     steps: int = 100) -> None:
+    def object_cycle(
+        self, type_of_cycle: str = "while", steps: int = 100
+    ) -> None:
         """
         Фукнция запускает симуляцию объекта.
 
@@ -204,16 +224,24 @@ class Simulator:
         :return: None
         :rtype: None
         """
-        if type_of_cycle == 'while':
+        if type_of_cycle == "while":
             while self.simulation_turn_on:
-                for object_channel, simulation_object in enumerate(self.simulation_objects):
+                for object_channel, simulation_object in enumerate(
+                    self.simulation_objects
+                ):
                     self.step(simulation_object, object_channel)
-        elif type_of_cycle == 'for':
+        elif type_of_cycle == "for":
             for _ in range(steps):
-                for object_channel, simulation_object in enumerate(self.simulation_objects):
-                    simulation_object.step(self.forces[object_channel], self.dt)
+                for object_channel, simulation_object in enumerate(
+                    self.simulation_objects
+                ):
+                    simulation_object.step(
+                        self.forces[object_channel], self.dt
+                    )
         else:
-            print("Такой type_of_cycle не задан в начальных настройках, попробуйте while или for 1")
+            print(
+                "Такой type_of_cycle не задан в начальных настройках, попробуйте while или for 1"
+            )
 
 
 class Simulator_th(Simulator):
@@ -223,8 +251,10 @@ class Simulator_th(Simulator):
 
     def start_simulation_while(self) -> None:
         """
-        Функция запускает симуляцию всех объектов в self.simulation_object в отдельных потоках
-        через цикл while с полем-флагом выключения self.simulation_turn_on
+        Функция запускает симуляцию всех объектов в self.simulation_object
+
+        в отдельных потоках через цикл while с полем-флагом
+        выключения self.simulation_turn_on
 
         :return: None
         :rtype: None
@@ -232,12 +262,15 @@ class Simulator_th(Simulator):
         self.simulation_turn_on = True
         for channel, simulation_object in enumerate(self.simulation_objects):
             self.threading_list.append(
-                threading.Thread(target=self.object_cycle, args=(simulation_object, channel, 'while')))
+                threading.Thread(
+                    target=self.object_cycle,
+                    args=(simulation_object, channel, "while"),
+                )
+            )
         for thread in self.threading_list:
             thread.start()
 
-    def start_simulation_for(self,
-                             steps: int = 100) -> None:
+    def start_simulation_for(self, steps: int = 100) -> None:
         """
         Запускает симуляцию для всех объектов в отдельных потоках, используя цикл `for`.
 
@@ -249,7 +282,11 @@ class Simulator_th(Simulator):
         self.simulation_turn_on = True
         for channel, simulation_object in enumerate(self.simulation_objects):
             self.threading_list.append(
-                threading.Thread(target=self.object_cycle, args=(simulation_object, channel, 'for', steps)))
+                threading.Thread(
+                    target=self.object_cycle,
+                    args=(simulation_object, channel, "for", steps),
+                )
+            )
         for thread in self.threading_list:
             thread.start()
 
@@ -259,12 +296,11 @@ class Simulator_realtime(Simulator):
     Класс симуляции с синхронизацией с реальным временем
     """
 
-    def object_cycle(self,
-                     type_of_cycle: str = 'while',
-                     steps: int = 100) -> None:
+    def object_cycle(
+        self, type_of_cycle: str = "while", steps: int = 100
+    ) -> None:
         """
-        Фукнция запускает симуляцию объектов в отдельных потоках, но с
-        синхронизацией с реальным временем.
+        Фукнция запускает симуляцию объектов в отдельных потоках, но с синхронизацией с реальным временем.
 
         :param type_of_cycle: тип симуляции - while или for, если for, то нужно указать steps
         :type type_of_cycle: str
@@ -273,40 +309,45 @@ class Simulator_realtime(Simulator):
         :rtype: None
         """
         last_time = time.time()
-        if type_of_cycle == 'while':
+        if type_of_cycle == "while":
             while self.simulation_turn_on:
                 current_time = time.time()
                 elapsed_time = current_time - last_time
                 # Проверяем, прошло ли достаточно времени для очередного шага
                 if elapsed_time >= self.dt:
                     last_time = current_time
-                    for object_channel, simulation_object in enumerate(self.simulation_objects):
+                    for object_channel, simulation_object in enumerate(
+                        self.simulation_objects
+                    ):
                         self.step(simulation_object, object_channel)
-        elif type_of_cycle == 'for':
+        elif type_of_cycle == "for":
             for _ in range(steps):
                 current_time = time.time()
                 elapsed_time = current_time - last_time
                 if elapsed_time >= self.dt:
                     last_time = current_time
-                    for object_channel, simulation_object in enumerate(self.simulation_objects):
+                    for object_channel, simulation_object in enumerate(
+                        self.simulation_objects
+                    ):
                         self.step(simulation_object, object_channel)
         else:
-            print("Такой type_of_cycle не задан в начальных настройках, попробуйте while или for 1")
+            print(
+                "Такой type_of_cycle не задан в начальных настройках, попробуйте while или for 1"
+            )
 
 
 class Simulator_realtime_th(Simulator_realtime, Simulator_th):
     """
     Класс симуляции с синхронизацией в реальном времени и с запуском в отдельных потоках.
     """
+
     pass
 
 
 class Trajectory_writer:
-    def __init__(self,
-                 list_of_names_columns: Union[list[str], NDArray[Any]]):
+    def __init__(self, list_of_names_columns: Union[list[str], NDArray[Any]]):
         """
-        Специальный класс для записи и хранения траектории размером
-        nx[len(list_of_names_columns)], n - количество точек.
+        Специальный класс для записи и хранения траектории размером nx[len(list_of_names_columns)], n - количество точек.
 
         :param list_of_names_columns: названия колонн
         :type list_of_names_columns: Union[list[str], NDArray[Any]]
@@ -315,8 +356,7 @@ class Trajectory_writer:
         self.columns = list_of_names_columns
         self.stopped = False
 
-    def vstack(self,
-               vstack_array: NDArray[np.float64]) -> None:
+    def vstack(self, vstack_array: NDArray[np.float64]) -> None:
         """
         Функция объединяет входящие вектора с матрицей trajectory
 
