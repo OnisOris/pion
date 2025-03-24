@@ -54,7 +54,11 @@ dev = [
 members = ["numbers"]
 
 
+[tool.ruff]
+line-length = 79
+
 [tool.ruff.format]
+quote-style = "double"
 docstring-code-format = true
 
 [tool.ruff.lint]
