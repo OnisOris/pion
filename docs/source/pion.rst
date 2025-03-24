@@ -7,4 +7,3 @@ Pion
 
 .. autoclass:: pion.cython_pid
    :members:
-

@@ -36,7 +36,7 @@ cdef class AdaptiveController:
     cdef object kp, ki, kd, integral, previous_error
     cdef object error_history, max_adjustment, learning_rate
 
-    def __init__(self, 
+    def __init__(self,
                  np.ndarray[np.float64_t] initial_kp,
                  np.ndarray[np.float64_t] initial_ki,
                  np.ndarray[np.float64_t] initial_kd,
@@ -51,7 +51,7 @@ cdef class AdaptiveController:
         self.learning_rate = learning_rate
         self.max_adjustment = max_adjustment
 
-    def compute_control(self, 
+    def compute_control(self,
                         np.ndarray[np.float64_t] target_position,
                         np.ndarray[np.float64_t] current_position,
                         double dt):
@@ -73,7 +73,7 @@ cdef class AdaptiveController:
             derivative = (error - self.previous_error) / dt
         else:
             derivative = np.zeros_like(error)
-        
+
         control_signal = (
             self.kp * error +
             self.ki * self.integral +

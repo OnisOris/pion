@@ -1,10 +1,14 @@
-import time
-import select
-from .controller import PIDController
-from typing import Union
 import asyncio
+import select
+import time
+from typing import Union
+
+import numpy as np
+from pymavlink import mavutil
+
+from .controller import PIDController
+from .functions import vector_reached
 from .pion import Pion
-from .functions import *
 
 
 class Apion(Pion):
@@ -12,9 +16,8 @@ class Apion(Pion):
     Асинхронная версия Pion
     """
 
-    async def message_handler(self,
-                              combine_system: int = 0) -> None:
-        """   
+    async def message_handler(self, combine_system: int = 0) -> None:
+        """
         Асинхронно обрабатывает сообщения от дрона и отправляет heartbeat, обновляя координаты дрона.
 
         :param combine_system: Определяет, с каких источников будут считываться данные:
@@ -25,7 +28,7 @@ class Apion(Pion):
         src_component_map = {
             0: 1,  # Только локус
             1: None,  # Локус и оптика (неважно, откуда приходит)
-            2: 26  # Только оптика
+            2: 26,  # Только оптика
         }
         src_component = src_component_map.get(combine_system)
 
@@ -36,24 +39,34 @@ class Apion(Pion):
             self.heartbeat()
 
             # Асинхронно ждем сообщения
-            rlist, _, _ = await asyncio.to_thread(select.select, [self.mavlink_socket.port.fileno()], [], [],
-                                                  self.period_message_handler)
+            rlist, _, _ = await asyncio.to_thread(
+                select.select,
+                [self.mavlink_socket.port.fileno()],
+                [],
+                [],
+                self.period_message_handler,
+            )
             if rlist:
                 # Асинхронно получаем сообщение
-                self._msg = await asyncio.to_thread(self.mavlink_socket.recv_msg)
+                self._msg = await asyncio.to_thread(
+                    self.mavlink_socket.recv_msg
+                )
                 if self._msg is not None:
                     self._process_message(self._msg, src_component)
                 else:
                     print("Received empty message or timeout.")
             if self.check_attitude_flag:
-               print("Attitude write")
-               self.attitude_write()
+                print("Attitude write")
+                self.attitude_write()
             await asyncio.sleep(self.period_message_handler)
 
-    async def send_speed(self, vx: Union[float, int],
-                         vy: Union[float, int],
-                         vz: Union[float, int],
-                         yaw_rate: Union[float, int]) -> None:
+    async def send_speed(
+        self,
+        vx: float,
+        vy: float,
+        vz: float,
+        yaw_rate: float,
+    ) -> None:
         """
         Асинхронно задает вектор скорости дрону. Отсылать необходимо в цикле.
         """
@@ -64,21 +77,28 @@ class Apion(Pion):
         mask = 0b0000_01_0_111_000_111
 
         # Полная команда с отправкой скорости и yaw
-        await asyncio.to_thread(self._send_position_target_local_ned,
-                                mavutil.mavlink.MAV_FRAME_LOCAL_NED,
-                                mask,
-                                0, 0, 0,  # Позиция игнорируется
-                                vx, vy, vz,  # Скорости
-                                0, 0, 0,  # Ускорения
-                                0,  # yaw
-                                yaw_rate,  # yaw rate
-                                mavlink_send_number=1)
+        await asyncio.to_thread(
+            self._send_position_target_local_ned,
+            mavutil.mavlink.MAV_FRAME_LOCAL_NED,
+            mask,
+            0,
+            0,
+            0,  # Позиция игнорируется
+            vx,
+            vy,
+            vz,  # Скорости
+            0,
+            0,
+            0,  # Ускорения
+            0,  # yaw
+            yaw_rate,  # yaw rate
+            mavlink_send_number=1,
+        )
 
-    async def v_while(self,
-                      ampl: Union[float, int]) -> None:
+    async def v_while(self, ampl: Union[float, int]) -> None:
         """
         Асинхронная функция, которая отправляет вектор скорости в цикле.
-        
+
         :param ampl: множитель вектора скорости
         """
         while self.speed_flag:
@@ -86,7 +106,9 @@ class Apion(Pion):
             t_speed = self.t_speed * ampl
 
             # Отправляем скорость дрону
-            await self.send_speed(t_speed[0], t_speed[1], t_speed[2], t_speed[3])
+            await self.send_speed(
+                t_speed[0], t_speed[1], t_speed[2], t_speed[3]
+            )
 
             # Асинхронная задержка
             await asyncio.sleep(self.period_send_speed)
@@ -117,8 +139,7 @@ class Apion(Pion):
         self.check_attitude_flag = False
         self.message_handler_flag = False
 
-    async def set_v_async(self,
-                          ampl: Union[float, int] = 1) -> None:
+    async def set_v_async(self, ampl: Union[float, int] = 1) -> None:
         """
         Асинхронно запускает цикл, который вызывает функцию v_while() для параллельной отправки вектора скорости.
 
@@ -127,12 +148,14 @@ class Apion(Pion):
         self.speed_flag = True
         await self.v_while(ampl)
 
-    async def goto_from_outside(self,
-                                x: Union[float, int],
-                                y: Union[float, int],
-                                z: Union[float, int],
-                                yaw: Union[float, int],
-                                accuracy: Union[float, int] = 8e-2) -> None:
+    async def goto_from_outside(
+        self,
+        x: Union[float, int],
+        y: Union[float, int],
+        z: Union[float, int],
+        yaw: Union[float, int],
+        accuracy: Union[float, int] = 8e-2,
+    ) -> None:
         """
         Асинхронная функция для перемещения дрона к указанной точке с учетом управления yaw.
 
@@ -140,21 +163,29 @@ class Apion(Pion):
         :param y: координата по y
         :param z:  координата по z
         :param yaw: координата по yaw
-        :param accuracy: Погрешность целевой точки 
+        :param accuracy: Погрешность целевой точки
 
         :return: None
         """
         await self.goto_yaw(yaw)
-        pid_controller = PIDController([0.5, 0.5, 0.5], [5, 5, 5], [0.5, 0.5, 0.5])
+        pid_controller = PIDController(
+            [0.5, 0.5, 0.5], [5, 5, 5], [0.5, 0.5, 0.5]
+        )
         point_reached = False
         dt = time.time()  # Для расчета временного шага
         while not point_reached:
             dt = time.time() - dt  # Расчет временного шага
-            point_reached = vector_reached([x, y, z], self.position[0:3], accuracy=accuracy)
+            point_reached = vector_reached(
+                [x, y, z], self.position[0:3], accuracy=accuracy
+            )
 
             # Рассчитываем управляющие воздействия на основе текущей позиции
-            control = pid_controller.compute_control([x, y, z], self.position[0:3])
-            control_clipped = np.clip(control, -self.max_speed, self.max_speed)  # Ограничиваем максимальную скорость
+            control = pid_controller.compute_control(
+                [x, y, z], self.position[0:3]
+            )
+            control_clipped = np.clip(
+                control, -self.max_speed, self.max_speed
+            )  # Ограничиваем максимальную скорость
 
             # Обновляем t_speed, добавляем нулевой yaw
             self.t_speed = np.hstack([control_clipped, 0])
@@ -165,9 +196,9 @@ class Apion(Pion):
         # Останавливаем движение после достижения точки
         self.t_speed = np.array([0, 0, 0, 0])
 
-    async def goto_yaw(self,
-                       yaw: Union[float, int] = 0,
-                       accuracy: Union[float, int] = 0.087) -> None:
+    async def goto_yaw(
+        self, yaw: Union[float, int] = 0, accuracy: Union[float, int] = 0.087
+    ) -> None:
         """
         Асинхронная функция для поворота дрона на указанный угол yaw.
 
@@ -182,7 +213,9 @@ class Apion(Pion):
             point_reached = vector_reached(yaw, current_yaw, accuracy=accuracy)
             # Рассчитываем yaw скорость
             yaw_control = pid_controller.compute_control(yaw, current_yaw)
-            yaw_speed = np.clip(yaw_control, -self.max_speed, self.max_speed)  # Ограничиваем скорость yaw
+            yaw_speed = np.clip(
+                yaw_control, -self.max_speed, self.max_speed
+            )  # Ограничиваем скорость yaw
             # Обновляем t_speed только для yaw
             self.t_speed = np.array([0, 0, 0, -yaw_speed])
             await asyncio.sleep(self.period_send_speed)

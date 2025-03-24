@@ -10,9 +10,8 @@
 
    curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_macos.sh | bash
 
-После выполнения скрипта активируйте виртуальное окружение 
+После выполнения скрипта активируйте виртуальное окружение
 
 .. code-block::
 
    source ./.venv/bin/activate
-

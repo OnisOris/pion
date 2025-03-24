@@ -1,6 +1,6 @@
-from setuptools import setup
 import numpy as np
 from Cython.Distutils.extension import Extension
+from setuptools import setup
 
 # Cython-модуль, который нужно скомпилировать
 extensions = [

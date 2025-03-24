@@ -8,6 +8,3 @@
    :caption: Скрипты:
 
    first_flight
-
-
-    
