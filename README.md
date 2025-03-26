@@ -14,7 +14,7 @@ SDK для управления дронами [geoscan pioneer base](https://ge
 ## Автоматическая установка
 Перейдите в папку с проектом и выполните команду:
 ```angular2html
-sudo curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_linux.sh | sudo bash
+sudo curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/install_linux.sh | sudo bash
 ```
 
 После выполнения скрипта активируйте виртуальное окружение 
@@ -61,7 +61,7 @@ pip install git+https://github.com/OnisOris/pion
 Перейдите в папку со своим проектом через терминал и выполните команду
 
 ```angular2html
- powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_windows.bat' -OutFile 'install_windows.bat'; Start-Process 'install_windows.bat' -Verb RunAs"
+ powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/install_windows.bat' -OutFile 'install_windows.bat'; Start-Process 'install_windows.bat' -Verb RunAs"
 ```
 
 Данная команда установит все необходимые библиотеки для сборки модуля
@@ -134,7 +134,7 @@ python setup.py build_ext --inplace
 ## Автоматическая установка
 Перейдите в папку с проектом и выполните команду:
 ```angular2html
-curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_macos.sh | bash
+curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/install_macos.sh | bash
 ```
 
 После выполнения скрипта активируйте виртуальное окружение 
