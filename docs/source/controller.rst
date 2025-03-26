@@ -6,7 +6,7 @@ Controller
    :special-members:
 
 
-Диаграмма 
+Диаграмма
 ---------
 
 .. image:: img/controller.png
@@ -14,4 +14,3 @@ Controller
     :align: center
     :target: img/controller.png
     :alt: Диаграмма потока
-

@@ -17,7 +17,7 @@ SDK для управления дронами [geoscan pioneer base](https://ge
 sudo curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/install_linux.sh | sudo bash
 ```
 
-После выполнения скрипта активируйте виртуальное окружение 
+После выполнения скрипта активируйте виртуальное окружение
 ```
 source ./.venv/bin/activate
 ```
@@ -69,7 +69,7 @@ pip install git+https://github.com/OnisOris/pion
 ## Ручная установка
 
 Установите python. Тесты проводились на версиях 3.9-3.13, но рекомендую ставить >3.13.
-Важно, если у вас установлен python, проверьте, что необходимые библиотеки у вас есть, если же вы не уверены, переустановите 
+Важно, если у вас установлен python, проверьте, что необходимые библиотеки у вас есть, если же вы не уверены, переустановите
 python по инструкции.
 - [Последняя версия python](https://www.python.org/downloads/)
 
@@ -111,7 +111,7 @@ pip install git+https://github.com/OnisOris/pion
 
 
 ## Установка клонированием
-Данный способ вам нужен, если вы хотите модифицировать моудль, для использования вам это не нужно, 
+Данный способ вам нужен, если вы хотите модифицировать моудль, для использования вам это не нужно,
 устанавливайте через pip.
 
 Клонируем репозиторий:
@@ -137,7 +137,7 @@ python setup.py build_ext --inplace
 curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/install_macos.sh | bash
 ```
 
-После выполнения скрипта активируйте виртуальное окружение 
+После выполнения скрипта активируйте виртуальное окружение
 ```
 source ./.venv/bin/activate
 ```
@@ -174,5 +174,3 @@ drone = Pion(ip=ip, mavlink_port=port)
 https://github.com/OnisOris/pion_examples
 
 https://github.com/OnisOris/Danalysis
-
-
