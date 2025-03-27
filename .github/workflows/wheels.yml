@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [linux-intel, linux-arm, windows-latest, macOS-intel, macOS-arm]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest-large, macos-latest-xlarge]
         python: [cp310, cp311, pp311]
         exclude:
           - os: windows-latest
