@@ -69,3 +69,8 @@ extend-select = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.cibuildwheel]
+skip = [
+    "pp311-win*",
+]
