@@ -10,6 +10,9 @@ jobs:
       matrix:
         # macos-13 is an intel runner, macos-14 is apple silicon
         os: [linux-intel, linux-arm, windows-latest, macOS-intel, macOS-arm]
+        exclude:
+          - os: windows-latest
+            python: pp311
 
     steps:
       - uses: actions/checkout@v4
