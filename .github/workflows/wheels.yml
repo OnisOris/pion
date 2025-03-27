@@ -4,12 +4,12 @@ on: [push, pull_request]
 
 jobs:
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build wheels on ${{ matrix.os }} with ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # macos-13 is an intel runner, macos-14 is apple silicon
         os: [linux-intel, linux-arm, windows-latest, macOS-intel, macOS-arm]
+        python: [cp310, cp311, pp311]
         exclude:
           - os: windows-latest
             python: pp311
@@ -26,5 +26,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          name: cibw-wheels-${{ matrix.os }}-${{ matrix.python }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
