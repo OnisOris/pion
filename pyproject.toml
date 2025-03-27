@@ -14,7 +14,7 @@ maintainers = [
     {name = "Michael", email = "onisoris@yandex.ru"}
 ]
 dependencies = [
-    "numpy>=2.0.2",
+    "numpy>=2.2.4",
     "paramiko>=3.5.1",
     "protobuf==5.29.3",
     "pymavlink>=2.4.42",
