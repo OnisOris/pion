@@ -8,16 +8,27 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python: [cp310, cp311, pp311]
+        arch: [auto]
+        include:
+          - os: ubuntu-latest
+            arch: arm64
+          - os: macos-latest
+            arch: auto
         exclude:
           - os: windows-latest
             python: pp311
+          - os: windows-latest
+            arch: arm64
+          - os: macos-latest
+            arch: arm64
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up QEMU
+        if: matrix.os == 'ubuntu-latest'
         uses: docker/setup-qemu-action@v3
 
       - name: Build wheels
@@ -29,7 +40,7 @@ jobs:
           archs: ${{ matrix.arch }}
 
       - name: Build ARM wheels
-        if: matrix.arch == 'arm64'
+        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
         run: |
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
           docker buildx create --use
