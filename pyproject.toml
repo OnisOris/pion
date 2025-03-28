@@ -73,10 +73,12 @@ extend-select = [
 convention = "google"
 
 [tool.cibuildwheel]
-skip = "*"
+skip = [
+    "pp311-win*",
+    "*-manylinux_i686"
+]
+build = "cp313-* pp313-*"
 test-skip = "*"
-build = "cp313-*"
-environment-pass = ["NPY_USE_BLAS_ILP64"]
 
 [tool.cibuildwheel.environment.arm64]
 NPY_BLAS_ORDER = "openblas"

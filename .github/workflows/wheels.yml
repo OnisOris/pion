@@ -4,26 +4,31 @@ on: [push, pull_request]
 
 jobs:
   build_wheels:
-    name: Build wheels on ${{ matrix.os }} with ${{ matrix.python }} for ${{ matrix.arch }}
+    name: Build wheels for ${{ matrix.python }} on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python: [cp313, pp313]
-        arch: [x86_64]
         include:
+          # Linux
           - os: ubuntu-latest
-            python: cp310
+            python: cp313
+            arch: x86_64
+          - os: ubuntu-latest
+            python: cp313
             arch: arm64
+          - os: ubuntu-latest
+            python: pp313
+            arch: x86_64
+
+          # macOS
           - os: macos-latest
+            python: cp313
             arch: universal2
-        exclude:
+
+          # Windows
           - os: windows-latest
-            python: pp310
-          - os: windows-latest
-            arch: arm64
-          - os: macos-latest
-            arch: arm64
+            python: cp313
+            arch: x86_64
 
     steps:
       - uses: actions/checkout@v4
@@ -33,32 +38,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu \
             libopenblas-dev \
             liblapack-dev \
-            gfortran \
-            pkg-config
-        env:
-          CIBW_ARCHS: arm64
-          NPY_USE_BLAS_ILP64: 1
-
-      - name: Setup build tools
-        uses: pypa/cibuildwheel@v2.23.2
+            gfortran
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.2
-        env:
-          NPY_CPU_DISPATCH: SSE2
-          PLATFORM: ${{ matrix.arch == 'arm64' && 'linux/arm64' || '' }}
         with:
           package-dir: .
           output-dir: wheelhouse
           config-file: "pyproject.toml"
           archs: ${{ matrix.arch }}
-          platform: ${{ env.PLATFORM }}
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheels-${{ matrix.os }}-${{ matrix.python }}
-          path: ./wheelhouse/*.whl
