@@ -50,12 +50,13 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.2
         env:
           NPY_CPU_DISPATCH: SSE2
+          PLATFORM: ${{ matrix.arch == 'arm64' && 'linux/arm64' || '' }}
         with:
           package-dir: .
           output-dir: wheelhouse
           config-file: "pyproject.toml"
           archs: ${{ matrix.arch }}
-          platform: "${{ matrix.arch == 'arm64' ? 'linux/arm64' : '' }}"
+          platform: ${{ env.PLATFORM }}
 
       - uses: actions/upload-artifact@v4
         with:
