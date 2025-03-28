@@ -49,3 +49,19 @@ jobs:
           output-dir: wheelhouse
           config-file: "pyproject.toml"
           archs: ${{ matrix.arch }}
+publish:
+  name: Publish wheels to PyPI
+  needs: build_wheels
+  runs-on: ubuntu-latest
+  steps:
+    - name: Download all wheel artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: wheelhouse
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@v1.4.2
+      with:
+        packages-dir: wheelhouse
+      env:
+        PYPI_API_TOKEN: ${{ secrets.PYPI }}
