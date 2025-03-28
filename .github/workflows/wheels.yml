@@ -63,6 +63,6 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@v1.4.2
         with:
-          packages-dir: wheelhouse
+          packages_dir: wheelhouse
         env:
           PYPI_API_TOKEN: ${{ secrets.PYPI }}
