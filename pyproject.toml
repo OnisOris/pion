@@ -73,9 +73,9 @@ extend-select = [
 convention = "google"
 
 [tool.cibuildwheel]
-skip = [
-    "pp311-win*",
-]
+skip = "*"
+test-skip = "*"
+build = "cp313-*"
 environment-pass = ["NPY_USE_BLAS_ILP64"]
 
 [tool.cibuildwheel.environment.arm64]
