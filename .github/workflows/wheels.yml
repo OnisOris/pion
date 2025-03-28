@@ -79,4 +79,4 @@ jobs:
         with:
           packages_dir: wheelhouse
         env:
-          PYPI_API_TOKEN: ${{ secrets.PYPI }}
+          PYPI_API_TOKEN: ${{ secrets.pypi_pionsdk }}
