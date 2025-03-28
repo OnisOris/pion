@@ -64,8 +64,15 @@ jobs:
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.arch }}
           path: wheelhouse
+
+      - name: Flatten downloaded wheels
+        run: |
+          find wheelhouse -mindepth 2 -type f -name '*.whl' -exec mv {} wheelhouse/ \;
+          find wheelhouse -type d -empty -delete
+
+      - name: List wheels
+        run: ls -l wheelhouse/
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@v1.4.2
