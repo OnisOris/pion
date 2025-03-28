@@ -64,6 +64,7 @@ jobs:
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
+          name: wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.arch }}
           path: wheelhouse
 
       - name: Publish to PyPI
