@@ -35,8 +35,10 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu \
             g++-aarch64-linux-gnu \
-            libopenblas-dev:arm64 \
-            liblapack-dev:arm64
+            libopenblas-dev \
+            liblapack-dev \
+            gfortran \
+            pkg-config
         env:
           CIBW_ARCHS: arm64
           NPY_USE_BLAS_ILP64: 1
