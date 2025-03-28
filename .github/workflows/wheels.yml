@@ -10,7 +10,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: [cp310, cp311, pp310]
-        arch: [auto]
+        arch: [x86_64]
         include:
           - os: ubuntu-latest
             python: cp310
@@ -55,7 +55,7 @@ jobs:
           output-dir: wheelhouse
           config-file: "pyproject.toml"
           archs: ${{ matrix.arch }}
-          platform: linux/arm64
+          platform: "${{ matrix.arch == 'arm64' ? 'linux/arm64' : '' }}"
 
       - uses: actions/upload-artifact@v4
         with:
