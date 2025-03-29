@@ -60,9 +60,6 @@ jobs:
     name: Publish wheels to PyPI
     needs: build_wheels
     runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write  # Необходимо для OIDC аутентификации
     steps:
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
@@ -81,3 +78,5 @@ jobs:
         uses: pypa/gh-action-pypi-publish@v1.4.2
         with:
           packages_dir: wheelhouse
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI }}
