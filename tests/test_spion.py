@@ -1,6 +1,8 @@
-from pion import Spion
 import numpy as np
+
 from pion.cython_pid import PIDController
+from pion.spion import Spion
+
 
 class TestSpion:
     def test_position(self):
@@ -22,6 +24,7 @@ class TestSpion:
     def test_velocity_controller(self):
         """
         Тестирование контроллера скорости.
+
         Создается отдельно регулятор со стандартными коэффициентами ПИД из конструктора и
         проверяется управляеющее воздействие первой итерации
         """
@@ -36,7 +39,9 @@ class TestSpion:
         spion = Spion(start_message_handler_from_init=False)
         # Создание отдельного объекта ПИД
         pid_velocity_controller = PIDController(*spion.velocity_pid_matrix)
-        spion._pid_velocity_controller = PIDController(*spion.velocity_pid_matrix)
+        spion._pid_velocity_controller = PIDController(
+            *spion.velocity_pid_matrix
+        )
         # Присвоем spion целевую скорость
         spion.t_speed = t_speed
         # Один шаг моделирования симулятора Spion
@@ -47,7 +52,8 @@ class TestSpion:
         signal = pid_velocity_controller.compute_control(
             target_position=target_speed,
             current_position=current_position,
-            dt=0.1)
+            dt=0.1,
+        )
         # Сравнение управляющего сигнала с ПИД spion и проверочного ПИД
         assert np.all(np.equal(force_after_one_step, signal))
 
@@ -64,8 +70,12 @@ class TestSpion:
         spion = Spion(start_message_handler_from_init=False)
         # Создание отдельного объекта ПИД
         pid_position_controller = PIDController(*spion.position_pid_matrix)
-        spion._pid_velocity_controller = PIDController(*spion.velocity_pid_matrix)
-        spion._pid_position_controller = PIDController(*spion.position_pid_matrix)
+        spion._pid_velocity_controller = PIDController(
+            *spion.velocity_pid_matrix
+        )
+        spion._pid_position_controller = PIDController(
+            *spion.position_pid_matrix
+        )
         spion.max_speed = float("inf")
         spion.position_controller(target_xyz)
         # Один шаг моделирования симулятора Spion
@@ -74,12 +84,7 @@ class TestSpion:
         signal = pid_position_controller.compute_control(
             target_position=target_xyz,
             current_position=current_position,
-            dt=0.1)
+            dt=0.1,
+        )
         # Сравнение управляющего сигнала с ПИД spion и проверочного ПИД
         assert np.all(np.equal(spion.t_speed[0:3], signal))
-
-        
-        
-                
-
-

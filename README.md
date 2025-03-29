@@ -14,10 +14,10 @@ SDK для управления дронами [geoscan pioneer base](https://ge
 ## Автоматическая установка
 Перейдите в папку с проектом и выполните команду:
 ```angular2html
-sudo curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_linux.sh | sudo bash
+sudo curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/install_linux.sh | sudo bash
 ```
 
-После выполнения скрипта активируйте виртуальное окружение 
+После выполнения скрипта активируйте виртуальное окружение
 ```
 source ./.venv/bin/activate
 ```
@@ -61,7 +61,7 @@ pip install git+https://github.com/OnisOris/pion
 Перейдите в папку со своим проектом через терминал и выполните команду
 
 ```angular2html
- powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_windows.bat' -OutFile 'install_windows.bat'; Start-Process 'install_windows.bat' -Verb RunAs"
+ powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/install_windows.bat' -OutFile 'install_windows.bat'; Start-Process 'install_windows.bat' -Verb RunAs"
 ```
 
 Данная команда установит все необходимые библиотеки для сборки модуля
@@ -69,27 +69,27 @@ pip install git+https://github.com/OnisOris/pion
 ## Ручная установка
 
 Установите python. Тесты проводились на версиях 3.9-3.13, но рекомендую ставить >3.13.
-Важно, если у вас установлен python, проверьте, что необходимые библиотеки у вас есть, если же вы не уверены, переустановите 
+Важно, если у вас установлен python, проверьте, что необходимые библиотеки у вас есть, если же вы не уверены, переустановите
 python по инструкции.
 - [Последняя версия python](https://www.python.org/downloads/)
 
 Далее при установке поставьте галки, как на картинках, а также перейдите в Customize installation.
 
- ![окно установки 1](./img/python_install.jpg)
+ ![окно установки 1](docs/source/img/python_install.jpg)
 
 Доставьте все галки в "Advanced Options"
 
 
- ![окно установки 2](./img/python_install2.jpg)
+ ![окно установки 2](docs/source/img/python_install2.jpg)
 
 Здесь тоже доставьте галки
 
 
- ![окно установки 3](./img/python_install3.jpg)
+ ![окно установки 3](docs/source/img/python_install3.jpg)
 
 Проверьте, что у вас установлен vs build tools с нужными пакетами:
 
-![vsbt](./img/windows_vsbt.jpg)
+![vsbt](docs/source/img/windows_vsbt.jpg)
 
 ## Создание вирутального окружения
 В терминале перейдите в ваш проект и выполните команду:
@@ -111,7 +111,7 @@ pip install git+https://github.com/OnisOris/pion
 
 
 ## Установка клонированием
-Данный способ вам нужен, если вы хотите модифицировать моудль, для использования вам это не нужно, 
+Данный способ вам нужен, если вы хотите модифицировать моудль, для использования вам это не нужно,
 устанавливайте через pip.
 
 Клонируем репозиторий:
@@ -134,10 +134,10 @@ python setup.py build_ext --inplace
 ## Автоматическая установка
 Перейдите в папку с проектом и выполните команду:
 ```angular2html
-curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_macos.sh | bash
+curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/install_macos.sh | bash
 ```
 
-После выполнения скрипта активируйте виртуальное окружение 
+После выполнения скрипта активируйте виртуальное окружение
 ```
 source ./.venv/bin/activate
 ```
@@ -145,8 +145,10 @@ source ./.venv/bin/activate
 
 # Подключение
 Для подключения к дрону достаточно создать экземпляр класса Pion
+
 ```python
 from pion import Pion
+
 ip = "127.0.0.1"
 port = 8000
 drone = Pion(ip=ip, mavlink_port=port)
@@ -155,20 +157,20 @@ drone = Pion(ip=ip, mavlink_port=port)
 
 # Подробное описание с примерами
 
-- [Pion](./description/pion.md) - класс управления реальными дронами
+- [Pion](docs/pion.md) - класс управления реальными дронами
 
-- [Spion](./description/spion.md) - класс дрона-симулятора
+- [Spion](docs/spion.md) - класс дрона-симулятора
 
-- [Apion](./description/apion.md) - Класс с реализацией асинхронного управления
+- [Apion](docs/apion.md) - Класс с реализацией асинхронного управления
 
-- [Simulator](./description/simulator.md) - Классы симуляторов
+- [Simulator](docs/simulator.md) - Классы симуляторов
 
-- [Pio](./description/pio.md) - Асбстрактные классы
-
-
+- [Pio](docs/pio.md) - Асбстрактные классы
 
 
-Дополнительные примеры с инструкцией можно найти по ссылке:
+
+Дополнительные примеры с инструкцией можно найти по ссылкам:
+
+https://github.com/OnisOris/pion_examples
+
 https://github.com/OnisOris/Danalysis
-
-
