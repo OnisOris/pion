@@ -24,16 +24,15 @@ dependencies = [
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Independent Audience :: Developers",
+    "Intended Audience :: Developers",
     "Topic :: Software Development :: Build Tools",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
 ]
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE*"]
 readme = {file = "README.md", content-type = "text/markdown"}
 
 [project.urls]
@@ -83,3 +82,6 @@ test-skip = "*"
 [tool.cibuildwheel.environment.arm64]
 NPY_BLAS_ORDER = "openblas"
 NPY_LAPACK_ORDER = "openblas"
+
+[tool.setuptools]
+include-package-data = true
