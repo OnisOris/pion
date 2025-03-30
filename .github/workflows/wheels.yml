@@ -9,23 +9,55 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux
+          # Linux (не ARM) – версии CPython 3.9–3.13
+          - os: ubuntu-latest
+            python: cp39
+            arch: x86_64
+          - os: ubuntu-latest
+            python: cp310
+            arch: x86_64
+          - os: ubuntu-latest
+            python: cp311
+            arch: x86_64
+          - os: ubuntu-latest
+            python: cp312
+            arch: x86_64
           - os: ubuntu-latest
             python: cp313
             arch: x86_64
+          # Linux ARM – только CPython 3.13
           - os: ubuntu-latest
             python: cp313
             arch: arm64
-          - os: ubuntu-latest
-            python: pp313
-            arch: x86_64
-
-          # macOS
+          # macOS (не ARM) – версии CPython 3.9–3.13
+          - os: macos-latest
+            python: cp39
+            arch: universal2
+          - os: macos-latest
+            python: cp310
+            arch: universal2
+          - os: macos-latest
+            python: cp311
+            arch: universal2
+          - os: macos-latest
+            python: cp312
+            arch: universal2
           - os: macos-latest
             python: cp313
             arch: universal2
-
-          # Windows
+          # Windows (не ARM) – версии CPython 3.9–3.13
+          - os: windows-latest
+            python: cp39
+            arch: x86_64
+          - os: windows-latest
+            python: cp310
+            arch: x86_64
+          - os: windows-latest
+            python: cp311
+            arch: x86_64
+          - os: windows-latest
+            python: cp312
+            arch: x86_64
           - os: windows-latest
             python: cp313
             arch: x86_64
