@@ -5,7 +5,7 @@ from typing import Annotated, Any, Literal, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from .annotation import Array2, Array3
+from pionfunc.annotation import Array2, Array3
 
 
 class Point:

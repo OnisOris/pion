@@ -10,7 +10,7 @@ from pymavlink.dialects.v10.all import MAVLink_message
 
 from pion.cython_pid import PIDController
 
-from .annotation import Array2, Array3, Array4, Array6
+from pionfunc.annotation import Array2, Array3, Array4, Array6
 from pionfunc.functions import (
     create_connection,
     scalar_reached,

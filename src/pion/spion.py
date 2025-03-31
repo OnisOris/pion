@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 
 from pion.cython_pid import PIDController  # Cython-версия PIDController
 
-from .annotation import Array2, Array3, Array4, Array6
+from pionfunc.annotation import Array2, Array3, Array4, Array6
 from pionfunc.functions import update_array, vector_reached
 from .pio import DroneBase
 from .simulator import Point, Simulator

@@ -5,7 +5,7 @@ from typing import Callable, Optional, Union
 import numpy as np
 import numpy.typing as npt
 from pymavlink import mavutil
-from pion.annotation import Array6
+from pionfunc.annotation import Array6
 
 
 def get_unique_instance_id(ip: str, instance_number=None) -> int:

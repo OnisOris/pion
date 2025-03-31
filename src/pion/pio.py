@@ -11,7 +11,7 @@ from rich.table import Table
 
 from pion.cython_pid import PIDController
 
-from .annotation import Array2, Array3, Array4, Array6, Array14, Array17
+from pionfunc.annotation import Array2, Array3, Array4, Array6, Array14, Array17
 
 
 class Pio(ABC):

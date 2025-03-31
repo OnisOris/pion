@@ -8,7 +8,7 @@ from queue import Queue
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
-
+from pionfunc.annotation import Array3
 from pionfunc.functions import (
     compute_swarm_velocity,
     get_numeric_id,
@@ -27,10 +27,26 @@ from .datagram import DDatagram
 
 class UDPBroadcastClient:
     """
-    Клиент для отправки UDP широковещательных сообщений.
+    Клиент для отправки UDP широковещательных сообщений
     """
 
-    def __init__(self, port: int = 37020, unique_id: int = 0) -> None:
+    def __init__(self,
+                 port: int = 37020,
+                 unique_id: int = 0
+    ) -> None:
+        """
+        Инициализация клиента для отправки UDP широковещательных сообщений.
+
+        :param port: Порт для отправки сообщений.
+        :type port: int
+
+        :param unique_id: Уникальный идентификатор устройства. Если равен 0, генерируется случайное число.
+        :type unique_id: int
+
+        :return: None
+        :rtype: None
+        """
+
         numeric_id = (
             get_numeric_id(unique_id)
             if unique_id
@@ -48,11 +64,23 @@ class UDPBroadcastClient:
         except Exception as error:
             print("Broadcast client initialization failure:", error)
 
-    def send(self, state: Dict[str, Any]) -> None:
+    def send(self,
+             state: Dict[str, Any]
+             ) -> None:
         """
-        Сериализует и отправляет данные по широковещательной рассылке.
+        Сериализует и отправляет данные через UDP широковещательный канал.
 
-        Добавляем поле target_id, если команда адресована конкретному устройству.
+        :param state: Словарь с данными состояния, включающий:
+            - id: Идентификатор устройства.
+            - token: Токен для аутентификации.
+            - command: Команда для выполнения.
+            - target_id (опционально): Идентификатор целевого устройства.
+            - position: Список координат позиции.
+            - attitude: Список углов наклона.
+            - t_speed: Список значений скорости.
+        :type state: Dict[str, Any]
+
+        :return: None
         """
         try:
             # Преобразуем строковый id в числовой (для DDatagram)
@@ -83,16 +111,24 @@ class UDPBroadcastClient:
 
 
 class UDPBroadcastServer:
-    """
-    Сервер для приёма UDP широковещательных сообщений.
-    """
-
     def __init__(
         self,
         server_to_agent_queue: Queue[Any],
         port: int = 37020,
         unique_id: Optional[int] = None,
     ) -> None:
+        """
+        Инициализация сервера для приёма UDP широковещательных сообщений.
+
+        :param server_to_agent_queue: Очередь для передачи полученных сообщений.
+        :type server_to_agent_queue: Queue[Any]
+
+        :param port: Порт для приёма сообщений.
+        :type port: int
+
+        :param unique_id: Уникальный идентификатор устройства.
+        :type unique_id: Optional[int]
+        """
         numeric_id = (
             get_numeric_id(unique_id)
             if unique_id
@@ -116,7 +152,10 @@ class UDPBroadcastServer:
 
     def start(self) -> None:
         """
-        Запускает сервер для постоянного приёма сообщений.
+        Запускает сервер для постоянного приёма UDP сообщений.
+
+        :return: None
+        :rtype: None
         """
         while self.running:
             try:
@@ -153,11 +192,47 @@ class SwarmCommunicator:
         recive_interval: float = 0.05,
         safety_radius: float = 1.0,
         max_speed: float = 1.0,
-        ip=None,
-        instance_number=None,
+        ip: Optional[str] = None,
+        instance_number: Optional[Any] = None,
         time_sleep_update_velocity: float = 0.1,
         params: Optional[dict] = None,
     ) -> None:
+        """
+        Инициализация компонента для обмена данными в роевой архитектуре.
+        
+        :param control_object: Объект управления дроном.
+        :type control_object: Any
+        
+        :param broadcast_port: Порт для UDP широковещательных сообщений.
+        :type broadcast_port: int
+        
+        :param broadcast_interval: Интервал отправки сообщений (в секундах).
+        :type broadcast_interval: float
+        
+        :param recive_interval: Интервал проверки входящих сообщений (в секундах).
+        :type recive_interval: float
+        
+        :param safety_radius: Радиус безопасности.
+        :type safety_radius: float
+        
+        :param max_speed: Максимальная скорость.
+        :type max_speed: float
+        
+        :param ip: IP-адрес устройства (если None, используется значение из control_object).
+        :type ip: Optional[str]
+        
+        :param instance_number: Порядковый номер экземпляра для генерации уникального идентификатора.
+        :type instance_number: Optional[Any]
+        
+        :param time_sleep_update_velocity: Интервал обновления вектора скорости (в секундах).
+        :type time_sleep_update_velocity: float
+        
+        :param params: Дополнительные параметры алгоритма.
+        :type params: Optional[dict]
+
+        :return: None
+        :rtype: None
+        """
         if params is None:
             self.params = {
                 "attraction_weight": 1.0,
@@ -201,9 +276,10 @@ class SwarmCommunicator:
 
     def start(self) -> None:
         """
-        Запускает параллельные потоки: один для рассылки собственного состояния,
+        Запускает параллельные потоки для рассылки собственного состояния и приёма сообщений от других устройств.
 
-        второй – для приёма сообщений от других дронов.
+        :return: None
+        :rtype: None
         """
         self.broadcast_thread = threading.Thread(
             target=self._broadcast_loop, daemon=True
@@ -216,7 +292,10 @@ class SwarmCommunicator:
 
     def _broadcast_loop(self) -> None:
         """
-        Цикл отправки собственного состояния.
+        Запускает цикл отправки собственного состояния через UDP широковещательный канал.
+
+        :return: None
+        :rtype: None
         """
         while self.running:
             try:
@@ -236,6 +315,9 @@ class SwarmCommunicator:
     def _receive_loop(self) -> None:
         """
         Циклобработки входящих сообщений.
+
+        :return: None
+        :rtype: None
         """
         server_thread = threading.Thread(
             target=self.broadcast_server.start, daemon=True
@@ -250,6 +332,9 @@ class SwarmCommunicator:
     def stop(self) -> None:
         """
         Останавливает коммуникатор.
+
+        :return: None
+        :rtype: None
         """
         self.running = False
         self.broadcast_server.running = False
@@ -259,6 +344,7 @@ class SwarmCommunicator:
         Функция для сохранения данных задержек в работе кода
 
         :return: None
+        :rtype: None
         """
         current_date = datetime.date.today().isoformat()
         current_time = str(datetime.datetime.now().time())
@@ -272,7 +358,15 @@ class SwarmCommunicator:
         except Exception as e:
             print(f"Ошибка сохранения данных: {e}")
 
-    def process_incoming_state(self, state: Any) -> None:
+    def process_incoming_state(self,
+                               state: Any
+    ) -> None:
+        """
+        Функция обработчик входящих сообщений
+
+        :return: None
+        :rtype: None
+        """
         if state.target_id:
             if state.target_id != self.unique_id:
                 return
@@ -355,7 +449,17 @@ class SwarmCommunicator:
             elif hasattr(state, "ip"):
                 self.env[state.ip] = state
 
-    def update_swarm_control(self, target_point) -> None:
+    def update_swarm_control(self,
+                             target_point: Array3
+    ) -> None:
+        """
+        Вычисление нового вектора скорости и запись его в t_speed
+        
+        :param target_point: Целевая позиция
+
+        :return: None
+        :rtype: None
+        """
         new_vel = compute_swarm_velocity(
             self.control_object.position, self.env, target_point
         )
@@ -368,7 +472,13 @@ class SwarmCommunicator:
         z: Union[float, int],
         yaw: Union[float, int] = 0,
         accuracy: Union[float, int] = 5e-2,
-    ):
+    ) -> None:
+        """
+        Запуск потока слежения за точкой с алгоритмом избегания столкновений
+
+        :return: None
+        :rtype: None
+        """
         thread = threading.Thread(
             target=self.smart_goto,
             args=(
@@ -389,6 +499,13 @@ class SwarmCommunicator:
         yaw: Union[float, int] = 0,
         accuracy: Union[float, int] = 5e-2,
     ) -> None:
+        """
+        Функция отправляет дрон в точку [x, y, z, yaw] с точностью accuracy
+        с алгоритмом избегания столкновений
+
+        :return: None
+        :rtype: None
+        """
         print(f"Smart goto to {x, y, z, yaw}")
         self.control_object.set_v()
         self.control_object.goto_yaw(yaw)
@@ -411,7 +528,14 @@ class SwarmCommunicator:
         time.sleep(0.5)
         self.control_object.t_speed = np.zeros(4)
 
-    def smart_point_tacking(self):
+    def smart_point_tacking(self) -> None:
+        """
+        Функция включает режим слежения за точкой. Дрон 
+        начинает следить за точкой из target_point[0:2]
+
+        :return: None
+        :rtype: None
+        """
         print("Smart point tracking")
         self.control_object.set_v()
         self.control_object.point_reached = False
@@ -421,9 +545,12 @@ class SwarmCommunicator:
             time.sleep(self.time_sleep_update_velocity)
         self.t_speed = np.zeros(4)
 
-    def stop_trp(self):
+    def stop_trp(self) -> None:
         """
         Функция останавливает потоки, отправляющие вектора скорости на дрон
+
+        :return: None
+        :rtype: None
         """
         self.control_object.tracking = False
         self.control_object.point_reached = True
