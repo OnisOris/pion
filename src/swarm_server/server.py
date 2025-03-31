@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 
-from pion.functions import (
+from pionfunc.functions import (
     compute_swarm_velocity,
     get_numeric_id,
     get_unique_instance_id,

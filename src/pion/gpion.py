@@ -7,10 +7,8 @@ import paramiko
 from swarm_server.commands import CMD
 from swarm_server.datagram import DDatagram
 
-from .functions import extract_ip_id
+from pionfunc.functions import extract_ip_id
 from .pio import DroneBase
-
-# Определяем UDP-порт и коды команд
 
 
 class Gpion(DroneBase):

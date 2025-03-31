@@ -7,7 +7,7 @@ import numpy as np
 from pymavlink import mavutil
 
 from .controller import PIDController
-from .functions import vector_reached
+from pionfunc.functions import vector_reached
 from .pion import Pion
 
 
