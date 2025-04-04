@@ -1,4 +1,5 @@
 from typing import Annotated, Any
+
 from numpy.typing import NDArray
 
 # Аннотации для векторов различных размеров

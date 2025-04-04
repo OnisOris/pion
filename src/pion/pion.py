@@ -9,7 +9,6 @@ from pymavlink import mavutil
 from pymavlink.dialects.v10.all import MAVLink_message
 
 from pion.cython_pid import PIDController
-
 from pionfunc.annotation import Array2, Array3, Array4, Array6
 from pionfunc.functions import (
     create_connection,
@@ -19,6 +18,7 @@ from pionfunc.functions import (
     update_vector,
     vector_reached,
 )
+
 from .pio import DroneBase
 
 
@@ -137,8 +137,6 @@ class Pion(DroneBase):
         self._mavlink_send_number: int = 10
         self.__is_socket_open: threading.Event = threading.Event()
         self.__is_socket_open.set()
-        # Список потоков
-        self.threads: list = []
         # Период отправления следующего вектора скорости
         self.period_send_speed: float = 0.05
         # Период отправления rc каналов
@@ -157,6 +155,7 @@ class Pion(DroneBase):
             self._message_handler_thread: threading.Thread = threading.Thread(
                 target=self._message_handler, args=(combine_system,)
             )
+            self.threads.append(self._message_handler_thread)
             self._message_handler_thread.start()
         self.position_pid_matrix: np.ndarray = np.array(
             [
@@ -177,7 +176,7 @@ class Pion(DroneBase):
     @property
     def speed(self) -> Union[Array2, Array3]:
         """
-        Функция вернет скорость [vx, vy, vz]
+        Метод вернет скорость [vx, vy, vz]
 
         :return: Union[Array2, Array3]
         """
@@ -285,7 +284,7 @@ class Pion(DroneBase):
 
     def point_tracking(self) -> None:
         """
-        Функция слежения за точкой. Целевая точка меняется в поле self.target_point.
+        Метод  слежения за точкой. Целевая точка меняется в поле self.target_point.
 
         :return: None
         :rtype: None
@@ -315,9 +314,43 @@ class Pion(DroneBase):
         z: float,
         yaw: float,
         accuracy: Optional[float] = None,
+        wait: bool = False,
     ) -> None:
         """
-        Функция берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
+        Метод достижения целевой позиции
+
+        :param x: координата по x
+        :type x: float
+        :param y: координата по y
+        :type y: float
+        :param z: координата по z
+        :type z: float
+        :param yaw: координата по yaw
+        :type yaw: float
+        :param accuracy: Погрешность целевой точки
+        :type accuracy: Optional[float]
+        :param wait: Блокировка основного потока если True,
+        запуск процесса в отдельном потоке, если False
+        :type wait: bool
+        :return: None
+        """
+        if wait:
+            self.goto_process(x, y, z, yaw, accuracy)
+        else:
+            self.threads.append(
+                start_threading(self.goto_process, x, y, z, yaw, accuracy)
+            )
+
+    def goto_process(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        yaw: float,
+        accuracy: Optional[float] = None,
+    ) -> None:
+        """
+        Метод берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
 
         Для использования необходимо включить цикл :py:meth:`Pion.v_while` для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed
@@ -362,7 +395,7 @@ class Pion(DroneBase):
 
     def goto_yaw(self, yaw: float = 0.0, accuracy: float = 0.057) -> None:
         """
-        Функция берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
+        Метод берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
 
         Для использования необходимо включить цикл :py:meth:`Pion.v_while` для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed
@@ -404,7 +437,7 @@ class Pion(DroneBase):
         self, vx: float, vy: float, vz: float, yaw_rate: float
     ) -> None:
         """
-        Функция задает вектор скорости дрону. Отсылать необходимо в цикле.
+        Метод задает вектор скорости дрону. Отсылать необходимо в цикле.
 
         :param vx: скорость по оси x (м/с)
         :type vx: float
@@ -438,7 +471,7 @@ class Pion(DroneBase):
         channel_4: int = 0xFF,
     ) -> None:
         """
-        Функция отправляет управляющие сигналы RC-каналов дрону. Отсылать необходимо в цикле.
+        Метод отправляет управляющие сигналы RC-каналов дрону. Отсылать необходимо в цикле.
 
         :param channel_1: высота (throttle)
         :type channel_1: int
@@ -489,7 +522,7 @@ class Pion(DroneBase):
         mavlink_send_number=1,
     ) -> None:
         """
-        Функция отправляет команду MAVLink для установки целевой позиции или скорости в локальной системе координат NED (North, East, Down).
+        Метод отправляет команду MAVLink для установки целевой позиции или скорости в локальной системе координат NED (North, East, Down).
 
         Параметры включают систему координат, маску для указания активных полей,
         координаты (x, y, z), скорости (vx, vy, vz), ускорения и скорость поворота
@@ -729,7 +762,7 @@ class Pion(DroneBase):
 
     def rc_while(self) -> None:
         """
-        Функция задает цикл while на отправку управляющих сигналов rc каналов с периодом period_send_rc
+        Метод задает цикл while на отправку управляющих сигналов rc каналов с периодом period_send_rc
 
         :return: None
         """
@@ -752,7 +785,7 @@ class Pion(DroneBase):
 
     def v_while(self) -> None:
         """
-        Функция задает цикл while на отправку вектора скорости в body с периодом period_send_v
+        Метод задает цикл while на отправку вектора скорости в body с периодом period_send_v
 
         :return: None
         """
@@ -777,7 +810,7 @@ class Pion(DroneBase):
 
     def reboot_board(self) -> None:
         """
-        Функция для перезагрузки дрона
+        Метод для перезагрузки дрона
 
         :return: None
         """
@@ -873,7 +906,7 @@ class Pion(DroneBase):
 
     def poweroff(self) -> None:
         """
-        Функция отправляет команду на выключение Raspberry Pi.
+        Метод отправляет команду на выключение Raspberry Pi.
 
         :return: None
         """

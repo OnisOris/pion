@@ -1,13 +1,10 @@
 import socket
-import time
 from typing import Optional
 
-import paramiko
-
+from pionfunc.functions import extract_ip_id
 from swarm_server.commands import CMD
 from swarm_server.datagram import DDatagram
 
-from pionfunc.functions import extract_ip_id
 from .pio import DroneBase
 
 
@@ -143,5 +140,3 @@ class Gpion(DroneBase):
     def _send_heartbeat(self):
         # Заглушка
         pass
-
-  

@@ -10,8 +10,14 @@ from rich.live import Live
 from rich.table import Table
 
 from pion.cython_pid import PIDController
-
-from pionfunc.annotation import Array2, Array3, Array4, Array6, Array14, Array17
+from pionfunc.annotation import (
+    Array2,
+    Array3,
+    Array4,
+    Array6,
+    Array14,
+    Array17,
+)
 
 
 class Pio(ABC):
@@ -185,11 +191,13 @@ class DroneBase(Pio, ABC):
         self.target_point: np.ndarray = np.array([0, 0, 2, 0])
         # Флаг включения режима трекинга за точкой в отдельном потока: дрон будет следовать за точкой из поля target_point
         self.tracking: bool = False
+        # Список потоков
+        self.threads: list = []
 
     @property
     def position(self) -> Union[Array6, Array4]:
         """
-        Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
+        Метод вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
 
         :return: np.ndarray
         """
@@ -207,7 +215,7 @@ class DroneBase(Pio, ABC):
     @property
     def xyz(self) -> Union[Array3, Array2]:
         """
-        Функция вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
+        Метод вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
 
         :return: np.ndarray
         """
@@ -234,7 +242,7 @@ class DroneBase(Pio, ABC):
     @property
     def attitude(self) -> Union[Array6, Array4]:
         """
-        Функция вернет ndarray (6,) с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
+        Метод вернет ndarray (6,) с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
 
         :return: np.ndarray
         """
@@ -288,7 +296,7 @@ class DroneBase(Pio, ABC):
 
     def heartbeat(self) -> None:
         """
-        Функция проверки heartbeat дрона
+        Метод проверки heartbeat дрона
 
         :return: None
         """
@@ -339,7 +347,7 @@ class DroneBase(Pio, ABC):
 
     def save_data(self, file_name: str = "data.npy", path: str = "") -> None:
         """
-        Функция для сохранения траектории в файл.
+        Метод для сохранения траектории в файл.
 
         columns=['x', 'y', 'z', 'vx', 'vy', 'yaw', 'pitch', 'roll','Vyaw', 'Vpitch', 'Vroll', 'vxc', 'vyc', 'vzc', 'v_yaw_c', 't']
 
@@ -369,7 +377,7 @@ class DroneBase(Pio, ABC):
 
     def reboot_board(self) -> None:
         """
-        Функция для перезагрузки дрона
+        Метод для перезагрузки дрона
 
         :return: None
         """
@@ -377,7 +385,7 @@ class DroneBase(Pio, ABC):
 
     def attitude_write(self) -> None:
         """
-        Функция для записи траектории в numpy массив. Записывается только уникальная координата
+        Метод для записи траектории в numpy массив. Записывается только уникальная координата
 
         :return:
         """
@@ -424,7 +432,7 @@ class DroneBase(Pio, ABC):
 
     def print_information(self) -> None:
         """
-        Функция обновляет словарь с логами self.logs
+        Метод обновляет словарь с логами self.logs
 
         :return: None
         """
@@ -434,6 +442,7 @@ class DroneBase(Pio, ABC):
                 "speed": f"{np.round(self.position[self.dimension : self.dimension * 2], 3)} \n",
                 "t_speed": f"{np.round(self.t_speed, 3)} \n",
                 "battery voltage": f"{self.battery_voltage} \n",
+                "threads": f"{self.threads} \n",
             }
         )
         self.print_latest_logs(self.logs, 5, "Таблица с сообщениями")
@@ -442,7 +451,7 @@ class DroneBase(Pio, ABC):
         self, log_dict: dict, n: int = 5, name: str = "Название"
     ) -> None:
         """
-        Функция обновляет результаты в таблице логов
+        Метод обновляет результаты в таблице логов
 
         :param log_dict: Словарь с логами заполнения таблицы
         :type log_dict: dict

@@ -117,7 +117,7 @@ class Point:
 
     def get_trajectory(self) -> NDArray[np.float64]:
         """
-        Функция возвращает траекторию точки
+        Метод возвращает траекторию точки
 
         :return: траектория точки
         :rtype: NDArray[np.float64]
@@ -155,7 +155,7 @@ class Simulator:
 
     def start_simulation_while(self) -> None:
         """
-        Функция запускает последовательную симуляцию всех симулируемых объектов
+        Метод запускает последовательную симуляцию всех симулируемых объектов
 
         :return: None
         :rtype: None
@@ -251,7 +251,7 @@ class Simulator_th(Simulator):
 
     def start_simulation_while(self) -> None:
         """
-        Функция запускает симуляцию всех объектов в self.simulation_object
+        Метод запускает симуляцию всех объектов в self.simulation_object
 
         в отдельных потоках через цикл while с полем-флагом
         выключения self.simulation_turn_on
@@ -358,7 +358,7 @@ class Trajectory_writer:
 
     def vstack(self, vstack_array: NDArray[np.float64]) -> None:
         """
-        Функция объединяет входящие вектора с матрицей trajectory
+        Метод объединяет входящие вектора с матрицей trajectory
 
         :param vstack_array: массив размерности len(list_of_names_columns)
         :type vstack_array: NDArray[np.float64]
@@ -376,7 +376,7 @@ class Trajectory_writer:
 
     def get_trajectory(self) -> NDArray[np.float64]:
         """
-        Функция возвращает записанную траекторию
+        Метод возвращает записанную траекторию
 
         :return: NDArray[np.float64]
         :rtype: None

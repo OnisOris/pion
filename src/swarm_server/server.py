@@ -8,6 +8,7 @@ from queue import Queue
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
+
 from pionfunc.annotation import Array3
 from pionfunc.functions import (
     compute_swarm_velocity,
@@ -30,10 +31,7 @@ class UDPBroadcastClient:
     Клиент для отправки UDP широковещательных сообщений
     """
 
-    def __init__(self,
-                 port: int = 37020,
-                 unique_id: int = 0
-    ) -> None:
+    def __init__(self, port: int = 37020, unique_id: int = 0) -> None:
         """
         Инициализация клиента для отправки UDP широковещательных сообщений.
 
@@ -64,9 +62,7 @@ class UDPBroadcastClient:
         except Exception as error:
             print("Broadcast client initialization failure:", error)
 
-    def send(self,
-             state: Dict[str, Any]
-             ) -> None:
+    def send(self, state: Dict[str, Any]) -> None:
         """
         Сериализует и отправляет данные через UDP широковещательный канал.
 
@@ -199,34 +195,34 @@ class SwarmCommunicator:
     ) -> None:
         """
         Инициализация компонента для обмена данными в роевой архитектуре.
-        
+
         :param control_object: Объект управления дроном.
         :type control_object: Any
-        
+
         :param broadcast_port: Порт для UDP широковещательных сообщений.
         :type broadcast_port: int
-        
+
         :param broadcast_interval: Интервал отправки сообщений (в секундах).
         :type broadcast_interval: float
-        
+
         :param recive_interval: Интервал проверки входящих сообщений (в секундах).
         :type recive_interval: float
-        
+
         :param safety_radius: Радиус безопасности.
         :type safety_radius: float
-        
+
         :param max_speed: Максимальная скорость.
         :type max_speed: float
-        
+
         :param ip: IP-адрес устройства (если None, используется значение из control_object).
         :type ip: Optional[str]
-        
+
         :param instance_number: Порядковый номер экземпляра для генерации уникального идентификатора.
         :type instance_number: Optional[Any]
-        
+
         :param time_sleep_update_velocity: Интервал обновления вектора скорости (в секундах).
         :type time_sleep_update_velocity: float
-        
+
         :param params: Дополнительные параметры алгоритма.
         :type params: Optional[dict]
 
@@ -358,9 +354,7 @@ class SwarmCommunicator:
         except Exception as e:
             print(f"Ошибка сохранения данных: {e}")
 
-    def process_incoming_state(self,
-                               state: Any
-    ) -> None:
+    def process_incoming_state(self, state: Any) -> None:
         """
         Функция обработчик входящих сообщений
 
@@ -449,12 +443,10 @@ class SwarmCommunicator:
             elif hasattr(state, "ip"):
                 self.env[state.ip] = state
 
-    def update_swarm_control(self,
-                             target_point: Array3
-    ) -> None:
+    def update_swarm_control(self, target_point: Array3) -> None:
         """
         Вычисление нового вектора скорости и запись его в t_speed
-        
+
         :param target_point: Целевая позиция
 
         :return: None
@@ -500,12 +492,17 @@ class SwarmCommunicator:
         accuracy: Union[float, int] = 5e-2,
     ) -> None:
         """
-        Функция отправляет дрон в точку [x, y, z, yaw] с точностью accuracy
-        с алгоритмом избегания столкновений
+        Метод отправляет дрон в точку [x, y, z, yaw]. с алгоритмом избегания столкновений
 
+        :param x: Коодината x
+        :param y: Коодината y
+        :param z: Коодината z
+        :param yaw: Коодината yaw
+        :param accuracy: Точность
         :return: None
         :rtype: None
         """
+
         print(f"Smart goto to {x, y, z, yaw}")
         self.control_object.set_v()
         self.control_object.goto_yaw(yaw)
@@ -530,12 +527,14 @@ class SwarmCommunicator:
 
     def smart_point_tacking(self) -> None:
         """
-        Функция включает режим слежения за точкой. Дрон 
-        начинает следить за точкой из target_point[0:2]
+        Метод включает режим слежения за точкой.
+
+        Дрон начинает следить за точкой из target_point[0:2]
 
         :return: None
         :rtype: None
         """
+
         print("Smart point tracking")
         self.control_object.set_v()
         self.control_object.point_reached = False
@@ -547,7 +546,7 @@ class SwarmCommunicator:
 
     def stop_trp(self) -> None:
         """
-        Функция останавливает потоки, отправляющие вектора скорости на дрон
+        Метод останавливает потоки, отправляющие вектора скорости на дрон
 
         :return: None
         :rtype: None

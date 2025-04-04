@@ -5,6 +5,7 @@ from typing import Callable, Optional, Union
 import numpy as np
 import numpy.typing as npt
 from pymavlink import mavutil
+
 from pionfunc.annotation import Array6
 
 

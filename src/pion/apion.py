@@ -6,8 +6,9 @@ from typing import Union
 import numpy as np
 from pymavlink import mavutil
 
-from .controller import PIDController
 from pionfunc.functions import vector_reached
+
+from .controller import PIDController
 from .pion import Pion
 
 
@@ -97,7 +98,7 @@ class Apion(Pion):
 
     async def v_while(self, ampl: Union[float, int]) -> None:
         """
-        Асинхронная функция, которая отправляет вектор скорости в цикле.
+        Асинхронный метод, которая отправляет вектор скорости в цикле.
 
         :param ampl: множитель вектора скорости
         """
@@ -115,7 +116,7 @@ class Apion(Pion):
 
     async def main(self) -> None:
         """
-        Главная асинхронная функция для запуска обработки сообщений и отправки скоростей.
+        Главная асинхронный метод для запуска обработки сообщений и отправки скоростей.
 
         :return: None
         """
@@ -150,14 +151,14 @@ class Apion(Pion):
 
     async def goto_from_outside(
         self,
-        x: Union[float, int],
-        y: Union[float, int],
-        z: Union[float, int],
-        yaw: Union[float, int],
-        accuracy: Union[float, int] = 8e-2,
+        x: float,
+        y: float,
+        z: float,
+        yaw: float,
+        accuracy: float = 8e-2,
     ) -> None:
         """
-        Асинхронная функция для перемещения дрона к указанной точке с учетом управления yaw.
+        Асинхронный метод для перемещения дрона к указанной точке с учетом управления yaw.
 
         :param x: координата по x
         :param y: координата по y
@@ -200,7 +201,7 @@ class Apion(Pion):
         self, yaw: Union[float, int] = 0, accuracy: Union[float, int] = 0.087
     ) -> None:
         """
-        Асинхронная функция для поворота дрона на указанный угол yaw.
+        Асинхронный метод для поворота дрона на указанный угол yaw.
 
         :param yaw:  координата по yaw (радианы)
         :param accuracy: Погрешность целевой точки
