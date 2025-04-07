@@ -8,10 +8,10 @@ from queue import Queue
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
+from lokky.pionmath import SSolver
 
-from pionfunc.annotation import Array3
+from pionfunc.annotation import Array6
 from pionfunc.functions import (
-    compute_swarm_velocity,
     get_numeric_id,
     get_unique_instance_id,
     start_threading,
@@ -231,6 +231,9 @@ class SwarmCommunicator:
         """
         if params is None:
             self.params = {
+                "kp": np.array([1, 1, 1, 1, 1, 1]),
+                "ki": np.zeros((1, 6)),
+                "kd": np.array([1, 1, 1, 1, 1, 1]),
                 "attraction_weight": 1.0,
                 "cohesion_weight": 1.0,
                 "alignment_weight": 1.0,
@@ -240,9 +243,12 @@ class SwarmCommunicator:
                 "safety_radius": 1.0,
                 "max_acceleration": 1,
                 "max_speed": 0.4,
+                "unstable_radius": 1.5,
             }
         else:
             self.params = params
+        self.swarm_solver = SSolver(params=params, count_of_objects=1)
+        self.env_state_matrix: np.ndarray = np.zeros((1, 6))
         self.control_object = control_object
         self.broadcast_interval = broadcast_interval
         self.broadcast_port = broadcast_port
@@ -296,12 +302,11 @@ class SwarmCommunicator:
         while self.running:
             try:
                 state: Dict[str, Any] = {
-                    "id": self.unique_id,  # теперь id – уникальный строковый идентификатор
+                    "id": self.unique_id,
                     "ip": self.control_object.ip,
                     "position": self.control_object.position.tolist(),
                     "attitude": self.control_object.attitude.tolist(),
                     "t_speed": self.control_object.t_speed.tolist(),
-                    # Можно добавить поле command, если требуется
                 }
                 self.broadcast_client.send(state)
             except Exception as error:
@@ -412,7 +417,7 @@ class SwarmCommunicator:
                         print("Режим слежения за точкой уже включен")
                     else:
                         self.control_object.tracking = True
-                        start_threading(self.smart_point_tacking)
+                        start_threading(self.smart_point_tracking)
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
 
@@ -442,20 +447,31 @@ class SwarmCommunicator:
                     self.env[state.id] = state
             elif hasattr(state, "ip"):
                 self.env[state.ip] = state
+            positions = [
+                drone_data["position"] for drone_data in state.values()
+            ]
+            self.env_state_matrix = np.vstack(
+                [self.control_object.position, positions]
+            )
 
-    def update_swarm_control(self, target_point: Array3) -> None:
+    def update_swarm_control(self, target_position: Array6, dt: float) -> None:
         """
         Вычисление нового вектора скорости и запись его в t_speed
 
         :param target_point: Целевая позиция
+        :param dt: Шаг времени
 
         :return: None
         :rtype: None
         """
-        new_vel = compute_swarm_velocity(
-            self.control_object.position, self.env, target_point
+        new_vel = self.swarm_solver.solve_for_one(
+            state_matrix=self.env_state_matrix,
+            target_position=target_position,
+            dt=dt,
         )
-        self.control_object.t_speed = np.array([new_vel[0], new_vel[1], 0, 0])
+        self.control_object.t_speed = np.array(
+            [new_vel[0], new_vel[1], new_vel[2], 0]
+        )
 
     def start_threading_smart_goto(
         self,
@@ -508,8 +524,12 @@ class SwarmCommunicator:
         self.control_object.goto_yaw(yaw)
         target_point = np.array([x, y])
         self.control_object.point_reached = False
+        last_time = time.time()
         time.sleep(self.control_object.period_send_speed)
         while not self.control_object.point_reached:
+            current_time = time.time()
+            dt = current_time - last_time
+            last_time = current_time
             self.control_object.point_reached = vector_reached(
                 target_point,
                 self.control_object.last_points[:, :2],
@@ -519,13 +539,13 @@ class SwarmCommunicator:
                 np.array([0, 0, 0]),
                 atol=1e-2,
             )
-            self.update_swarm_control(np.array([x, y]))
+            self.update_swarm_control(np.array([x, y, z, 0, 0, 0]), dt=dt)
             time.sleep(self.time_sleep_update_velocity)
         print("smart end")
         time.sleep(0.5)
         self.control_object.t_speed = np.zeros(4)
 
-    def smart_point_tacking(self) -> None:
+    def smart_point_tracking(self) -> None:
         """
         Метод включает режим слежения за точкой.
 
@@ -534,13 +554,20 @@ class SwarmCommunicator:
         :return: None
         :rtype: None
         """
-
         print("Smart point tracking")
         self.control_object.set_v()
         self.control_object.point_reached = False
         self.control_object.tracking = True
+        last_time = time.time()
+        time.sleep(self.control_object.period_send_speed)
         while self.control_object.tracking:
-            self.update_swarm_control(self.control_object.target_point[0:2])
+            current_time = time.time()
+            dt = current_time - last_time
+            last_time = current_time
+            self.update_swarm_control(
+                np.hstack([self.control_object.target_point[0:3], [0, 0, 0]]),
+                dt=dt,
+            )
             time.sleep(self.time_sleep_update_velocity)
         self.t_speed = np.zeros(4)
 

@@ -21,6 +21,7 @@ dependencies = [
     "pymavlink>=2.4.42",
     "pyserial>=3.5",
     "rich>=13.9.4",
+    "lokky @ git+https://github.com/OnisOris/lokky",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -41,7 +42,6 @@ Homepage = "https://github.com/OnisOris/pion"
 Documentation = "https://onisoris.github.io/pion"
 Repository = "https://github.com/OnisOris/pion.git"
 Issues = "https://github.com/OnisOris/pion/issues"
-# Changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
