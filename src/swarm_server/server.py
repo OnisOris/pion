@@ -248,8 +248,10 @@ class SwarmCommunicator:
         else:
             self.params = params
         self.swarm_solver = SSolver(params=params, count_of_objects=1)
-        self.env_state_matrix: np.ndarray = np.zeros((1, 6))
         self.control_object = control_object
+        self.env_state_matrix: np.ndarray = np.array(
+            [self.control_object.position]
+        )
         self.broadcast_interval = broadcast_interval
         self.broadcast_port = broadcast_port
         self.receive_queue: Queue[Any] = Queue()
@@ -370,7 +372,8 @@ class SwarmCommunicator:
             if state.target_id != self.unique_id:
                 return
         if hasattr(state, "command") and state.command != 0:
-            if state.command == CMD.SET_SPEED:
+            command = CMD(state.command)
+            if command == CMD.SET_SPEED:
                 try:
                     vx, vy, vz, yaw_rate = state.data
                     self.control_object.send_speed(vx, vy, vz, yaw_rate)
@@ -379,7 +382,7 @@ class SwarmCommunicator:
                     )
                 except Exception as e:
                     print("Ошибка при выполнении set_speed:", e)
-            elif state.command == CMD.GOTO:
+            elif command == CMD.GOTO:
                 try:
                     x, y, z, yaw = state.data
                     if self.control_object.tracking:
@@ -392,26 +395,26 @@ class SwarmCommunicator:
                         print(f"Команда goto выполнена: {x}, {y}, {z}, {yaw}")
                 except Exception as e:
                     print("Ошибка при выполнении goto:", e)
-            elif state.command == CMD.TAKEOFF:
+            elif command == CMD.TAKEOFF:
                 self.stop_trp()
                 self.control_object.takeoff()
                 print("Команда takeoff выполнена")
-            elif state.command == CMD.LAND:
+            elif command == CMD.LAND:
                 self.stop_trp()
                 self.control_object.land()
                 print("Команда land выполнена")
-            elif state.command == CMD.ARM:
+            elif command == CMD.ARM:
                 self.stop_trp()
                 self.control_object.arm()
                 print("Команда arm выполнена")
-            elif state.command == CMD.DISARM:
+            elif command == CMD.DISARM:
                 self.stop_trp()
                 self.control_object.disarm()
                 print("Команда disarm выполнена")
-            elif state.command == CMD.STOP:
+            elif command == CMD.STOP:
                 self.stop_trp()
                 print("Команды на достижение позиций остановлены")
-            elif state.command == CMD.SWARM_ON:
+            elif command == CMD.SWARM_ON:
                 try:
                     if self.control_object.tracking:
                         print("Режим слежения за точкой уже включен")
@@ -421,14 +424,14 @@ class SwarmCommunicator:
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
 
-            elif state.command == CMD.SMART_GOTO:
+            elif command == CMD.SMART_GOTO:
                 try:
                     self.stop_trp()
                     x, y, z, yaw = state.data
                     start_threading(self.smart_goto, x, y, z, yaw)
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
-            elif state.command == CMD.LED:
+            elif command == CMD.LED:
                 try:
                     led_id, r, g, b = state.data
                     self.control_object.led_control(led_id, r, g, b)
@@ -437,21 +440,22 @@ class SwarmCommunicator:
                     )
                 except Exception as e:
                     print("Ошибка при выполнении LED control:", e)
-            elif state.command == CMD.SAVE:
+            elif command == CMD.SAVE:
                 self.save_data()
             else:
                 print("Получена неизвестная команда:", state.command)
+                print(command)
+                print(state.command == 2)
         else:
             if hasattr(state, "id"):
                 if not state.id == self.numeric_id:
                     self.env[state.id] = state
             elif hasattr(state, "ip"):
                 self.env[state.ip] = state
-            positions = [
-                drone_data["position"] for drone_data in state.values()
-            ]
+            state = self.env.values()
+            positions = [drone_data.data[1:7] for drone_data in state]
             self.env_state_matrix = np.vstack(
-                [self.control_object.position, positions]
+                [self.control_object.position, *positions]
             )
 
     def update_swarm_control(self, target_position: Array6, dt: float) -> None:
@@ -468,7 +472,8 @@ class SwarmCommunicator:
             state_matrix=self.env_state_matrix,
             target_position=target_position,
             dt=dt,
-        )
+        )[0]
+
         self.control_object.t_speed = np.array(
             [new_vel[0], new_vel[1], new_vel[2], 0]
         )
