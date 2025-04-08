@@ -21,7 +21,7 @@ dependencies = [
     "pymavlink>=2.4.42",
     "pyserial>=3.5",
     "rich>=13.9.4",
-    "lokky @ git+https://github.com/OnisOris/lokky",
+    "lokky>=0.0.8",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
