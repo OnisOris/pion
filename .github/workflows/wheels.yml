@@ -7,9 +7,12 @@ on:
       - 'v*'
   pull_request:
     branches: [ "main" ]
+    tags:
+      - 'v*'
 
 jobs:
   build_wheels:
+    if: startsWith(github.ref, 'refs/tags/')
     name: Build wheels for ${{ matrix.python }} on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
     strategy:
