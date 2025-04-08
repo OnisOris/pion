@@ -43,6 +43,10 @@ Documentation = "https://onisoris.github.io/pion"
 Repository = "https://github.com/OnisOris/pion.git"
 Issues = "https://github.com/OnisOris/pion/issues"
 
+[project.scripts]
+start_server_radxa = "swarm_server.scripts.server_radxa:main"
+start_server_raspberry = "swarm_server.scripts.server_raspberry:main"
+
 [dependency-groups]
 dev = [
     "furo>=2024.8.6",
