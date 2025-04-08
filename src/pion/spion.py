@@ -454,3 +454,54 @@ class Spion(Simulator, DroneBase):
         self.simulation_objects[0].position = np.clip(
             position, self.lower_bound, self.upper_bound
         )
+    def goto_body(self, body_target: Union[Array3, Array4]) -> None:
+        """
+        Перемещает дрон в точку, заданную относительно системы координат, закрепленной за дроном.
+        Параметр body_target задаётся относительно нуля дрона в его собственной системе координат.
+        Если вектор имеет длину 3, считается, что задаётся смещение [dx, dy, dz] (без изменения yaw),
+        а если длина 4 – последний элемент добавляется к текущему yaw.
+        После преобразования целевая точка вычисляется в инерциальных координатах и вызывается стандартный goto.
+
+        :param body_target: вектор смещения относительно тела дрона (например, [dx, dy, dz] или [dx, dy, dz, dyaw])
+        :type body_target: Union[Array3, Array4]
+        :return: None
+        :rtype: None
+        """
+        print("goto_body")
+        current_yaw = self.simulation_objects[0].attitude[2]
+        cos_yaw = np.cos(current_yaw)
+        sin_yaw = np.sin(current_yaw)
+        R = np.array([[cos_yaw, -sin_yaw],
+                      [sin_yaw,  cos_yaw]])
+        offset_xy = R @ body_target[0:2]
+        offset_z = body_target[2] if len(body_target) >= 3 else 0.0
+        current_pos = self.position[0:3]
+        target_xyz = current_pos + np.hstack([offset_xy, [offset_z]])
+        if len(body_target) == 4:
+            target_yaw = self.simulation_objects[0].attitude[2] + body_target[3]
+        else:
+            target_yaw = self.simulation_objects[0].attitude[2]
+        self.goto_from_outside(target_xyz[0], target_xyz[1], target_xyz[2], target_yaw)
+
+    def set_body_velocity(self, body_vel: NDArray[np.float64]) -> None:
+        """
+        Устанавливает скорость дрона, заданную в системе координат, закрепленной за дроном.
+        Параметр body_vel задаёт скорость относительно тела дрона. Эта скорость преобразуется в инерциальную систему,
+        с учётом текущего yaw дрона, после чего вызывается метод set_force.
+
+        :param body_vel: скорость в системе координат дрона (например, [vx_body, vy_body, vz_body])
+        :type body_vel: NDArray[np.float64]
+        :return: None
+        :rtype: None
+        """
+        current_yaw = self.simulation_objects[0].attitude[2]
+        cos_yaw = np.cos(current_yaw)
+        sin_yaw = np.sin(current_yaw)
+        R = np.array([[cos_yaw, -sin_yaw],
+                      [sin_yaw,  cos_yaw]])
+        inertial_xy = R @ body_vel[0:2]
+        inertial_z = body_vel[2] if len(body_vel) >= 3 else 0.0
+
+        inertial_velocity = np.hstack([inertial_xy, [inertial_z]])
+        velocity_command = np.hstack([inertial_velocity, [0.0]])
+        self.set_force(velocity_command, 0)
