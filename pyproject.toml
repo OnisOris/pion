@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pionsdk"
-version = "0.0.3"
+version = "0.0.4"
 description = "This module is needed to control drondes"
 requires-python = ">=3.10"
 authors = [
@@ -46,6 +46,12 @@ Issues = "https://github.com/OnisOris/pion/issues"
 [project.scripts]
 start_server_radxa = "swarm_server.scripts.server_radxa:main"
 start_server_raspberry = "swarm_server.scripts.server_raspberry:main"
+start_server_sim = "swarm_server.scripts.server_sim:main"
+
+[project.optional-dependencies]
+plotting = [
+    "matplotlib>=3.10.1"
+]
 
 [dependency-groups]
 dev = [
