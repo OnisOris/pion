@@ -10,7 +10,8 @@ from pionfunc.annotation import Array2, Array3, Array4, Array6
 from pionfunc.functions import start_threading, update_array, vector_reached
 
 from .pio import DroneBase
-from .simulator import Point, Simulator
+
+from .simulator import PointYaw, Simulator
 
 
 class Spion(Simulator, DroneBase):
@@ -105,16 +106,16 @@ class Spion(Simulator, DroneBase):
             dt=dt,
             max_speed=max_speed,
         )
-        # Создание объекта Point3D
-        self.simulation_objects: NDArray[Any] = np.array(
-            [
-                Point(
-                    mass,
-                    self._position[0 : self.dimension],
-                    self._position[self.dimension : self.dimension * 2],
-                )
-            ]
-        )
+        initial_yaw = self._attitude[2]
+        self.simulation_objects: NDArray[Any] = np.array([
+            PointYaw(
+                mass=mass,
+                position=self._position,
+                trajectory_write=False,
+                drag_coefficient=0.01,
+                yaw=initial_yaw
+            )
+        ])
         self.connection_method: str = connection_method
         self.combine_system: int = combine_system
         self.count_of_checking_points: int = count_of_checking_points
@@ -123,9 +124,9 @@ class Spion(Simulator, DroneBase):
             NDArray[Any], (3, self.dimension)
         ] = np.array(
             [
-                [1.0] * self.dimension,
-                [0.0] * self.dimension,
-                [0.0] * self.dimension,
+                [1.0] * (self.dimension + 1),
+                [0.0] * (self.dimension + 1),
+                [0.0] * (self.dimension + 1),
             ],
             dtype=np.float64,
         )
@@ -134,9 +135,9 @@ class Spion(Simulator, DroneBase):
             NDArray[Any], (3, self.dimension)
         ] = np.array(
             [
-                [3.0] * self.dimension,
-                [0.0] * self.dimension,
-                [0.1] * self.dimension,
+                [3.0] * (self.dimension + 1),
+                [0.0] * (self.dimension + 1),
+                [0.1] * (self.dimension + 1),
             ],
             dtype=np.float64,
         )
@@ -158,46 +159,53 @@ class Spion(Simulator, DroneBase):
             None  # Поток для _message_handler
         )
         self.last_points: Annotated[
-            NDArray[Any], (count_of_checking_points, self.dimension)
-        ] = np.zeros((count_of_checking_points, self.dimension))
+            NDArray[Any], (count_of_checking_points, self.dimension + 1)
+        ] = np.zeros((count_of_checking_points, self.dimension + 1))
         if start_message_handler_from_init:
             self.start_message_handler()
 
+
     @property
-    def position(self) -> Union[Array6, Array4]:
+    def position(self) -> NDArray[np.float64]:
         """
-        Метод вернет ndarray (6,) с координатами x, y, z, vx, vy, vz
+        Возвращает объединённый вектор: [x, y, z, vx, vy, vz, yaw]
+        где translational state (6 элементов) берется из simulation_objects[0].state,
+        а yaw – из simulation_objects[0].attitude.
+        """
+        E_att_yaw = np.array([[0, 0, 1, 0, 0, 0]])
+        yaw = (E_att_yaw @ self.simulation_objects[0].attitude).item()
+        return np.concatenate((self.simulation_objects[0].state, np.array([yaw])))
+
+    @position.setter
+    def position(self, pos: Union[Array6, Array4]) -> None:
+        """
+        Сеттер для обновления трансляционного состояния.
+        Если передан вектор длины 6 или 7, первые 6 элементов обновляют state,
+        а 7-й (если есть) – yaw.
+        """
+        if pos.shape[0] < 6:
+            raise ValueError("position должен содержать минимум 6 элементов")
+        self.simulation_objects[0].state = pos[0:6]
+        if pos.shape[0] >= 7:
+            att = self.simulation_objects[0].attitude.copy()
+            att[2] = pos[6]
+            self.simulation_objects[0].attitude = att
+
+    @property
+    def speed(self) -> NDArray[np.float64]:
+        """
+        Возвращает скорость как [vx, vy, vz] из state.
+        """
+        return self.simulation_objects[0].state[3:6]
+
+    @property
+    def attitude(self) -> Union[Array6, Array4]:
+        """
+        Метод вернет ndarray (6,) с координатами roll, pitch, yaw, rollspeed, pitchspeed, yawspeed
 
         :return: np.ndarray
         """
-        return np.hstack(
-            [
-                self.simulation_objects[0].position,
-                self.simulation_objects[0].speed,
-            ]
-        )
-
-    @position.setter
-    def position(self, position: Union[Array6, Array4]) -> None:
-        """
-        Сеттер для _position
-
-        :return: None
-        """
-        self.simulation_objects[0].position = position[0 : self.dimension]
-        self.simulation_objects[0].speed = position[
-            self.dimension : self.dimension * 2
-        ]
-
-    @property
-    def speed(self) -> Union[Array2, Array3]:
-        """
-        Метод вернет скорость [vx, vy, vz]
-
-        :return: Скорость [vx, vy, vz]
-        :rtype: Union[Array2, Array3]
-        """
-        return self.simulation_objects[0].speed
+        return self.simulation_objects[0].attitude
 
     def takeoff(self) -> None:
         """
@@ -211,7 +219,7 @@ class Spion(Simulator, DroneBase):
             self.position[0],
             self.position[1],
             1.5,
-            0,
+            self.yaw,
         )
 
     def land(self) -> None:
@@ -263,13 +271,14 @@ class Spion(Simulator, DroneBase):
         :rtype: None
         """
         self.velocity_controller()
-        for object_channel, simulation_object in enumerate(
-            self.simulation_objects
-        ):
+        for object_channel, simulation_object in enumerate(self.simulation_objects):
             self.step(simulation_object, object_channel)
-        self.last_points = update_array(
-            self.last_points, self.position[0 : self.dimension]
-        )
+        # Изменено: обновляем массив последних точек с полным вектором [x, y, z, yaw]
+        current_full_position = np.hstack([
+            self.simulation_objects[0].state[0:self.dimension],
+            np.array([self.simulation_objects[0].attitude[2]])
+        ])
+        self.last_points = update_array(self.last_points, current_full_position)
         if self.logger:
             self.print_information()
 
@@ -287,21 +296,14 @@ class Spion(Simulator, DroneBase):
         self._pid_velocity_controller = PIDController(
             *self.velocity_pid_matrix
         )
-
         while self.simulation_turn_on:
-            with self._handler_lock:  # Блокируем доступ для других операций
+            with self._handler_lock:
                 current_time = time.time()
                 elapsed_time = current_time - last_time
                 if elapsed_time >= self.dt:
                     last_time = current_time
                     self._heartbeat_send_time = current_time
                     self._step_messege_handler()
-                    self.position[0 : self.dimension] = (
-                        self.simulation_objects[0].position
-                    )
-                    self.position[self.dimension : self.dimension * 2] = (
-                        self.simulation_objects[0].speed
-                    )
                     if self.check_attitude_flag:
                         self.attitude_write()
             time.sleep(0.01)
@@ -313,13 +315,13 @@ class Spion(Simulator, DroneBase):
         :return: None
         :rtype: None
         """
+        current_yaw_rate = self.simulation_objects[0].attitude[5]
+        current_velocity = np.hstack([self.speed, np.array([current_yaw_rate])])
         signal = self._pid_velocity_controller.compute_control(
             target_position=np.array(
-                self.t_speed[0 : self.dimension], dtype=np.float64
+                self.t_speed, dtype=np.float64
             ),
-            current_position=np.array(
-                self.simulation_objects[0].speed, dtype=np.float64
-            ),
+            current_position=np.array(current_velocity, dtype=np.float64),
             dt=self.dt,
         )
         self.set_force(signal, 0)
@@ -335,16 +337,14 @@ class Spion(Simulator, DroneBase):
         """
         signal = np.clip(
             self._pid_position_controller.compute_control(
-                target_position=np.array(position_xyz, dtype=np.float64),
-                current_position=self.simulation_objects[0].position,
+                target_position=np.array(np.hstack([position_xyz, ]), dtype=np.float64),
+                current_position=np.hstack([self.simulation_objects[0].state[0:3], self.simulation_objects[0].attitude[2]]),
                 dt=self.dt,
             ),
             -self.max_speed,
             self.max_speed,
         )
-        self.t_speed = np.hstack(
-            [signal, np.array([0] * (4 - self.dimension))]
-        )
+        self.t_speed = signal
 
     def goto(
         self,
@@ -375,24 +375,13 @@ class Spion(Simulator, DroneBase):
         self, x: float, y: float, z: float, yaw: float, accuracy: float = 5e-2
     ) -> None:
         """
-        Метод симулятор оригинальной функции в Pion, полностью повторяет функционал goto в данном классе
-
-        :param x: координата по x
-        :param y: координата по y
-        :param z:  координата по z
-        :param yaw:  координата по yaw
-        :param accuracy: Погрешность целевой точки
-
-        :return: None
+        Запускает симуляцию движения дрона к заданной точке.
         """
-        if self.dimension == 2:
-            target_point = [x, y]
-        else:
-            target_point = [x, y, z]
+        target_point = [x, y, z, yaw] if self.dimension == 3 else [x, y, yaw]
         if accuracy is None:
             accuracy = self.accuracy
         self.point_reached = True
-        with self._handler_lock:  # Захватываем управление
+        with self._handler_lock:
             last_time = time.time()
             self.point_reached = False
             self._pid_position_controller = PIDController(
@@ -404,30 +393,27 @@ class Spion(Simulator, DroneBase):
             while not self.point_reached:
                 current_time = time.time()
                 elapsed_time = current_time - last_time
-                # Проверяем, прошло ли достаточно времени для очередного шага
                 if elapsed_time >= self.dt:
                     self.point_reached = vector_reached(
                         target_point, self.last_points, accuracy=accuracy
                     )
-                    self.position[0 : self.dimension] = (
-                        self.simulation_objects[0].position
-                    )
-                    self.position[self.dimension : self.dimension * 2] = (
-                        self.simulation_objects[0].speed
-                    )
+                    current_full_position = np.hstack([
+                        self.simulation_objects[0].state[0:self.dimension],
+                        np.array([self.simulation_objects[0].attitude[2]])
+                    ])
                     self.last_points = update_array(
-                        self.last_points, self.position[0 : self.dimension]
+                        self.last_points, current_full_position
                     )
                     self.velocity_controller()
                     self.position_controller(np.array(target_point))
                     last_time = current_time
                     for object_channel, simulation_object in enumerate(
-                        self.simulation_objects
+                            self.simulation_objects
                     ):
                         self.step(simulation_object, object_channel)
                     if self.logger:
                         self.print_information()
-                time.sleep(0.01)  # Даем CPU немного отдохнуть
+                time.sleep(0.01)
             if self.logger:
                 self.logs.update(
                     {"Регулятор положения": f"Точка {target_point} достигнута"}

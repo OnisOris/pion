@@ -10,119 +10,135 @@ from pionfunc.annotation import Array2, Array3
 
 class Point:
     def __init__(
-        self,
-        mass: float = 1.0,
-        position: Union[Array2, Array3] = np.array(
-            [0, 0, 0], dtype=np.float64
-        ),
-        speed: Union[Array2, Array3] = np.array([0, 0, 0], dtype=np.float64),
-        trajectory_write: bool = False,
-        drag_coefficient: float = 0.01,
-    ):  # Добавлен параметр для сопротивления воздуха
+            self,
+            mass: float = 1.0,
+            position: NDArray[np.float64] = np.array([0, 0, 0, 0, 0, 0], dtype=np.float64),
+            trajectory_write: bool = False,
+            drag_coefficient: float = 0.01,
+    ):
         """
-        Инициализация объекта Point3D
-
-        :param mass: масса объекта
-        :type mass: Union[Array2, Array3]
-        :param position: начальная позиция объекта в пространстве [x, y, z]
-        :type position: Union[Array2, Array3]
-        :param speed: начальная скорость объекта [vx, vy, vz]
-        :type speed: Union[Array2, Array3]
-        :param trajectory_write: записывать ли траекторию
-        :type trajectory_write: bool
-        :param drag_coefficient: коэффициент сопротивления воздуха
-        :type drag_coefficient: float
+        Инициализация точки с трансляционным состоянием.
+        Состояние задаётся вектором position = [x, y, z, vx, vy, vz].
+        Все матричные операции выполняются без использования срезов.
         """
-        if not position.shape == speed.shape:
-            raise ValueError(
-                "Начальная координата должна иметь схожую размерность со своей скоростью"
-            )
-        if position.shape not in [(2,), (3,)]:
-            raise ValueError("Размерность точки должна быть равна 2 или 3")
-        self.dimension: Annotated[int, Literal[2, 3]] = position.shape[0]
-        self.trajectory: Trajectory_writer = Trajectory_writer(
-            ["x", "y", "vx", "vy", "t"]
-            if self.dimension == 2
-            else ["x", "y", "z", "vx", "vy", "vz", "t"]
-        )
-        self.trajectory_write: bool = trajectory_write
-        self.mass: float = mass
-        self.initial_position: Annotated[NDArray[Any], (self.dimension,)] = (
-            position
-        )
-        self.position: Annotated[NDArray[Any], (self.dimension,)] = np.array(
-            position, dtype=np.float64
-        )
-        self.speed: Annotated[NDArray[Any], (self.dimension,)] = np.array(
-            speed, dtype=np.float64
-        )
+        if position.shape != (6,):
+            raise ValueError("position должен иметь размер 6 (x, y, z, vx, vy, vz)")
+        self.mass = mass
+        self.drag_coefficient = drag_coefficient
+        self.state: NDArray[np.float64] = np.array(position, dtype=np.float64)
         self.time: float = 0.0
-        self.drag_coefficient: float = drag_coefficient
+        self.trajectory_write: bool = trajectory_write
+        self.trajectory: Trajectory_writer = Trajectory_writer(
+            ["x", "y", "z", "vx", "vy", "vz", "t"]
+        )
+        # Матрица динамики для state: d/dt[state] = A @ state + b,
+        # где A = [0 I; 0 0]
+        self.A = np.block([
+            [np.zeros((3, 3)), np.eye(3)],
+            [np.zeros((3, 3)), np.zeros((3, 3))]
+        ])
+        # Матрица для извлечения скорости: C @ state дает [vx, vy, vz]
+        self.C = np.hstack([np.zeros((3, 3)), np.eye(3)])
 
-    def rk4_step(self, acceleration: Union[Array2, Array3], dt: float) -> None:
+    def step(self, force: NDArray[np.float64], dt: float) -> None:
         """
-        Шаг симуляции с использованием метода Рунге-Кутты 4-го порядка
+        Шаг симуляции для трансляционного движения.
 
-        :param acceleration: вектор ускорения
-        :type acceleration: Union[Array2, Array3]
-        :param dt: временной шаг
-        :type dt: float
-        :return: None
-        :rtype: None
+        :param force: внешний вектор силы (3 элемента)
+        :param dt: шаг по времени
         """
-        k1v = acceleration * dt
-        k1x = self.speed * dt
-
-        k2v = (acceleration + 0.5 * k1v) * dt
-        k2x = (self.speed + 0.5 * k1x) * dt
-
-        k3v = (acceleration + 0.5 * k2v) * dt
-        k3x = (self.speed + 0.5 * k2x) * dt
-
-        k4v = (acceleration + k3v) * dt
-        k4x = (self.speed + k3x) * dt
-
-        self.speed += (k1v + 2 * k2v + 2 * k3v + k4v) / 6
-        self.position += (k1x + 2 * k2x + 2 * k3x + k4x) / 6
-
-    def step(self, force: Union[Array2, Array3], dt: float) -> None:
-        """
-        Шаг симуляции. Вычисляются следующие значения координат и скорости в зависимости от дискретного шага dt
-
-        :param: force: сила воздействия на точку
-        :type force: Union[Array2, Array3]
-        :param dt: дискретный шаг времени
-        :type dt: float
-        :return: None
-        :rtype: None
-        """
-        if force.shape != (self.dimension,):
-            raise ValueError(
-                f"Сила должна иметь размерность {self.dimension}, но имеет размерность:  {force.shape}"
-            )
-
-        # Расчет силы сопротивления (линейное сопротивление)
-        drag_force = -self.drag_coefficient * self.speed
-
-        # Суммарная сила: внешняя сила + сила сопротивления
+        # Расчёт силы сопротивления: -drag_coefficient * скорость,
+        # скорость извлекается через матрицу C
+        drag_force = -self.drag_coefficient * (self.C @ self.state)
         total_force = force + drag_force
-
-        # Используем сумму сил для расчета ускорения
-        self.rk4_step(total_force / self.mass, dt=dt)
+        acceleration = total_force / self.mass  # (3,)
+        # Формируем вектор b для динамики: b = [0,0,0, ax, ay, az]
+        b = np.concatenate((np.zeros(3), acceleration))
+        # Интегрирование методом Рунге-Кутты 4-го порядка (RK4)
+        k1 = dt * (self.A @ self.state + b)
+        k2 = dt * (self.A @ (self.state + 0.5 * k1) + b)
+        k3 = dt * (self.A @ (self.state + 0.5 * k2) + b)
+        k4 = dt * (self.A @ (self.state + k3) + b)
+        self.state = self.state + (k1 + 2 * k2 + 2 * k3 + k4) / 6
         self.time += dt
         if self.trajectory_write:
-            self.trajectory.vstack(
-                np.hstack([self.position, self.speed, self.time])
-            )
+            self.trajectory.vstack(np.concatenate((self.state, np.array([self.time]))))
 
     def get_trajectory(self) -> NDArray[np.float64]:
-        """
-        Метод возвращает траекторию точки
-
-        :return: траектория точки
-        :rtype: NDArray[np.float64]
-        """
+        """Возвращает записанную траекторию."""
         return self.trajectory.get_trajectory()
+
+
+class PointYaw(Point):
+    def __init__(
+            self,
+            mass: float = 1.0,
+            # Трансляционное состояние задаётся как [x, y, z, vx, vy, vz]
+            position: NDArray[np.float64] = np.array([0, 0, 0, 0, 0, 0], dtype=np.float64),
+            trajectory_write: bool = False,
+            drag_coefficient: float = 0.01,
+            yaw: float = 0.0,  # начальное значение yaw
+    ):
+        """
+        Инициализация точки с трансляционным и угловым состоянием.
+
+        Трансляционное состояние задаётся параметром position = [x, y, z, vx, vy, vz].
+        Угловое состояние (attitude) хранится в векторе:
+            [roll, pitch, yaw, roll_rate, pitch_rate, yaw_rate].
+        При симуляции обновляется только динамика yaw.
+        """
+        super().__init__(mass, position, trajectory_write, drag_coefficient)
+        # Инициализируем угловое состояние: roll и pitch равны 0, скорость углов равна 0,
+        # а yaw задаётся через параметр.
+        self.attitude: NDArray[np.float64] = np.array([0.0, 0.0, yaw, 0.0, 0.0, 0.0])
+        # Матрица динамики для attitude: обновляется только yaw посредством зависимости от yaw_rate.
+        self.A_att = np.zeros((6, 6))
+        self.A_att[2, 5] = 1.0
+        # Матрицы для разбиения управляющего вектора.
+        # Предполагается, что force – вектор из 4 элементов:
+        # первые 3 элемента используются для трансляционного движения,
+        # 4-й элемент – для управления динамикой yaw (например, угловое ускорение).
+        self.E_trans = np.array([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0]
+        ])
+        self.E_yaw = np.array([[0, 0, 0, 1]])
+
+    def step(self, force: NDArray[np.float64], dt: float) -> None:
+        """
+        Шаг симуляции для точки с угловым состоянием.
+
+        :param force: управляющий вектор из 4 элементов:
+                      первые 3 – для трансляционного движения,
+                      4-й – для управления yaw (угловое ускорение)
+        :param dt: шаг по времени
+        """
+        # Извлекаем силовой вектор для трансляционного движения
+        translational_force = self.E_trans @ force
+        super().step(translational_force, dt)
+
+        # Управление угловой динамикой: извлекаем yaw-вход
+        yaw_input = (self.E_yaw @ force).item()
+        # Вектор b для динамики attitude: обновляем только yaw_rate
+        b_att = np.concatenate((np.zeros(5), np.array([yaw_input])))
+        # Интегрирование attitude методом RK4
+        k1a = dt * (self.A_att @ self.attitude + b_att)
+        k2a = dt * (self.A_att @ (self.attitude + 0.5 * k1a) + b_att)
+        k3a = dt * (self.A_att @ (self.attitude + 0.5 * k2a) + b_att)
+        k4a = dt * (self.A_att @ (self.attitude + k3a) + b_att)
+        self.attitude = self.attitude + (k1a + 2 * k2a + 2 * k3a + k4a) / 6
+
+        self.time += dt
+        if self.trajectory_write:
+            # Для траектории записываем: [x, y, z, vx, vy, vz, yaw, t]
+            E_att_yaw = np.array([[0, 0, 1, 0, 0, 0]])
+            yaw_value = (E_att_yaw @ self.attitude).item()
+            self.trajectory.vstack(np.concatenate((self.state, np.array([yaw_value, self.time]))))
+
+    def get_attitude(self) -> NDArray[np.float64]:
+        """Возвращает текущее состояние attitude."""
+        return self.attitude
 
 
 class Simulator:
@@ -148,9 +164,8 @@ class Simulator:
         self.simulation_objects: np.ndarray = simulation_objects
         self.simulation_turn_on: bool = False
         self.dt: float = dt
-        self.forces: np.ndarray = np.zeros(
-            (np.shape(simulation_objects)[0], dimension)
-        )
+        force_dim = dimension + 1 if hasattr(simulation_objects[0], 'E_yaw') else dimension
+        self.forces: np.ndarray = np.zeros((np.shape(simulation_objects)[0], force_dim))
         self.threading_list: list = []
 
     def start_simulation_while(self) -> None:
@@ -186,7 +201,7 @@ class Simulator:
         """
         simulation_object.step(self.forces[object_channel], self.dt)
 
-    def set_force(self, force: Array3, object_channel: int) -> None:
+    def set_force(self, force: NDArray, object_channel: int) -> None:
         """
         Устанавливает силу для объекта на указанном канале.
 
