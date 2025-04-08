@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "pionsdk"
 version = "0.0.4"
 description = "This module is needed to control drondes"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 authors = [
     {name = "Michael", email = "onisoris@yandex.ru"},
 ]
@@ -83,7 +83,6 @@ skip = [
     "pp311-win*",
     "*-manylinux_i686"
 ]
-build = "cp313-* pp313-*"
 test-skip = "*"
 
 [tool.cibuildwheel.environment.arm64]
