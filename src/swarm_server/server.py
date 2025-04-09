@@ -369,7 +369,7 @@ class SwarmCommunicator:
         :rtype: None
         """
         if state.target_id:
-            if state.target_id != self.unique_id:
+            if self.unique_id != int(state.target_id):
                 return
         if hasattr(state, "command") and state.command != 0:
             command = CMD(state.command)
@@ -468,11 +468,14 @@ class SwarmCommunicator:
         :return: None
         :rtype: None
         """
+        print(target_position)
+        print(self.env_state_matrix)
         new_vel = self.swarm_solver.solve_for_one(
             state_matrix=self.env_state_matrix,
             target_position=target_position,
             dt=dt,
         )[0]
+        print("env = ", new_vel)
 
         self.control_object.t_speed = np.array(
             [new_vel[0], new_vel[1], new_vel[2], 0]
