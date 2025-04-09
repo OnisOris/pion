@@ -440,7 +440,7 @@ class DroneBase(Pio, ABC):
             {
                 "xyz": f"{np.round(self.position[0 : self.dimension], 3)} \n",
                 "speed": f"{np.round(self.position[self.dimension : self.dimension * 2], 3)} \n",
-                "attitude": f"{self.attitude}",
+                "yaw": f"{self.yaw}",
                 "t_speed": f"{np.round(self.t_speed, 3)} \n",
                 "battery voltage": f"{self.battery_voltage} \n",
                 "threads": f"{self.threads} \n",
