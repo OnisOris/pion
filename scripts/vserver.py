@@ -2,6 +2,7 @@
 # dependencies = [
 #   "matplotlib",
 #   "pionsdk @ git+https://github.com/OnisOris/pion@dev",
+#   "tornado",
 # ]
 # ///
 import socket
@@ -9,24 +10,19 @@ import threading
 import time
 from queue import Queue
 
+from swarm_server import DDatagram
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
+import matplotlib
 import argparse
-parser = argparse.ArgumentParser(
-        description="Запуск визуализации"
-    )
-parser.add_argument(
-        "--web",
-        type=str,
-        default="localhost",
-        help="Запуск в web",
-)
+parser = argparse.ArgumentParser(description="Запуск визуализации")
+parser.add_argument("--web", action="store_true", help="Запуск в web")
 args = parser.parse_args()
-if args.web == "web":
-    import matplotlib
+if args.web:
     matplotlib.use("WebAgg")
-from swarm_server import DDatagram
+args = parser.parse_args()
 
 
 def extract_ip_id(ip: str) -> str:
