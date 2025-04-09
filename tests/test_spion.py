@@ -31,9 +31,9 @@ class TestSpion:
         # Назначение целевой скорости
         t_speed = np.array([1, 2, 3, 4], dtype=np.float64)
         # Назначение текущей позиции
-        current_position = np.array(np.array([0, 0, 0]), dtype=np.float64)
+        current_position = np.array(np.array([0, 0, 0, 0]), dtype=np.float64)
         # Отдельно запишем целевую скорость
-        target_speed = t_speed[0:3]
+        target_speed = t_speed
 
         # Создание экземпляра Spion с отключенным message_handler
         spion = Spion(start_message_handler_from_init=False)
@@ -62,9 +62,9 @@ class TestSpion:
         Тестирование контроллера позиции.
         """
         # Назначение целевой координаты
-        target_xyz = np.array([1, 2, 3], dtype=np.float64)
+        target_xyz = np.array([1, 2, 3, 4], dtype=np.float64)
         # Назначение текущей позиции
-        current_position = np.array(np.array([0, 0, 0]), dtype=np.float64)
+        current_position = np.array(np.array([0, 0, 0, 0]), dtype=np.float64)
 
         # Создание экземпляра Spion с отключенным message_handler
         spion = Spion(start_message_handler_from_init=False)
@@ -87,4 +87,4 @@ class TestSpion:
             dt=0.1,
         )
         # Сравнение управляющего сигнала с ПИД spion и проверочного ПИД
-        assert np.all(np.equal(spion.t_speed[0:3], signal))
+        assert np.all(np.equal(spion.t_speed, signal))
