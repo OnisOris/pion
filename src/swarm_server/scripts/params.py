@@ -2,7 +2,7 @@ import numpy as np
 
 params = {
     "kp": np.ones((1, 6)),
-    "ki": np.zeros((0, 6)),
+    "ki": np.zeros((1, 6)),
     "kd": np.ones((1, 6)),
     "attraction_weight": 1.0,
     "cohesion_weight": 1.0,
