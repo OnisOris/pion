@@ -1,3 +1,9 @@
+# /// script
+# dependencies = [
+#   "matplotlib",
+#   "pionsdk @ git+https://github.com/OnisOris/pion@dev",
+# ]
+# ///
 import socket
 import threading
 import time
@@ -6,7 +12,20 @@ from queue import Queue
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
-
+import argparse
+parser = argparse.ArgumentParser(
+        description="Запуск визуализации"
+    )
+parser.add_argument(
+        "--web",
+        type=str,
+        default="localhost",
+        help="Запуск в web",
+)
+args = parser.parse_args()
+if args.web == "web":
+    import matplotlib
+    matplotlib.use("WebAgg")
 from swarm_server import DDatagram
 
 
