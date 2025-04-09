@@ -5,24 +5,27 @@ from typing import Annotated, Any, Literal, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from pionfunc.annotation import Array2, Array3
-
 
 class Point:
     def __init__(
-            self,
-            mass: float = 1.0,
-            position: NDArray[np.float64] = np.array([0, 0, 0, 0, 0, 0], dtype=np.float64),
-            trajectory_write: bool = False,
-            drag_coefficient: float = 0.01,
+        self,
+        mass: float = 1.0,
+        position: NDArray[np.float64] = np.array(
+            [0, 0, 0, 0, 0, 0], dtype=np.float64
+        ),
+        trajectory_write: bool = False,
+        drag_coefficient: float = 0.01,
     ):
         """
         Инициализация точки с трансляционным состоянием.
+
         Состояние задаётся вектором position = [x, y, z, vx, vy, vz].
         Все матричные операции выполняются без использования срезов.
         """
         if position.shape != (6,):
-            raise ValueError("position должен иметь размер 6 (x, y, z, vx, vy, vz)")
+            raise ValueError(
+                "position должен иметь размер 6 (x, y, z, vx, vy, vz)"
+            )
         self.mass = mass
         self.drag_coefficient = drag_coefficient
         self.state: NDArray[np.float64] = np.array(position, dtype=np.float64)
@@ -33,10 +36,12 @@ class Point:
         )
         # Матрица динамики для state: d/dt[state] = A @ state + b,
         # где A = [0 I; 0 0]
-        self.A = np.block([
-            [np.zeros((3, 3)), np.eye(3)],
-            [np.zeros((3, 3)), np.zeros((3, 3))]
-        ])
+        self.A = np.block(
+            [
+                [np.zeros((3, 3)), np.eye(3)],
+                [np.zeros((3, 3)), np.zeros((3, 3))],
+            ]
+        )
         # Матрица для извлечения скорости: C @ state дает [vx, vy, vz]
         self.C = np.hstack([np.zeros((3, 3)), np.eye(3)])
 
@@ -62,7 +67,9 @@ class Point:
         self.state = self.state + (k1 + 2 * k2 + 2 * k3 + k4) / 6
         self.time += dt
         if self.trajectory_write:
-            self.trajectory.vstack(np.concatenate((self.state, np.array([self.time]))))
+            self.trajectory.vstack(
+                np.concatenate((self.state, np.array([self.time])))
+            )
 
     def get_trajectory(self) -> NDArray[np.float64]:
         """Возвращает записанную траекторию."""
@@ -71,13 +78,18 @@ class Point:
 
 class PointYaw(Point):
     def __init__(
-            self,
-            mass: float = 1.0,
-            # Трансляционное состояние задаётся как [x, y, z, vx, vy, vz]
-            position: NDArray[np.float64] = np.array([0, 0, 0, 0, 0, 0], dtype=np.float64),
-            trajectory_write: bool = False,
-            drag_coefficient: float = 0.01,
-            yaw: float = 0.0,  # начальное значение yaw
+        self,
+        mass: float = 1.0,
+        # Трансляционное состояние задаётся как [x, y, z, vx, vy, vz]
+        position: NDArray[np.float64] = np.array(
+            [0, 0, 0, 0, 0, 0], dtype=np.float64
+        ),
+        attitude: NDArray[np.float64] = np.array(
+            [0, 0, 0, 0, 0, 0], dtype=np.float64
+        ),
+        trajectory_write: bool = False,
+        drag_coefficient: float = 0.01,
+        yaw: float = 0.0,
     ):
         """
         Инициализация точки с трансляционным и угловым состоянием.
@@ -88,21 +100,12 @@ class PointYaw(Point):
         При симуляции обновляется только динамика yaw.
         """
         super().__init__(mass, position, trajectory_write, drag_coefficient)
-        # Инициализируем угловое состояние: roll и pitch равны 0, скорость углов равна 0,
-        # а yaw задаётся через параметр.
-        self.attitude: NDArray[np.float64] = np.array([0.0, 0.0, yaw, 0.0, 0.0, 0.0])
+        self.attitude: NDArray[np.float64] = attitude
+        self.attitude[2] = yaw
         # Матрица динамики для attitude: обновляется только yaw посредством зависимости от yaw_rate.
         self.A_att = np.zeros((6, 6))
         self.A_att[2, 5] = 1.0
-        # Матрицы для разбиения управляющего вектора.
-        # Предполагается, что force – вектор из 4 элементов:
-        # первые 3 элемента используются для трансляционного движения,
-        # 4-й элемент – для управления динамикой yaw (например, угловое ускорение).
-        self.E_trans = np.array([
-            [1, 0, 0, 0],
-            [0, 1, 0, 0],
-            [0, 0, 1, 0]
-        ])
+        self.E_trans = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
         self.E_yaw = np.array([[0, 0, 0, 1]])
 
     def step(self, force: NDArray[np.float64], dt: float) -> None:
@@ -114,15 +117,11 @@ class PointYaw(Point):
                       4-й – для управления yaw (угловое ускорение)
         :param dt: шаг по времени
         """
-        # Извлекаем силовой вектор для трансляционного движения
         translational_force = self.E_trans @ force
         super().step(translational_force, dt)
 
-        # Управление угловой динамикой: извлекаем yaw-вход
         yaw_input = (self.E_yaw @ force).item()
-        # Вектор b для динамики attitude: обновляем только yaw_rate
         b_att = np.concatenate((np.zeros(5), np.array([yaw_input])))
-        # Интегрирование attitude методом RK4
         k1a = dt * (self.A_att @ self.attitude + b_att)
         k2a = dt * (self.A_att @ (self.attitude + 0.5 * k1a) + b_att)
         k3a = dt * (self.A_att @ (self.attitude + 0.5 * k2a) + b_att)
@@ -131,10 +130,11 @@ class PointYaw(Point):
 
         self.time += dt
         if self.trajectory_write:
-            # Для траектории записываем: [x, y, z, vx, vy, vz, yaw, t]
             E_att_yaw = np.array([[0, 0, 1, 0, 0, 0]])
             yaw_value = (E_att_yaw @ self.attitude).item()
-            self.trajectory.vstack(np.concatenate((self.state, np.array([yaw_value, self.time]))))
+            self.trajectory.vstack(
+                np.concatenate((self.state, np.array([yaw_value, self.time])))
+            )
 
     def get_attitude(self) -> NDArray[np.float64]:
         """Возвращает текущее состояние attitude."""
@@ -164,8 +164,14 @@ class Simulator:
         self.simulation_objects: np.ndarray = simulation_objects
         self.simulation_turn_on: bool = False
         self.dt: float = dt
-        force_dim = dimension + 1 if hasattr(simulation_objects[0], 'E_yaw') else dimension
-        self.forces: np.ndarray = np.zeros((np.shape(simulation_objects)[0], force_dim))
+        force_dim = (
+            dimension + 1
+            if hasattr(simulation_objects[0], "E_yaw")
+            else dimension
+        )
+        self.forces: np.ndarray = np.zeros(
+            (np.shape(simulation_objects)[0], force_dim)
+        )
         self.threading_list: list = []
 
     def start_simulation_while(self) -> None:

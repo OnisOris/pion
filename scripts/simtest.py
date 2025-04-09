@@ -1,5 +1,6 @@
 import sys
 import time
+
 import numpy as np
 
 from pion.spion import Spion
