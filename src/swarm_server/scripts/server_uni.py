@@ -6,8 +6,23 @@ from pion import Pion
 from pionfunc.functions import get_local_ip
 from swarm_server import SwarmCommunicator
 
+import numpy as np
 
-from .params import params
+params = {
+    "kp": np.ones((1, 6)) * 0.1,
+    "ki": np.zeros((1, 6)),
+    "kd": np.ones((1, 6)) * 2,
+    "attraction_weight": 1.0,
+    "cohesion_weight": 1.0,
+    "alignment_weight": 1.0,
+    "repulsion_weight": 4.0,
+    "unstable_weight": 1.0,
+    "noise_weight": 1.0,
+    "safety_radius": 0.5,
+    "max_acceleration": 1,
+    "max_speed": 0.4,
+    "unstable_radius": 1.5,
+}
 
 def main():
     parser = argparse.ArgumentParser(
@@ -33,7 +48,7 @@ def main():
         connection_method="udpout",
         name=f"Drone-{ip}",
         dt=0.001,
-        logger=True,
+        logger=False,
         max_speed=0.5,
     )
 
@@ -41,10 +56,11 @@ def main():
         control_object=drone,
         broadcast_port=37020,
         broadcast_interval=0.5,
-        ip=ip,
+        ip=args.ip,
         time_sleep_update_velocity=0.1,
         params=params,
     )
+    # swarm_comm.unique_id = args.port
     swarm_comm.start()
     print(f"SwarmCommunicator запущен для {drone.name} с IP {ip}")
 

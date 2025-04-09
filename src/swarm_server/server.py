@@ -258,10 +258,9 @@ class SwarmCommunicator:
         # Определяем IP для формирования уникального id
         local_ip = ip if ip is not None else self.control_object.ip
         # Генерируем уникальный id с использованием instance_number, если он передан
-        self.unique_id: int = get_unique_instance_id(
-            local_ip, instance_number=instance_number
-        )
-        print("Уникальный id для этого экземпляра:", self.unique_id)
+        self.unique_id: int = get_unique_instance_id(local_ip, instance_number=instance_number) if ip != "localhost" \
+            else control_object.mavlink_port
+        print("Уникальный id для этого экземпляра:", self.unique_id, " ip = ", ip)
         self.numeric_id = get_numeric_id(self.unique_id)
         self.broadcast_client = UDPBroadcastClient(
             port=self.broadcast_port, unique_id=self.unique_id
@@ -386,11 +385,12 @@ class SwarmCommunicator:
                 try:
                     x, y, z, yaw = state.data
                     if self.control_object.tracking:
-                        print(f"Smart tracking to {x, y, 1.5}")
+                        print(f"Smart tracking to {x, y, z, yaw}")
                         self.control_object.target_point = np.array(
-                            [x, y, 1.5, 0]
+                            [x, y, z, yaw]
                         )
                     else:
+                        self.stop_trp()
                         self.control_object.goto_from_outside(x, y, z, yaw)
                         print(f"Команда goto выполнена: {x}, {y}, {z}, {yaw}")
                 except Exception as e:
@@ -468,14 +468,11 @@ class SwarmCommunicator:
         :return: None
         :rtype: None
         """
-        print(target_position)
-        print(self.env_state_matrix)
         new_vel = self.swarm_solver.solve_for_one(
             state_matrix=self.env_state_matrix,
             target_position=target_position,
             dt=dt,
         )[0]
-        print("env = ", new_vel)
 
         self.control_object.t_speed = np.array(
             [new_vel[0], new_vel[1], new_vel[2], 0]

@@ -127,7 +127,7 @@ class Pion(DroneBase):
         self.message_handler_flag: bool = True
         # Последнее сообщение из _message_handler()
         self._msg: Optional["MAVLink_message"] = None
-
+        self.mavlink_port: int = mavlink_port
         self.mavlink_socket: mavutil.mavfile = create_connection(
             connection_method=connection_method,
             address=ip,
