@@ -47,10 +47,12 @@ Issues = "https://github.com/OnisOris/pion/issues"
 start_server_radxa = "swarm_server.scripts.server_radxa:main"
 start_server_raspberry = "swarm_server.scripts.server_raspberry:main"
 start_server_sim = "swarm_server.scripts.server_sim:main"
+start_server_uni = "swarm_server.scripts.server_uni:main"
 
 [project.optional-dependencies]
 plotting = [
-    "matplotlib>=3.10.1"
+    "matplotlib>=3.10.1",
+    "tornado",
 ]
 
 [dependency-groups]
@@ -77,13 +79,6 @@ extend-select = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
-
-[tool.cibuildwheel]
-skip = [
-    "pp311-win*",
-    "*-manylinux_i686"
-]
-test-skip = "*"
 
 [tool.cibuildwheel.environment.arm64]
 NPY_BLAS_ORDER = "openblas"
