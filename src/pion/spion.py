@@ -501,7 +501,7 @@ class Spion(Simulator, DroneBase):
             )
         else:
             target_yaw = self.simulation_objects[0].attitude[2]
-        self.goto_from_outside(
+        self.goto(
             target_xyz[0], target_xyz[1], target_xyz[2], target_yaw
         )
 
