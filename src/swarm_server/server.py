@@ -393,7 +393,7 @@ class SwarmCommunicator:
                 try:
                     new_group = int(state.data[0])
                     self.group_id = new_group
-                    self.control_object.name = f"{get_local_ip()}, , unid: {self.unique_id}, gr: {self.group_id}"
+                    self.control_object.name = f"{get_local_ip()}, unid: {self.unique_id}, gr: {self.group_id}"
                     print(f"Группа успешно изменена на: {new_group} для дрона с id {self.unique_id}")
                 except Exception as e:
                     print("Ошибка при изменении группы:", e)
