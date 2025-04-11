@@ -8,5 +8,6 @@ message Datagram {
   int32 command = 4;
   repeated double data = 5;
   string target_id = 6;
-  string hash = 7;
+  int32 group_id = 7;
+  string hash = 8;
 }

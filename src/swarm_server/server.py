@@ -229,6 +229,7 @@ class SwarmCommunicator:
         :return: None
         :rtype: None
         """
+        self.group_id = None
         if params is None:
             self.params = {
                 "kp": np.array([1, 1, 1, 1, 1, 1]),
@@ -367,11 +368,16 @@ class SwarmCommunicator:
         :return: None
         :rtype: None
         """
+
         if state.target_id:
             if self.unique_id != int(state.target_id):
                 return
+        elif state.group_id:
+            if state.group_id != self.group_id:
+                return
         if hasattr(state, "command") and state.command != 0:
             command = CMD(state.command)
+
             if command == CMD.SET_SPEED:
                 try:
                     vx, vy, vz, yaw_rate = state.data
@@ -381,6 +387,13 @@ class SwarmCommunicator:
                     )
                 except Exception as e:
                     print("Ошибка при выполнении set_speed:", e)
+            elif command == CMD.SET_GROUP:
+                try:
+                    new_group = int(state.data[0])
+                    self.group_id = new_group
+                    print(f"Группа успешно изменена на: {new_group} для дрона с id {self.unique_id}")
+                except Exception as e:
+                    print("Ошибка при изменении группы:", e)
             elif command == CMD.GOTO:
                 try:
                     x, y, z, yaw = state.data

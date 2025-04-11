@@ -12,6 +12,7 @@ class DDatagram:
         self.command = 0
         self.data = []
         self.target_id = ""
+        self.group_id: int = 0
 
     def to_proto(self) -> Datagram:
         """Создаёт protobuf-объект из текущих данных."""
@@ -21,9 +22,10 @@ class DDatagram:
             source=self.source,
             command=self.command,
             data=self.data,
-            target_id=self.target_id,  # передаем новое поле
+            target_id=self.target_id,
+            group_id=self.group_id,
         )
-        proto.hash = self._calculate_hash(proto)  # Добавляем хеш
+        proto.hash = self._calculate_hash(proto)
         return proto
 
     def from_proto(self, proto):
@@ -34,6 +36,7 @@ class DDatagram:
         self.command = proto.command
         self.data = list(proto.data)
         self.target_id = proto.target_id
+        self.group_id = proto.group_id
 
     def export_serialized(self):
         """Сериализация в бинарный формат protobuf с хешем."""
@@ -46,7 +49,7 @@ class DDatagram:
             proto = Datagram()
             proto.ParseFromString(serialized)
             original_hash = proto.hash
-            proto.hash = ""  # Убираем хеш перед проверкой
+            proto.hash = ""
             expected_hash = self._calculate_hash(proto)
             return original_hash == expected_hash, proto
         except Exception as e:
@@ -58,5 +61,5 @@ class DDatagram:
         """Вычисляет MD5-хеш от данных без хеша."""
         proto_copy = Datagram()
         proto_copy.CopyFrom(proto)
-        proto_copy.hash = ""  # Очищаем поле хеша перед вычислением
+        proto_copy.hash = ""
         return hashlib.md5(proto_copy.SerializeToString()).hexdigest()
