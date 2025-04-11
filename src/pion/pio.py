@@ -438,6 +438,7 @@ class DroneBase(Pio, ABC):
         """
         self.logs.update(
             {
+                "name:": f"{self.name}",
                 "xyz": f"{np.round(self.position[0 : self.dimension], 3)} \n",
                 "speed": f"{np.round(self.position[self.dimension : self.dimension * 2], 3)} \n",
                 "yaw": f"{self.yaw}",

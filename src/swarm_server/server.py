@@ -16,6 +16,7 @@ from pionfunc.functions import (
     get_unique_instance_id,
     start_threading,
     vector_reached,
+    get_local_ip,
 )
 
 from .commands import CMD
@@ -229,7 +230,7 @@ class SwarmCommunicator:
         :return: None
         :rtype: None
         """
-        self.group_id = None
+        self.group_id: int = 0
         if params is None:
             self.params = {
                 "kp": np.array([1, 1, 1, 1, 1, 1]),
@@ -277,6 +278,7 @@ class SwarmCommunicator:
         self.max_speed = max_speed
         self.time_sleep_update_velocity = time_sleep_update_velocity
         self.recive_interval = recive_interval
+        self.control_object.name += f", unid: {self.unique_id}, gr: {self.group_id}"
 
     def start(self) -> None:
         """
@@ -391,6 +393,7 @@ class SwarmCommunicator:
                 try:
                     new_group = int(state.data[0])
                     self.group_id = new_group
+                    self.control_object.name = f"{get_local_ip()}, , unid: {self.unique_id}, gr: {self.group_id}"
                     print(f"Группа успешно изменена на: {new_group} для дрона с id {self.unique_id}")
                 except Exception as e:
                     print("Ошибка при изменении группы:", e)
