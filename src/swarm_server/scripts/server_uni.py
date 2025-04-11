@@ -9,9 +9,9 @@ from swarm_server import SwarmCommunicator
 import numpy as np
 
 params = {
-    "kp": np.ones((1, 6)) * 0.1,
+    "kp": np.array([[1, 1, 0.1, 1, 1, 1]]) * 0.1,
     "ki": np.zeros((1, 6)),
-    "kd": np.ones((1, 6)) * 2,
+    "kd": np.array([[1, 1, 4, 1, 1, 1]]) * 2,
     "attraction_weight": 1.0,
     "cohesion_weight": 1.0,
     "alignment_weight": 1.0,
