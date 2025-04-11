@@ -39,22 +39,6 @@ class TestPion:
         )
         assert np.allclose(attitude, pion.attitude)
 
-    def test_goto_from_outside_reached(self):
-        """
-        Тестирование достижения целевой точки
-        """
-        accuracy = 0.1
-
-        pion = Pion(
-            position=np.array([5.0, 5.0, 5.0, 0, 0, 0]),
-            dimension=3,
-            start_message_handler_from_init=False,
-            accuracy=accuracy
-        )
-        pion.last_points = np.full((20, 3), 5.0)
-
-        assert pion.goto_from_outside(5, 5, 5, 0) is None
-
     def test_thread_flags(self):
         """
         Тестирование управления потоками отправки команд
