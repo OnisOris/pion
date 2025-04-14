@@ -193,6 +193,7 @@ class SwarmCommunicator:
         instance_number: Optional[Any] = None,
         time_sleep_update_velocity: float = 0.1,
         params: Optional[dict] = None,
+        mode: int = 1,
     ) -> None:
         """
         Инициализация компонента для обмена данными в роевой архитектуре.
@@ -227,6 +228,9 @@ class SwarmCommunicator:
         :param params: Дополнительные параметры алгоритма.
         :type params: Optional[dict]
 
+        :param mode: Режим роя, имеет 3 состояния: 1 - включен ПИД до таргетной позиции + силы отталкивания от других
+         донов + вектор вывода дрона с состояния равновесия в локальных минимумах
+
         :return: None
         :rtype: None
         """
@@ -250,6 +254,7 @@ class SwarmCommunicator:
         else:
             self.params = params
         self.swarm_solver = SSolver(params=params, count_of_objects=1)
+        self.mode: int = mode
         self.control_object = control_object
         self.env_state_matrix: np.ndarray = np.array(
             [self.control_object.position]
@@ -257,9 +262,7 @@ class SwarmCommunicator:
         self.broadcast_interval = broadcast_interval
         self.broadcast_port = broadcast_port
         self.receive_queue: Queue[Any] = Queue()
-        # Определяем IP для формирования уникального id
         local_ip = ip if ip is not None else self.control_object.ip
-        # Генерируем уникальный id с использованием instance_number, если он передан
         self.unique_id: int = get_unique_instance_id(local_ip, instance_number=instance_number) if ip != "localhost" \
             else control_object.mavlink_port
         print("Уникальный id для этого экземпляра:", self.unique_id, " ip = ", ip)
@@ -458,10 +461,33 @@ class SwarmCommunicator:
                     print("Ошибка при выполнении LED control:", e)
             elif command == CMD.SAVE:
                 self.save_data()
+            elif command == CMD.SET_MOD:
+                # +-------------+-----+-----------+-----------------+
+                # |             | PID | REPULSION | UNSTABLE_VECTOR |
+                # +=============+=====+===========+=================+
+                # | SWARM_MODE  | 1   | 1         | 1               |
+                # +-------------+-----+-----------+-----------------+
+                # | MASTER_MODE | 1   | 0         | 0               |
+                # +-------------+-----+-----------+-----------------+
+                # | FLOW_MODE   | 0   | 1         | 0               |
+                # +-------------+-----+-----------+-----------------+
+                try:
+                    self.mode = state.data[0]
+                    if self.mode == 1:
+                        self.restore_params()
+                    elif self.mode == 2:
+                        self.restore_params()
+                        self.swarm_solver.repulsion_weight = 0
+                    elif self.mode == 3:
+                        self.restore_params()
+                        self.swarm_solver.kp = 0
+                        self.swarm_solver.ki = 0
+                        self.swarm_solver.kd = 0
+                        self.swarm_solver.unstable_weight = 0
+                except Exception as e:
+                    print("Ошибка при выполнении set_mode:", e)
             else:
                 print("Получена неизвестная команда:", state.command)
-                print(command)
-                print(state.command == 2)
         else:
             if hasattr(state, "id"):
                 if not state.id == self.numeric_id:
@@ -473,6 +499,12 @@ class SwarmCommunicator:
             self.env_state_matrix = np.vstack(
                 [self.control_object.position, *positions]
             )
+
+    def restore_params(self) -> None:
+        """
+        Вовзрат параметров swarm_solver в начальное значение
+        """
+        self.swarm_solver.read_params(self.swarm_solver.params)
 
     def update_swarm_control(self, target_position: Array6, dt: float) -> None:
         """

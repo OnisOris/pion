@@ -18,7 +18,7 @@ params = {
     "repulsion_weight": 4.0,
     "unstable_weight": 1.0,
     "noise_weight": 1.0,
-    "safety_radius": 0.5,
+    "safety_radius": 1.2,
     "max_acceleration": 1,
     "max_speed": 0.4,
     "unstable_radius": 1.5,
@@ -38,6 +38,12 @@ def main():
         "--port",
         type=int,
         default=8000,
+        help="Порт устройства, например 5656",
+    )
+    parser.add_argument(
+        "--xyz",
+        type=int,
+        default=np.array([0, 0, 0, 0, 0 ,0]),
         help="Порт устройства, например 5656",
     )
     args = parser.parse_args()
@@ -60,7 +66,6 @@ def main():
         time_sleep_update_velocity=0.1,
         params=params,
     )
-    # swarm_comm.unique_id = args.port
     swarm_comm.start()
     print(f"SwarmCommunicator запущен для {drone.name} с IP {ip}")
 

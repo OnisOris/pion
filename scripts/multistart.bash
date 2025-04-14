@@ -2,7 +2,7 @@
 #!/bin/bash
 
 # Запуск процессов в фоновом режиме и сохранение их PID
-for port in {8000..8004}; do
+for port in {8000..8005}; do
     start_server_uni --ip localhost --port "$port" &
     pids+=($!)  # Добавление PID процесса в массив
 done
