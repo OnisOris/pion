@@ -79,6 +79,7 @@ class DroneBase(Pio, ABC):
         accuracy: float = 5e-2,
         dt: float = 0.1,
         max_speed: float = 2.0,
+        max_acceleration: float = 10,
     ):
         """
         Абстрактный класс с частичной реализацией методов, служит для сокращения кода в дочерних классах    :param ip: IP-адрес для подключения к дрону.
@@ -185,6 +186,7 @@ class DroneBase(Pio, ABC):
         self.accuracy: float = accuracy
         self.point_reached: bool = False
         self.max_speed: float = max_speed
+        self.max_acceleration: float = max_acceleration
         self._handler_lock: threading.Lock = threading.Lock()
         self._speed_control_lock: threading.Lock = threading.Lock()
         self._live: Optional[Live] = None

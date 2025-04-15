@@ -194,6 +194,7 @@ class SwarmCommunicator:
         time_sleep_update_velocity: float = 0.1,
         params: Optional[dict] = None,
         mode: int = 1,
+        unique_id: int = None,
     ) -> None:
         """
         Инициализация компонента для обмена данными в роевой архитектуре.
@@ -253,7 +254,10 @@ class SwarmCommunicator:
             }
         else:
             self.params = params
-        self.swarm_solver = SSolver(params=params, count_of_objects=1)
+        self.swarm_solver = SSolver(params=self.params, count_of_objects=1)
+
+        print(self.swarm_solver.safety_radius)
+        print(self.params)
         self.mode: int = mode
         self.control_object = control_object
         self.env_state_matrix: np.ndarray = np.array(
@@ -264,12 +268,15 @@ class SwarmCommunicator:
         self.receive_queue: Queue[Any] = Queue()
         # Определяем IP для формирования уникального id
         local_ip = ip if ip is not None else self.control_object.ip
-        # Генерируем уникальный id с использованием instance_number, если он передан
-        self.unique_id: int = (
-            get_unique_instance_id(local_ip, instance_number=instance_number)
-            if ip != "localhost"
-            else control_object.mavlink_port
-        )
+        print(unique_id)
+        if unique_id:
+            self.unique_id = unique_id
+        else:
+            self.unique_id: int = (
+                get_unique_instance_id(local_ip, instance_number=instance_number)
+                if ip != "localhost"
+                else control_object.mavlink_port
+            )
         print(
             "Уникальный id для этого экземпляра:", self.unique_id, " ip = ", ip
         )

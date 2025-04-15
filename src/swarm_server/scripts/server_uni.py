@@ -41,12 +41,6 @@ def main():
         default=8000,
         help="Порт устройства, например 5656",
     )
-    parser.add_argument(
-        "--xyz",
-        type=int,
-        default=np.array([0, 0, 0, 0, 0, 0]),
-        help="Порт устройства, например 5656",
-    )
     args = parser.parse_args()
     ip = get_local_ip()
     drone = Pion(

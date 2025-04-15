@@ -325,6 +325,7 @@ class Spion(Simulator, DroneBase):
             current_position=np.array(current_velocity, dtype=np.float64),
             dt=self.dt,
         )
+        signal = np.clip(signal, -self.max_acceleration, self.max_acceleration)
         self.set_force(signal, 0)
 
     def position_controller(self, position_xyz: Array4) -> None:

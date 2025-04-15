@@ -21,3 +21,5 @@ trap cleanup SIGINT
 
 # Ожидание завершения всех процессов
 wait
+
+start_server_sim --id 1 --initial 3 3 1 1
