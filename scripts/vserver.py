@@ -5,18 +5,19 @@
 #   "tornado",
 # ]
 # ///
+import argparse
 import socket
 import threading
 import time
 from queue import Queue
 
-from swarm_server import DDatagram
-
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
-import matplotlib
-import argparse
+
+from swarm_server import DDatagram
+
 parser = argparse.ArgumentParser(description="Запуск визуализации")
 parser.add_argument("--web", action="store_true", help="Запуск в web")
 args = parser.parse_args()

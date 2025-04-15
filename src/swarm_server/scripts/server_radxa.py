@@ -7,6 +7,7 @@ from swarm_server import SwarmCommunicator
 
 from .params import params
 
+
 def main():
     # Получаем локальный IP-адрес
     ip = get_local_ip()

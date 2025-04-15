@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import time
 import argparse
+import time
+
+import numpy as np
 
 from pion import Pion
 from pionfunc.functions import get_local_ip
 from swarm_server import SwarmCommunicator
-
-import numpy as np
 
 params = {
     "kp": np.array([[1, 1, 0.1, 1, 1, 1]]) * 0.1,
@@ -23,6 +23,7 @@ params = {
     "max_speed": 0.4,
     "unstable_radius": 1.5,
 }
+
 
 def main():
     parser = argparse.ArgumentParser(

@@ -12,11 +12,11 @@ from lokky.pionmath import SSolver
 
 from pionfunc.annotation import Array6
 from pionfunc.functions import (
+    get_local_ip,
     get_numeric_id,
     get_unique_instance_id,
     start_threading,
     vector_reached,
-    get_local_ip,
 )
 
 from .commands import CMD
@@ -260,9 +260,14 @@ class SwarmCommunicator:
         # Определяем IP для формирования уникального id
         local_ip = ip if ip is not None else self.control_object.ip
         # Генерируем уникальный id с использованием instance_number, если он передан
-        self.unique_id: int = get_unique_instance_id(local_ip, instance_number=instance_number) if ip != "localhost" \
+        self.unique_id: int = (
+            get_unique_instance_id(local_ip, instance_number=instance_number)
+            if ip != "localhost"
             else control_object.mavlink_port
-        print("Уникальный id для этого экземпляра:", self.unique_id, " ip = ", ip)
+        )
+        print(
+            "Уникальный id для этого экземпляра:", self.unique_id, " ip = ", ip
+        )
         self.numeric_id = get_numeric_id(self.unique_id)
         self.broadcast_client = UDPBroadcastClient(
             port=self.broadcast_port, unique_id=self.unique_id
@@ -278,7 +283,9 @@ class SwarmCommunicator:
         self.max_speed = max_speed
         self.time_sleep_update_velocity = time_sleep_update_velocity
         self.recive_interval = recive_interval
-        self.control_object.name += f", unid: {self.unique_id}, gr: {self.group_id}"
+        self.control_object.name += (
+            f", unid: {self.unique_id}, gr: {self.group_id}"
+        )
 
     def start(self) -> None:
         """
@@ -394,7 +401,9 @@ class SwarmCommunicator:
                     new_group = int(state.data[0])
                     self.group_id = new_group
                     self.control_object.name = f"{get_local_ip()}, unid: {self.unique_id}, gr: {self.group_id}"
-                    print(f"Группа успешно изменена на: {new_group} для дрона с id {self.unique_id}")
+                    print(
+                        f"Группа успешно изменена на: {new_group} для дрона с id {self.unique_id}"
+                    )
                 except Exception as e:
                     print("Ошибка при изменении группы:", e)
             elif command == CMD.GOTO:
