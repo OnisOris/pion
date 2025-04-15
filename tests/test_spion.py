@@ -55,7 +55,14 @@ class TestSpion:
             dt=0.1,
         )
         # Сравнение управляющего сигнала с ПИД spion и проверочного ПИД
-        assert np.all(np.equal(force_after_one_step, signal))
+        assert np.all(
+            np.equal(
+                force_after_one_step,
+                np.clip(
+                    signal, -spion.max_acceleration, spion.max_acceleration
+                ),
+            )
+        )
 
     def test_position_controller(self):
         """
@@ -87,4 +94,9 @@ class TestSpion:
             dt=0.1,
         )
         # Сравнение управляющего сигнала с ПИД spion и проверочного ПИД
-        assert np.all(np.equal(spion.t_speed, signal))
+        assert np.all(
+            np.equal(
+                spion.t_speed,
+                np.clip(signal, -spion.max_speed, spion.max_speed),
+            )
+        )
