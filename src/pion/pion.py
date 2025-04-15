@@ -348,6 +348,7 @@ class Pion(DroneBase):
         z: float,
         yaw: float,
         accuracy: Optional[float] = None,
+        yaw_off: bool = True,
     ) -> None:
         """
         Метод берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
@@ -365,11 +366,14 @@ class Pion(DroneBase):
         :type yaw: float
         :param accuracy: Погрешность целевой точки
         :type accuracy: Optional[float]
+        :param yaw_off: достижение yaw
+        type yaw_off: bool
         :return: None
         """
         self.tracking = False
         self.set_v()
-        self.goto_yaw(yaw)
+        if not yaw_off:
+            self.goto_yaw(yaw)
         if self.dimension == 2:
             target_point = np.array([x, y])
         else:

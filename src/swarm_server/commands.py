@@ -19,3 +19,4 @@ class CMD(Enum):
     SWARM_ON = 10
     SAVE = 11
     SET_GROUP = 12
+    SET_MOD = 13
