@@ -273,7 +273,9 @@ class SwarmCommunicator:
             self.unique_id = unique_id
         else:
             self.unique_id: int = (
-                get_unique_instance_id(local_ip, instance_number=instance_number)
+                get_unique_instance_id(
+                    local_ip, instance_number=instance_number
+                )
                 if ip != "localhost"
                 else control_object.mavlink_port
             )
@@ -498,10 +500,10 @@ class SwarmCommunicator:
                         self.swarm_solver.repulsion_weight = 0
                     elif self.mode == 3:
                         self.restore_params()
-                        self.swarm_solver.kp = 0
-                        self.swarm_solver.ki = 0
-                        self.swarm_solver.kd = 0
-                        self.swarm_solver.unstable_weight = 0
+                        self.swarm_solver.kp = self.params["kp"]
+                        self.swarm_solver.ki = self.params["ki"]
+                        self.swarm_solver.kd = self.params["kd"]
+                        self.swarm_solver.unstable_weight = 0.0
                 except Exception as e:
                     print("Ошибка при выполнении set_mode:", e)
             else:
