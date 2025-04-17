@@ -44,6 +44,13 @@ class Point:
         # Матрица для извлечения скорости: C @ state дает [vx, vy, vz]
         self.C = np.hstack([np.zeros((3, 3)), np.eye(3)])
 
+    @property
+    def speed(self) -> NDArray[np.float64]:
+        """
+        Возвращает скорость как [vx, vy, vz] из state.
+        """
+        return self.state[3:6]
+
     def step(self, force: NDArray[np.float64], dt: float) -> None:
         """
         Шаг симуляции для трансляционного движения.
@@ -269,6 +276,24 @@ class Simulator_th(Simulator):
     Класс запускает симуляции в отдельных потоках.
     """
 
+    def __init__(
+        self,
+        simulation_objects: np.ndarray,
+        dt: float = 0.01,
+        dimension: int = 3,
+    ):
+        """
+        Каждый объект выполняется в отдельном потоке с синхронизацией шагов
+
+        :param simulation_objects: массив симуляционных объектов, у каждого реализован метод step
+        :param dt: шаг по времени
+        :param dimension: размерность пространства (обычно 3)
+        """
+        # Инициализируем базовый класс
+        super().__init__(simulation_objects, dt, dimension)
+        # Создаем барьер, число участников равно количеству объектов.
+        self.sync_barrier = threading.Barrier(len(simulation_objects))
+
     def start_simulation_while(self) -> None:
         """
         Метод запускает симуляцию всех объектов в self.simulation_object
@@ -309,6 +334,40 @@ class Simulator_th(Simulator):
             )
         for thread in self.threading_list:
             thread.start()
+
+    def object_cycle(
+        self,
+        simulation_object,
+        object_channel: int,
+        type_of_cycle: str = "while",
+        steps: int = 100,
+    ) -> None:
+        """
+        Метод, выполняемый в отдельном потоке для каждого объекта.
+
+        После выполнения шага симуляции поток ждёт, пока все остальные потоки не вызовут sync_barrier.wait().
+        Таким образом синхронизуются шаги.
+        """
+        if type_of_cycle == "while":
+            while self.simulation_turn_on:
+                # Выполнение шага симуляции для своего объекта
+                simulation_object.step(self.forces[object_channel], self.dt)
+                # Блокировка до завершения всех потоков текущего шага
+                try:
+                    self.sync_barrier.wait()
+                except threading.BrokenBarrierError:
+                    # Если барьер сломался, выходим из цикла
+                    break
+        elif type_of_cycle == "for":
+            for _ in range(steps):
+                simulation_object.step(self.forces[object_channel], self.dt)
+                try:
+                    self.sync_barrier.wait()
+                except threading.BrokenBarrierError as e:
+                    print(e)
+                    break
+        else:
+            print("Неизвестный тип цикла! Выберите 'while' или 'for'.")
 
 
 class Simulator_realtime(Simulator):
@@ -361,7 +420,52 @@ class Simulator_realtime_th(Simulator_realtime, Simulator_th):
     Класс симуляции с синхронизацией в реальном времени и с запуском в отдельных потоках.
     """
 
-    pass
+    def object_cycle(
+        self,
+        simulation_object,
+        object_channel: int,
+        type_of_cycle: str = "while",
+        steps: int = 100,
+    ) -> None:
+        """
+        Метод, выполняемый в отдельном потоке для каждого объекта.
+
+        После выполнения шага симуляции поток ждёт, пока все остальные потоки не вызовут sync_barrier.wait().
+        Таким образом синхронизуются шаги.
+        """
+        last_time = time.time()
+        if type_of_cycle == "while":
+            while self.simulation_turn_on:
+                current_time = time.time()
+                elapsed_time = current_time - last_time
+                if elapsed_time >= self.dt:
+                    last_time = current_time
+                    # Выполнение шага симуляции для своего объекта
+                    simulation_object.step(
+                        self.forces[object_channel], self.dt
+                    )
+                    # Блокировка до завершения всех потоков текущего шага
+                    try:
+                        self.sync_barrier.wait()
+                    except threading.BrokenBarrierError:
+                        # Если барьер сломался, выходим из цикла
+                        break
+        elif type_of_cycle == "for":
+            for _ in range(steps):
+                current_time = time.time()
+                elapsed_time = current_time - last_time
+                if elapsed_time >= self.dt:
+                    last_time = current_time
+                    simulation_object.step(
+                        self.forces[object_channel], self.dt
+                    )
+                    try:
+                        self.sync_barrier.wait()
+                    except threading.BrokenBarrierError as e:
+                        print(e)
+                        break
+        else:
+            print("Неизвестный тип цикла! Выберите 'while' или 'for'.")
 
 
 class Trajectory_writer:
