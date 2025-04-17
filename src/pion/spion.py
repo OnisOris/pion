@@ -150,7 +150,6 @@ class Spion(Simulator, DroneBase):
         Simulator.__init__(
             self, self.simulation_objects, dt=dt, dimension=self.dimension
         )
-        self.max_speed: float = 2.0
         # Период отправления следующего вектора скорости
         self.period_send_speed: float = 0.05
         self.speed_flag: bool = True
@@ -502,9 +501,7 @@ class Spion(Simulator, DroneBase):
             )
         else:
             target_yaw = self.simulation_objects[0].attitude[2]
-        self.goto(
-            target_xyz[0], target_xyz[1], target_xyz[2], target_yaw
-        )
+        self.goto(target_xyz[0], target_xyz[1], target_xyz[2], target_yaw)
 
     def set_body_velocity(self, body_vel: NDArray[np.float64]) -> None:
         """
