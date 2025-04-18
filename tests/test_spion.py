@@ -1,6 +1,6 @@
 import numpy as np
 
-from pion.cython_pid import PIDController
+from pion.cython_pid import PIDController, PIDControllerXd
 from pion.spion import Spion
 
 
@@ -100,3 +100,51 @@ class TestSpion:
                 np.clip(signal, -spion.max_speed, spion.max_speed),
             )
         )
+
+
+class TestSpionXd:
+    def test_position_controller_Xd(self):
+        """
+        Тестирование контроллера позиции в многомерном режиме с использованием PIDControllerXd.
+        """
+        count_of_objects = 2
+
+        # Задаем матрицы коэффициентов для ПИД. Размер матрицы должен совпадать с размерностями
+        # целевых и текущих позиций (в данном примере shape=(2,4)).
+        kp = np.array(
+            [[3.0, 3.0, 3.0, 3.0], [3.0, 3.0, 3.0, 3.0]], dtype=np.float64
+        )
+        ki = np.array(
+            [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]], dtype=np.float64
+        )
+        kd = np.array(
+            [[0.1, 0.1, 0.1, 0.1], [0.1, 0.1, 0.1, 0.1]], dtype=np.float64
+        )
+
+        # Целевая позиция (shape=(2,4))
+        target_xyz = np.array([[1, 2, 3, 4], [1, 2, 3, 4]], dtype=np.float64)
+        # Текущая позиция (shape=(2,4))
+        current_position = np.array(
+            [[0, 0, 0, 0], [1, 1, 1, 1]], dtype=np.float64
+        )
+
+        # Создание экземпляра нового класса PIDControllerXd
+        pid_controller_xd = PIDControllerXd(kp, ki, kd)
+
+        # Вычисление управляющего сигнала
+        signal = pid_controller_xd.compute_control(
+            target_position=target_xyz,
+            current_position=current_position,
+            dt=0.1,
+        )
+
+        print("Control Signal:\n", signal)
+        # Проверяем, что возвращаемая матрица имеет ожидаемую форму (2,4)
+        assert signal.shape == (count_of_objects, 4), (
+            "Размер сигнала не соответствует ожидаемому (2,4)"
+        )
+
+
+if __name__ == "__main__":
+    test = TestSpionXd()
+    test.test_position_controller_Xd()
