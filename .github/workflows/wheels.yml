@@ -19,57 +19,57 @@ jobs:
       matrix:
         include:
           # Linux (не ARM) – версии CPython 3.9–3.13
-          - os: ubuntu-latest
-            python: cp39
-            arch: x86_64
-          - os: ubuntu-latest
-            python: cp310
-            arch: x86_64
-          - os: ubuntu-latest
-            python: cp311
-            arch: x86_64
-          - os: ubuntu-latest
-            python: cp312
-            arch: x86_64
-          - os: ubuntu-latest
-            python: cp313
-            arch: x86_64
+          # - os: ubuntu-latest
+          #   python: cp39
+          #   arch: x86_64
+          # - os: ubuntu-latest
+          #   python: cp310
+          #   arch: x86_64
+          # - os: ubuntu-latest
+          #   python: cp311
+          #   arch: x86_64
+          # - os: ubuntu-latest
+          #   python: cp312
+          #   arch: x86_64
+          # - os: ubuntu-latest
+          #   python: cp313
+          #   arch: x86_64
           # Linux ARM – только CPython 3.13
           - os: ubuntu-latest
             python: cp313
             arch: arm64
           # macOS (не ARM) – версии CPython 3.9–3.13
-          - os: macos-latest
-            python: cp39
-            arch: universal2
-          - os: macos-latest
-            python: cp310
-            arch: universal2
-          - os: macos-latest
-            python: cp311
-            arch: universal2
-          - os: macos-latest
-            python: cp312
-            arch: universal2
-          - os: macos-latest
-            python: cp313
-            arch: universal2
+          # - os: macos-latest
+          #   python: cp39
+          #   arch: universal2
+          # - os: macos-latest
+          #   python: cp310
+          #   arch: universal2
+          # - os: macos-latest
+          #   python: cp311
+          #   arch: universal2
+          # - os: macos-latest
+          #   python: cp312
+          #   arch: universal2
+          # - os: macos-latest
+          #   python: cp313
+          #   arch: universal2
           # Windows (не ARM) – версии CPython 3.9–3.13
-          - os: windows-latest
-            python: cp39
-            arch: x86_64
-          - os: windows-latest
-            python: cp310
-            arch: x86_64
-          - os: windows-latest
-            python: cp311
-            arch: x86_64
-          - os: windows-latest
-            python: cp312
-            arch: x86_64
-          - os: windows-latest
-            python: cp313
-            arch: x86_64
+          # - os: windows-latest
+          #   python: cp39
+          #   arch: x86_64
+          # - os: windows-latest
+          #   python: cp310
+          #   arch: x86_64
+          # - os: windows-latest
+          #   python: cp311
+          #   arch: x86_64
+          # - os: windows-latest
+          #   python: cp312
+          #   arch: x86_64
+          # - os: windows-latest
+          #   python: cp313
+          #   arch: x86_64
 
     steps:
       - uses: actions/checkout@v4
@@ -97,28 +97,31 @@ jobs:
           name: wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.arch }}
           path: wheelhouse/*.whl
 
-  publish:
-    if: startsWith(github.ref, 'refs/tags/')
-    name: Publish wheels to PyPI
-    needs: build_wheels
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all wheel artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: wheelhouse
-
-      - name: Flatten downloaded wheels
-        run: |
-          find wheelhouse -mindepth 2 -type f -name '*.whl' -exec mv {} wheelhouse/ \;
-          find wheelhouse -type d -empty -delete
-
       - name: List wheels
-        run: ls -l wheelhouse/
+        run: ls -alh wheelhouse
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.12.4
-        with:
-          packages_dir: wheelhouse
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+  # publish:
+  #   if: startsWith(github.ref, 'refs/tags/')
+  #   name: Publish wheels to PyPI
+  #   needs: build_wheels
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Download all wheel artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         path: wheelhouse
+  #
+  #     - name: Flatten downloaded wheels
+  #       run: |
+  #         find wheelhouse -mindepth 2 -type f -name '*.whl' -exec mv {} wheelhouse/ \;
+  #         find wheelhouse -type d -empty -delete
+  #
+  #     - name: List wheels
+  #       run: ls -l wheelhouse/
+  #
+  #     - name: Publish to PyPI
+  #       uses: pypa/gh-action-pypi-publish@v1.12.4
+  #       with:
+  #         packages_dir: wheelhouse
+  #         user: __token__
+  #         password: ${{ secrets.PYPI_API_TOKEN }}
