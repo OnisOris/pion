@@ -35,9 +35,10 @@ jobs:
           #   python: cp313
           #   arch: x86_64
           # Linux ARM – только CPython 3.13
-          - os: ubuntu-latest
+          - os: linux-arm
+            runs-on: ubuntu-24.04-arm
             python: cp313
-            arch: arm64
+            arch: aarch64
           # macOS (не ARM) – версии CPython 3.9–3.13
           # - os: macos-latest
           #   python: cp39
@@ -85,6 +86,8 @@ jobs:
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.2
+        env:
+         CIBW_ARCHS: ${{ matrix.archs }}
         with:
           package-dir: .
           output-dir: wheelhouse
