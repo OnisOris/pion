@@ -2,13 +2,13 @@ name: Build and Publish
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "actions" ]
     tags:
       - 'v*'
   pull_request:
     branches: [ "main" ]
-    # tags:
-    #   - 'v*'
+    tags:
+      - 'v*'
 
 jobs:
   build_wheels:
