@@ -3,8 +3,8 @@ name: Build and Publish
 on:
   push:
     branches: [ "main", "actions" ]
-    tags:
-      - 'v*'
+    # tags:
+    #   - 'v*'
   pull_request:
     branches: [ "main" ]
     tags:
