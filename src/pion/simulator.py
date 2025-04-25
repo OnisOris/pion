@@ -15,6 +15,7 @@ class Point:
         ),
         trajectory_write: bool = False,
         drag_coefficient: float = 0.01,
+        group: int = 0,
     ):
         """
         Инициализация точки с трансляционным состоянием.
@@ -25,6 +26,7 @@ class Point:
             raise ValueError(
                 "position должен иметь размер 6 (x, y, z, vx, vy, vz)"
             )
+        self.group = group
         self.mass = mass
         self.drag_coefficient = drag_coefficient
         self.state: NDArray[np.float64] = np.array(position, dtype=np.float64)
@@ -106,6 +108,9 @@ class PointYaw(Point):
         При симуляции обновляется только динамика yaw.
         """
         super().__init__(mass, position, trajectory_write, drag_coefficient)
+        self.trajectory: Trajectory_writer = Trajectory_writer(
+            ["x", "y", "z", "vx", "vy", "vz", "yaw", "t"]
+        )
         self.attitude: NDArray[np.float64] = attitude
         self.attitude[2] = yaw
         # Матрица динамики для attitude: обновляется только yaw посредством зависимости от yaw_rate.
@@ -124,7 +129,19 @@ class PointYaw(Point):
         :param dt: шаг по времени
         """
         translational_force = self.E_trans @ force
-        super().step(translational_force, dt)
+        # Расчёт силы сопротивления: -drag_coefficient * скорость,
+        # скорость извлекается через матрицу C
+        drag_force = -self.drag_coefficient * (self.C @ self.state)
+        total_force = translational_force + drag_force
+        acceleration = total_force / self.mass  # (3,)
+        # Формируем вектор b для динамики: b = [0,0,0, ax, ay, az]
+        b = np.concatenate((np.zeros(3), acceleration))
+        # Интегрирование методом Рунге-Кутты 4-го порядка (RK4)
+        k1 = dt * (self.A @ self.state + b)
+        k2 = dt * (self.A @ (self.state + 0.5 * k1) + b)
+        k3 = dt * (self.A @ (self.state + 0.5 * k2) + b)
+        k4 = dt * (self.A @ (self.state + k3) + b)
+        self.state = self.state + (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
         yaw_input = (self.E_yaw @ force).item()
         b_att = np.concatenate((np.zeros(5), np.array([yaw_input])))
@@ -226,17 +243,17 @@ class Simulator:
         """
         self.forces[object_channel] = force
 
-    def get_position(self) -> NDArray[np.float64]:
+    def get_state(self) -> NDArray[np.float64]:
         """
-        Возвращает матрицу позиций всех объектов симуляции.
+        Возвращает матрицу состояний всех объектов симуляции.
 
-        :return: матрица размером nx3, где n - количество объектов. Столбцы - x, y, z
+        :return: матрица размером nx6, где n - количество объектов. Столбцы - x, y, z, vx, vy, vz
         :rtype: np.ndarray
         """
-        position_matrix = np.zeros((self.dimension,))
+        state_matrix = np.zeros((6,))
         for obj in self.simulation_objects:
-            position_matrix = np.vstack([position_matrix, obj.position])
-        return position_matrix[1:]
+            state_matrix = np.vstack([state_matrix, obj.state])
+        return state_matrix[1:]
 
     def object_cycle(
         self, type_of_cycle: str = "while", steps: int = 100

@@ -3,7 +3,7 @@ import numpy as np
 from swarm_server.swarmsim import SwarmSim, create_objects_Point_yaw
 
 if __name__ == "__main__":
-    number_of_objects = 16
+    number_of_objects = 60
     swarmsim = SwarmSim(
         create_objects_Point_yaw(
             int(np.sqrt(number_of_objects)), [-5, 5], [-5, 5]

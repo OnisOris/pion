@@ -9,18 +9,18 @@ from pionfunc.functions import get_local_ip
 from swarm_server import SwarmCommunicator
 
 params = {
-    "kp": np.array([[1, 1, 0.1, 1, 1, 1]]) * 0.1,
+    "kp": np.array([[1.2, 1.2, 1, 1, 1, 1]]) * 0.15,
     "ki": np.zeros((1, 6)),
-    "kd": np.array([[1, 1, 4, 1, 1, 1]]) * 2,
+    "kd": np.array([[1, 1, 1, 1, 1, 1]]) * 2,
     "attraction_weight": 1.0,
     "cohesion_weight": 1.0,
     "alignment_weight": 1.0,
-    "repulsion_weight": 4.0,
+    "repulsion_weight": 9.0,
     "unstable_weight": 1.0,
     "noise_weight": 1.0,
-    "safety_radius": 1.2,
-    "max_acceleration": 1,
-    "max_speed": 0.4,
+    "safety_radius": 1,
+    "max_acceleration": 0.5,
+    "max_speed": 0.3,
     "unstable_radius": 1.5,
 }
 
@@ -49,7 +49,7 @@ def main():
         connection_method="udpout",
         name=f"Drone-{ip}",
         dt=0.001,
-        logger=True,
+        logger=False,
         max_speed=0.5,
     )
 
