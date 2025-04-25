@@ -65,28 +65,28 @@ jobs:
           name: wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.arch }}
           path: wheelhouse/*.whl
 
-  # publish:
-  #   if: startsWith(github.ref, 'refs/tags/')
-  #   name: Publish wheels to PyPI
-  #   needs: build_wheels
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Download all wheel artifacts
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         path: wheelhouse
-  #
-  #     - name: Flatten downloaded wheels
-  #       run: |
-  #         find wheelhouse -mindepth 2 -type f -name '*.whl' -exec mv {} wheelhouse/ \;
-  #         find wheelhouse -type d -empty -delete
-  #
-  #     - name: List wheels
-  #       run: ls -l wheelhouse/
-  #
-  #     - name: Publish to PyPI
-  #       uses: pypa/gh-action-pypi-publish@v1.12.4
-  #       with:
-  #         packages_dir: wheelhouse
-  #         user: __token__
-  #         password: ${{ secrets.PYPI_API_TOKEN }}
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    name: Publish wheels to PyPI
+    needs: build_wheels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: wheelhouse
+
+      - name: Flatten downloaded wheels
+        run: |
+          find wheelhouse -mindepth 2 -type f -name '*.whl' -exec mv {} wheelhouse/ \;
+          find wheelhouse -type d -empty -delete
+
+      - name: List wheels
+        run: ls -l wheelhouse/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.12.4
+        with:
+          packages_dir: wheelhouse
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
