@@ -13,7 +13,7 @@ on:
 jobs:
   build_wheels:
     if: startsWith(github.ref, 'refs/tags/')
-    name: Build wheels
+    name: Build wheels for ${{ matrix.os }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
       matrix:
@@ -64,9 +64,6 @@ jobs:
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.arch }}
           path: wheelhouse/*.whl
-
-      - name: List wheels
-        run: ls -alh wheelhouse
 
   # publish:
   #   if: startsWith(github.ref, 'refs/tags/')
