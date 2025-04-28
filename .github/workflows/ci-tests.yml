@@ -76,7 +76,7 @@ jobs:
         run: |
           source /opt/venv/bin/activate
           pip install pytest
-          pip install .
+          SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MY_PACKAGE=1 pip install .
           pytest tests/
   macos:
     name: Test on macOS
