@@ -76,8 +76,7 @@ jobs:
         run: |
           source /opt/venv/bin/activate
           pip install pytest
-          VERSION=$(git describe --tags --always --dirty | sed -r 's/-([0-9]+)/.dev\1/' | sed 's/-/+/')
-          SETUPTOOLS_SCM_PRETEND_VERSION_FOR_PIONSDK=$VERSION pip install .
+          pip install git+https://github.com/OnisOris/pion.git
           pytest tests/
   macos:
     name: Test on macOS
