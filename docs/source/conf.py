@@ -6,10 +6,12 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+from importlib.metadata import version as get_version
+
 project = "Pion"
 copyright = "2025, Michael Solovev"
 author = "Michael Solovev"
-release = "0.0.1"
+release: str = get_version("pionsdk")
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
