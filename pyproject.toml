@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=75", "wheel", "Cython", "numpy>=2.1.0"]
+requires = ["setuptools>=75",  "setuptools-scm>=8", "wheel", "Cython", "numpy>=2.1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pionsdk"
-version = "0.0.5"
+dynamic = ["version"]
 description = "This module is needed to control drondes"
 requires-python = ">=3.10"
 authors = [
@@ -58,6 +58,7 @@ dev = [
     "furo>=2024.8.6",
     "pre-commit>=4.2.0",
     "ruff>=0.9.10",
+    "setuptools-scm>=8.3.1",
     "sphinx>=8.1.3",
     "uv>=0.6.5",
 ]
@@ -91,3 +92,5 @@ NPY_LAPACK_ORDER = "openblas"
 
 [tool.setuptools]
 include-package-data = true
+
+[tool.setuptools_scm]
