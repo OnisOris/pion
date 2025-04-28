@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install ARM64 dependencies
-        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
+        if: matrix.os == 'linux-arm'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
