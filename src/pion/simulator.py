@@ -187,6 +187,7 @@ class Simulator:
         self.simulation_objects: np.ndarray = simulation_objects
         self.simulation_turn_on: bool = False
         self.dt: float = dt
+        self.time: float = 0.0
         force_dim = (
             dimension + 1
             if hasattr(simulation_objects[0], "E_yaw")
