@@ -442,7 +442,6 @@ class Spion(Simulator, DroneBase):
         Останавливает все потоки, завершает симуляцию
 
         :return: None
-        :rtype: None
         """
         self.tracking = False
         self.speed_flag = False
@@ -454,7 +453,6 @@ class Spion(Simulator, DroneBase):
         Метод накладывает границы симуляции для дрона
 
         :return: None
-        :rtype: None
         """
         position = self.simulation_objects[0].position
         # Проверка на достижение границы и добавление отскока
@@ -484,7 +482,6 @@ class Spion(Simulator, DroneBase):
         :param body_target: вектор смещения относительно тела дрона (например, [dx, dy, dz] или [dx, dy, dz, dyaw])
         :type body_target: Union[Array3, Array4]
         :return: None
-        :rtype: None
         """
         print("goto_body")
         current_yaw = self.simulation_objects[0].attitude[2]
@@ -515,7 +512,6 @@ class Spion(Simulator, DroneBase):
         :param body_vel: скорость в системе координат дрона (например, [vx_body, vy_body, vz_body])
         :type body_vel: NDArray[np.float64]
         :return: None
-        :rtype: None
         """
         current_yaw = self.simulation_objects[0].attitude[2]
         cos_yaw = np.cos(current_yaw)
