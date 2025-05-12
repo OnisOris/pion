@@ -406,6 +406,7 @@ class ScriptedSwarm(SwarmWriter):
         self.script = self._parse_script(script_file)
         self.current_command_idx = 0
         self.group_mapping = {}  # Хранит соответствие ID дрона и группы
+        self._init_groups()
 
     def _parse_script(self, script_file: str) -> List[Dict]:
         commands = []
@@ -448,21 +449,131 @@ class ScriptedSwarm(SwarmWriter):
         except ValueError:
             return []
 
-    def swarm_controller(self, dt: float) -> None:
-        # Execute all commands whose time has come
+    def swarm_controller(self, dt: float):
         while (
             self.current_command_idx < len(self.script)
             and self.time >= self.script[self.current_command_idx]["time"]
         ):
-            entry = self.script[self.current_command_idx]
-            target = entry["target"]
-            cmd = entry["cmd"]
-            args = entry["args"]
+            e = self.script[self.current_command_idx]
+            target, cmd, args = e["target"], e["cmd"], e["args"]
             print(
                 f"[{self.time:.1f}s] Executing: {target} {cmd} {' '.join(args)}"
             )
             self._execute_command(target, cmd, args)
             self.current_command_idx += 1
-
-        # Continue with base swarm control
         super().swarm_controller(dt)
+
+    def _execute_command(self, target: str, cmd: str, args: List[str]):
+        ids = self._get_target_ids(target)
+        # ic(cmd, ids, args)
+        if cmd == "takeoff":
+            h = float(args[0]) if args else 1.5
+            for i in ids:
+                self.t_position[i, 2] = h
+        elif cmd == "goto":
+            if len(args) != 4:
+                raise ValueError(f"goto requires 4 args, got {args}")
+            x, y, z, yaw = map(float, args)
+            for i in ids:
+                self.t_position[i, :3] = [x, y, z]
+                self.t_position[i, 5] = yaw
+        elif cmd == "land":
+            for i in ids:
+                self.t_position[i, 2] = 0.0
+        else:
+            print(f"Unknown cmd '{cmd}'")
+
+
+class SimulationRunner:
+    def __init__(
+        self,
+        num_drones: int = 16,
+        script_file: str = "mission.txt",
+        output_file: str = "trajectory.npz",
+        sim_time: float = 10.0,
+        p_coeff: float = 1.0,
+        i_coeff: float = 0.0,
+        d_coeff: float = 0.1,
+    ):
+        side = int(np.sqrt(num_drones))
+        self.num_drones = num_drones
+        self.objects = create_objects_Point_yaw(side)
+        self.params: dict = {
+            "kp": np.ones((self.num_drones, 6)) * p_coeff,
+            "ki": np.ones((self.num_drones, 6)) * i_coeff,
+            "kd": np.ones((self.num_drones, 6)) * d_coeff,
+            "attraction_weight": 0.0,
+            "cohesion_weight": 1.0,
+            "alignment_weight": 1.0,
+            "repulsion_weight": 1.0,
+            "unstable_weight": 1.0,
+            "noise_weight": 1.0,
+            "safety_radius": 2,
+            "max_acceleration": 2,
+            "max_speed": 2,
+            "unstable_radius": 1.5,
+        }
+        self.sim = ScriptedSwarm(
+            script_file=script_file,
+            simulation_objects=self.objects,
+            dt=0.1,
+            logger=False,
+            params=self.params,
+        )
+        print(self.sim.params)
+
+        self.output_file = output_file
+
+        self.sim_time = sim_time
+
+    def run(self):
+        self.sim.start_simulation_for(int(self.sim_time / self.sim.dt))
+
+        # Ожидаем завершения потоков
+
+        for thread in self.sim.threading_list:
+            thread.join()
+
+        self.sim.save_trajectories(self.output_file)
+
+        print("Simulation completed and trajectory saved")
+
+
+def main():
+    number_of_objects = 10
+
+    script = "/home/onis/code/pion/scripts/mission_script.txt"
+    output = "scripted_swarm_data.npz"
+    simulation_duration = 120.0  # seconds
+    # Create swarm objects externally
+
+    objs = create_objects_Point_yaw(
+        int(np.sqrt(number_of_objects)), [-5, 5], [-5, 5], 0.2
+    )
+
+    # Assign even/odd groups
+
+    for idx, o in enumerate(objs):
+        o.group = idx % 2
+
+    # Initialize runner
+
+    runner = SimulationRunner(
+        num_drones=number_of_objects - 1,
+        script_file=script,
+        output_file=output,
+        sim_time=simulation_duration,
+        p_coeff=0.0,
+        i_coeff=0.0,
+        d_coeff=0.0,
+    )
+
+    # Override objects and start
+
+    runner.objects = objs
+
+    runner.run()
+
+
+if __name__ == "__main__":
+    main()
