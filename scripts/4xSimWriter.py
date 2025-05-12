@@ -224,7 +224,7 @@ def main():
         return [scat_top, scat_front, scat_side, scat_3d, info_text]
 
     # Создание анимации
-    FuncAnimation(
+    ani = FuncAnimation(  # noqa: F841
         fig,
         update,
         interval=frame_interval,
