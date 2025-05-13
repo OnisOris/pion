@@ -2,6 +2,7 @@ import threading
 import time
 from collections import deque
 from typing import Any, Dict, List, Optional
+import getpass
 
 import numpy as np
 from lokky.pionmath import SSolver
@@ -542,7 +543,7 @@ class SimulationRunner:
 def main():
     number_of_objects = 10
 
-    script = "/home/onis/code/pion/scripts/mission_script.txt"
+    script = f"/home/{getpass.getuser()}/code/pion/scripts/mission_script.txt"
     output = "scripted_swarm_data.npz"
     simulation_duration = 120.0  # seconds
     # Create swarm objects externally
@@ -563,9 +564,9 @@ def main():
         script_file=script,
         output_file=output,
         sim_time=simulation_duration,
-        p_coeff=0.0,
+        p_coeff=0.0001,
         i_coeff=0.0,
-        d_coeff=0.0,
+        d_coeff=0.0001,
     )
 
     # Override objects and start
