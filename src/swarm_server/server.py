@@ -492,7 +492,7 @@ class SwarmCommunicator:
                 # | FLOW_MODE   | 0   | 1         | 0               |
                 # +-------------+-----+-----------+-----------------+
                 try:
-                    self.mode = state.data[0]
+                    self.mode = int(state.data[0])
                     if self.mode == 1:
                         self.restore_params()
                     elif self.mode == 2:
@@ -530,7 +530,7 @@ class SwarmCommunicator:
         """
         Вычисление нового вектора скорости и запись его в t_speed
 
-        :param target_point: Целевая позиция
+        :param target_position: Целевая позиция
         :param dt: Шаг времени
 
         :return: None
@@ -541,6 +541,10 @@ class SwarmCommunicator:
             target_position=target_position,
             dt=dt,
         )[0]
+
+        if self.control_object.position[2] < 0.5:
+            if new_vel[2] < 0:
+                new_vel[2] = 0
 
         self.control_object.t_speed = np.array(
             [new_vel[0], new_vel[1], new_vel[2], 0]

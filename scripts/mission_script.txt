@@ -1,0 +1,6 @@
+all takeoff
+g:0 goto 40 40 1.5 0
+g:1 goto -40 -40 1.5 0
+sleep 60
+g:0 goto -40 -40 1.5 0
+g:1 goto 40 40 1.5 0

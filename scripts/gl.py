@@ -4,32 +4,37 @@ import numpy as np
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
+from OpenGL.arrays import vbo
 
-# Импорт вашего класса симуляции
+# Import your simulation
 from swarm_server.swarmsim import SwarmSim, create_objects_Point_yaw
 from pion.simulator import PointYaw
 
-# Глобальные переменные
+# Global state
 sim = None
 positions = None
 colors = None
 window_width = 800
 window_height = 600
 limit = 5.0
-update_ms = 50  # интервал обновления в мс
+update_ms = 100
 
-# Параметры камеры (для 3D вида)
+# VBOs
+pos_vbo = None
+col_vbo = None
+
+# Camera params
 cam_distance = 15.0
 cam_elev = 30.0
 cam_azim = -60.0
 
-# Display lists
-grid_lists = {}
-cube_list = None
+# Throttle redraw
+last_positions = None
+epsilon = 1e-3
 
 
 def init_simulation(num_objects: int):
-    global sim, positions, colors
+    global sim, positions, colors, pos_vbo, col_vbo, last_positions
     params = {
         "kp": np.ones((num_objects, 6)) * 0.2,
         "ki": np.zeros((num_objects, 6)),
@@ -41,48 +46,53 @@ def init_simulation(num_objects: int):
         "unstable_weight": 1.0,
         "noise_weight": 1.0,
         "safety_radius": 0.5,
-        "max_acceleration": 10,
+        "max_acceleration": 3,
         "max_speed": 1,
         "unstable_radius": 1.5,
     }
     points = create_objects_Point_yaw(int(np.sqrt(num_objects - 1)), [-limit, limit], [-limit, limit])
     zpoint = PointYaw(position=np.array([1, 1, 1, 0, 0, 0]))
-    sim = SwarmSim(np.hstack([points, [zpoint]]), dt=0.05, logger=True, params=params)
+    sim = SwarmSim(np.hstack([points, [zpoint]]), dt=0.24, logger=True, params=params)
     threading.Thread(target=sim.start_simulation_while, daemon=True).start()
-    # Инициалные позиции и цвета
+
+    # initial copy
     states = sim.get_states()
     positions = states[:, :3].copy()
-    colors = np.random.rand(num_objects, 3)
+    last_positions = positions.copy()
+    colors = np.random.rand(num_objects, 3).astype(np.float32)
+
+    # create VBOs
+    pos_vbo = vbo.VBO(positions.astype(np.float32))
+    col_vbo = vbo.VBO(colors)
 
 
 def build_display_lists():
     global grid_lists, cube_list
+    grid_lists = {}
     step = 1.0
-    # Сетка для 2D видов
+    # 2D grid display lists
     for view in ('top', 'front', 'side'):
         dl = glGenLists(1)
         glNewList(dl, GL_COMPILE)
         glColor3f(0.8, 0.8, 0.8)
         glBegin(GL_LINES)
+        rng = np.arange(-limit, limit + step, step)
         if view == 'top':
-            # XY plane grid
-            for i in np.arange(-limit, limit + step, step):
+            for i in rng:
                 glVertex3f(-limit, i, 0); glVertex3f(limit, i, 0)
                 glVertex3f(i, -limit, 0); glVertex3f(i, limit, 0)
         elif view == 'front':
-            # YZ plane grid
-            for i in np.arange(-limit, limit + step, step):
+            for i in rng:
                 glVertex3f(0, -limit, i); glVertex3f(0, limit, i)
                 glVertex3f(0, i, -limit); glVertex3f(0, i, limit)
-        else:
-            # XZ plane grid
-            for i in np.arange(-limit, limit + step, step):
+        else:  # side
+            for i in rng:
                 glVertex3f(-limit, 0, i); glVertex3f(limit, 0, i)
                 glVertex3f(i, 0, -limit); glVertex3f(i, 0, limit)
         glEnd()
         glEndList()
         grid_lists[view] = dl
-    # Границы рабочего объёма (куб)
+    # 3D cube boundary list
     cube_list = glGenLists(1)
     glNewList(cube_list, GL_COMPILE)
     glLineWidth(2.0)
@@ -102,44 +112,12 @@ def build_display_lists():
     glLineWidth(1.0)
     glEndList()
 
-
-def draw_axes(view):
-    glLineWidth(2.0)
-    glBegin(GL_LINES)
-    if view == 'top':
-        # X axis red
-        glColor3f(1, 0, 0); glVertex3f(-limit, 0, 0); glVertex3f(limit, 0, 0)
-        # Y axis green
-        glColor3f(0, 1, 0); glVertex3f(0, -limit, 0); glVertex3f(0, limit, 0)
-    elif view == 'front':
-        # Y axis green
-        glColor3f(0, 1, 0); glVertex3f(0, -limit, 0); glVertex3f(0, limit, 0)
-        # Z axis blue
-        glColor3f(0, 0, 1); glVertex3f(0, 0, -limit); glVertex3f(0, 0, limit)
-    elif view == 'side':
-        # X axis red
-        glColor3f(1, 0, 0); glVertex3f(-limit, 0, 0); glVertex3f(limit, 0, 0)
-        # Z axis blue
-        glColor3f(0, 0, 1); glVertex3f(0, 0, -limit); glVertex3f(0, 0, limit)
-    else:
-        # 3D axes
-        glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(limit, 0, 0)
-        glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, limit, 0)
-        glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, limit)
-    glEnd()
-    glLineWidth(1.0)
-
-
-def draw_view_title(title, x0, y0, w, h):
-    margin = 15
-    glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity()
-    glOrtho(0, window_width, 0, window_height, -1, 1)
-    glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity()
-    glColor3f(0, 0, 0)
-    glRasterPos2f(x0 + margin, y0 + h - margin)
-    for ch in title:
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(ch))
-    glPopMatrix(); glMatrixMode(GL_PROJECTION); glPopMatrix(); glMatrixMode(GL_MODELVIEW)
+def update_vbo(new_pos):
+    global pos_vbo
+    pos_vbo.set_array(new_pos.astype(np.float32))
+    pos_vbo.bind()
+    glBufferData(GL_ARRAY_BUFFER, new_pos.nbytes, pos_vbo, GL_DYNAMIC_DRAW)
+    pos_vbo.unbind()
 
 
 def display():
@@ -147,87 +125,82 @@ def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     half_w, half_h = window_width // 2, window_height // 2
     viewports = [
-        ('Top view (XY)', 0, half_h, half_w, half_h),
-        ('Front view (YZ)', half_w, half_h, half_w, half_h),
-        ('Side view (XZ)', 0, 0, half_w, half_h),
-        ('3D view', half_w, 0, half_w, half_h),
+        ('top', 0, half_h, half_w, half_h),
+        ('front', half_w, half_h, half_w, half_h),
+        ('side', 0, 0, half_w, half_h),
+        ('3d', half_w, 0, half_w, half_h),
     ]
-    for title, x, y, w, h in viewports:
-        view = title.split()[0].lower()
+    for view, x, y, w, h in viewports:
         glViewport(x, y, w, h)
         glMatrixMode(GL_PROJECTION); glLoadIdentity()
         if view == '3d':
-            gluPerspective(45.0, w / float(h or 1), 0.1, 100.0)
+            gluPerspective(45.0, w/float(h or 1), 0.1, 100.0)
         else:
             glOrtho(-limit, limit, -limit, limit, -limit*2, limit*2)
         glMatrixMode(GL_MODELVIEW); glLoadIdentity()
-        # Камеры для видов
-        if view == 'top':
-            gluLookAt(0, 0, 10, 0, 0, 0, 0, 1, 0)
-        elif view == 'front':
-            gluLookAt(-10, 0, 0, 0, 0, 0, 0, 0, 1)
-        elif view == 'side':
-            gluLookAt(0, -10, 0, 0, 0, 0, 0, 0, 1)
+        # camera
+        if view == 'top': gluLookAt(0,0,10, 0,0,0, 0,1,0)
+        elif view == 'front': gluLookAt(-10,0,0, 0,0,0, 0,0,1)
+        elif view == 'side': gluLookAt(0,-10,0, 0,0,0, 0,0,1)
         else:
             gluLookAt(
-                cam_distance * np.cos(np.radians(cam_azim)) * np.cos(np.radians(cam_elev)),
-                cam_distance * np.sin(np.radians(cam_azim)) * np.cos(np.radians(cam_elev)),
-                cam_distance * np.sin(np.radians(cam_elev)),
-                0, 0, 0,
-                0, 0, 1,
+                cam_distance*np.cos(np.radians(cam_azim))*np.cos(np.radians(cam_elev)),
+                cam_distance*np.sin(np.radians(cam_azim))*np.cos(np.radians(cam_elev)),
+                cam_distance*np.sin(np.radians(cam_elev)),
+                0,0,0, 0,0,1
             )
-        # Рисуем сетку, оси, границы
-        glDisable(GL_DEPTH_TEST)
-        if view in grid_lists: glCallList(grid_lists[view])
+        # draw grid & axes with depth test on but offset
+        glEnable(GL_DEPTH_TEST)
+        glEnable(GL_POLYGON_OFFSET_LINE)
+        glPolygonOffset(1.0, 1.0)
+        glCallList(grid_lists.get(view, None) or 0)
         draw_axes(view)
         glCallList(cube_list)
-        glEnable(GL_DEPTH_TEST)
-        # Рисуем точки
+        glDisable(GL_POLYGON_OFFSET_LINE)
+        # draw points via VBO
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glEnableClientState(GL_COLOR_ARRAY)
+        pos_vbo.bind()
+        glVertexPointer(3, GL_FLOAT, 0, pos_vbo)
+        col_vbo.bind()
+        glColorPointer(3, GL_FLOAT, 0, col_vbo)
         glPointSize(6.0)
-        glBegin(GL_POINTS)
-        for (x_, y_, z_), (r, g, b) in zip(positions, colors):
-            glColor3f(r, g, b)
-            glVertex3f(x_, y_, z_)
-        glEnd()
-        draw_view_title(title, x, y, w, h)
+        glDrawArrays(GL_POINTS, 0, len(positions))
+        pos_vbo.unbind(); col_vbo.unbind()
+        glDisableClientState(GL_VERTEX_ARRAY)
+        glDisableClientState(GL_COLOR_ARRAY)
     glutSwapBuffers()
 
 
 def timer(value):
-    global positions
+    global positions, last_positions
     if sim:
-        positions = sim.get_states()[:, :3]
-    glutPostRedisplay()
+        raw = sim.get_states()[:, :3]
+        # atomic copy
+        new_pos = raw.copy()
+        # throttle: redraw only if moved
+        if np.linalg.norm(new_pos - last_positions) > epsilon:
+            positions = new_pos
+            update_vbo(positions)
+            glutPostRedisplay()
+            last_positions = new_pos
     glutTimerFunc(update_ms, timer, 0)
 
 
-def reshape(width, height):
-    global window_width, window_height
-    window_width, window_height = width, height
-    glViewport(0, 0, width, height)
-
-
-def keyboard(key, x, y):
-    if key == b'\x1b':
-        sim.stop()
-        sys.exit(0)
-
-
 def main():
-    init_simulation(17)
+    init_simulation(5)
     glutInit(sys.argv)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
     glutInitWindowSize(window_width, window_height)
     glutCreateWindow(b"Swarm Simulation - OpenGL Visualizer")
     glEnable(GL_DEPTH_TEST)
-    glClearColor(1.0, 1.0, 1.0, 1.0)
+    glClearColor(1,1,1,1)
     build_display_lists()
     glutDisplayFunc(display)
-    glutReshapeFunc(reshape)
+    glutReshapeFunc(lambda w,h: setattr(sys.modules[__name__], 'window_width', w) or setattr(sys.modules[__name__], 'window_height', h))
     glutTimerFunc(update_ms, timer, 0)
-    glutKeyboardFunc(keyboard)
+    glutKeyboardFunc(lambda key,x,y: sim.stop() or sys.exit(0) if key==b'\x1b' else None)
     glutMainLoop()
-
 
 if __name__ == '__main__':
     main()
