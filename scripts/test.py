@@ -52,7 +52,11 @@ else:
     time.sleep(8)
     drone.set_v()
     drone.goto_from_outside(
-        float(args[2]), float(args[3]), float(args[4]), float(args[5])
+        float(args[2]),
+        float(args[3]),
+        float(args[4]),
+        float(args[5]),
+        wait=True,
     )
     drone.stop()
     drone.land()

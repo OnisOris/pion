@@ -438,6 +438,7 @@ class DroneBase(Pio, ABC):
 
         :return: None
         """
+        self._cleanup_threads()
         self.logs.update(
             {
                 "name:": f"{self.name}",
@@ -485,3 +486,7 @@ class DroneBase(Pio, ABC):
             self._live.start()
         else:
             self._live.update(table)
+
+    def _cleanup_threads(self):
+        """Очищает список потоков от завершенных."""
+        self.threads = [t for t in self.threads if t.is_alive()]
