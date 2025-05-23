@@ -385,7 +385,13 @@ class Spion(Simulator, DroneBase):
         )
 
     def goto_from_outside(
-        self, x: float, y: float, z: float, yaw: float, accuracy: float = 5e-2
+        self,
+        x: float,
+        y: float,
+        z: float,
+        yaw: float,
+        accuracy: float = 5e-2,
+        wait: bool = True,
     ) -> None:
         """
         Запускает симуляцию движения дрона к заданной точке.

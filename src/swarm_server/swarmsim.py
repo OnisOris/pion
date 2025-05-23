@@ -1,8 +1,8 @@
+import getpass
 import threading
 import time
 from collections import deque
 from typing import Any, Dict, List, Optional
-import getpass
 
 import numpy as np
 from lokky.pionmath import SSolver
@@ -500,16 +500,16 @@ class SimulationRunner:
         self.num_drones = num_drones
         self.objects = create_objects_Point_yaw(side)
         self.params: dict = {
-            "kp": np.ones((self.num_drones, 6)) * p_coeff,
+            "kp": np.ones((self.num_drones, 6)) * p_coeff / num_drones / 10,
             "ki": np.ones((self.num_drones, 6)) * i_coeff,
-            "kd": np.ones((self.num_drones, 6)) * d_coeff,
+            "kd": np.ones((self.num_drones, 6)) * d_coeff / num_drones / 10,
             "attraction_weight": 0.0,
             "cohesion_weight": 1.0,
             "alignment_weight": 1.0,
             "repulsion_weight": 1.0,
             "unstable_weight": 1.0,
             "noise_weight": 1.0,
-            "safety_radius": 2,
+            "safety_radius": 0.5,
             "max_acceleration": 2,
             "max_speed": 2,
             "unstable_radius": 1.5,
@@ -541,7 +541,7 @@ class SimulationRunner:
 
 
 def main():
-    number_of_objects = 10
+    number_of_objects = 82
 
     script = f"/home/{getpass.getuser()}/code/pion/scripts/mission_script.txt"
     output = "scripted_swarm_data.npz"
@@ -549,7 +549,7 @@ def main():
     # Create swarm objects externally
 
     objs = create_objects_Point_yaw(
-        int(np.sqrt(number_of_objects)), [-5, 5], [-5, 5], 0.2
+        int(np.sqrt(number_of_objects)), [-50, 50], [-50, 50], 0.2
     )
 
     # Assign even/odd groups
@@ -564,9 +564,9 @@ def main():
         script_file=script,
         output_file=output,
         sim_time=simulation_duration,
-        p_coeff=0.0001,
+        p_coeff=1.0,
         i_coeff=0.0,
-        d_coeff=0.0001,
+        d_coeff=1.0,
     )
 
     # Override objects and start
