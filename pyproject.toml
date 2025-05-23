@@ -48,6 +48,7 @@ start_server_radxa = "swarm_server.scripts.server_radxa:main"
 start_server_raspberry = "swarm_server.scripts.server_raspberry:main"
 start_server_sim = "swarm_server.scripts.server_sim:main"
 start_server_uni = "swarm_server.scripts.server_uni:main"
+dran = "pion.scripts.datac:main"
 
 [project.optional-dependencies]
 plotting = [
