@@ -223,6 +223,18 @@ class Pion(DroneBase):
             mavlink_send_number=self._mavlink_send_number,
         )
 
+    def stakeoff(self, hight: float = 1.5) -> None:
+        """
+        Умный взлет, блокрует основной поток, пока не взлетит
+
+        :param hight: Высота взлета
+        :type hight: float
+        :return: None
+        """
+        self.takeoff()
+        while np.all(self.last_points[:, 2] < hight):
+            time.sleep(0.2)
+
     def land(self) -> None:
         """
         Посадка дрона
@@ -235,6 +247,24 @@ class Pion(DroneBase):
             command=mavutil.mavlink.MAV_CMD_NAV_LAND,
             mavlink_send_number=self._mavlink_send_number,
         )
+
+    def sland(self, hight_of_disarm: float = 0.3) -> None:
+        """
+        Умная посадка дрона, выключает двигатели автоматически, если высота меньше hight_of_disarm
+
+        НЕ ПРОТЕСТИРОВАНА, НЕ ИСПОЛЬЗОВАТЬ!
+
+        :param hight_of_disarm: высота выключения двигателей
+        :type hight_of_disarm: float
+        :return: None
+        """
+        self.land()
+        while np.all(self.last_points[:, 2] < hight_of_disarm):
+            print(np.all(self.last_points[:, 2] < hight_of_disarm))
+            print("laaal")
+            time.sleep(0.2)
+        time.sleep(1)
+        self.disarm()
 
     def goto(
         self,
@@ -832,6 +862,7 @@ class Pion(DroneBase):
 
         :return: None
         """
+        print("STOP")
         self.speed_flag = False
         self.rc_flag = False
         self.check_attitude_flag = False

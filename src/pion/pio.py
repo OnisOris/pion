@@ -287,6 +287,26 @@ class DroneBase(Pio, ABC):
         if self.logger:
             self.logs.update({"Status": f"{self.name} is take off \n"})
 
+    def stakeoff(self, hight: float = 1.5) -> None:
+        """
+        Умный взлет, блокрует основной поток, пока не взлетит
+
+        :param hight: Высота взлета
+        :type hight: float
+        :return: None
+        """
+        self.takeoff()
+
+    def sland(self, hight_of_disarm: float = 0.3) -> None:
+        """
+        Умная посадка дрона, выключает двигатели автоматически, если высота меньше hight_of_disarm
+
+        :param hight_of_disarm: высота выключения двигателей
+        :type hight_of_disarm: float
+        :return: None
+        """
+        pass
+
     def land(self) -> None:
         """
         Посадка дрона
