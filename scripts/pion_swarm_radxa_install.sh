@@ -12,17 +12,9 @@ fi
 
 REAL_USER=$(logname)
 USER_HOME=$(eval echo "~$REAL_USER")
-REAL_PATH="$REAL_HOME/.local/bin:$PATH"
+REAL_PATH="$USER_HOME/.local/bin:$PATH"
 
 if sudo -u "$REAL_USER" env PATH="$REAL_PATH" command -v uv &> /dev/null; then
-    echo "uv уже установлен. Установка не требуется."
-else
-    echo "uv не найден. Устанавливаю..."
-    sudo -u "$REAL_USER" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
-fi
-
-
-if sudo -u "$REAL_USER" command -v uv &> /dev/null; then
     echo "uv уже установлен. Установка не требуется."
 else
     echo "uv не найден. Устанавливаю..."
