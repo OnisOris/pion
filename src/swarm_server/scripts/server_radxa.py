@@ -1,15 +1,63 @@
 #!/usr/bin/env python3
+import os
 import time
+
+import numpy as np
+from dotenv import load_dotenv
 
 from pion import Pion
 from pionfunc.functions import get_local_ip
 from swarm_server import SwarmCommunicator
 
-from .params import params
+os.environ["GRPC_DNS_RESOLVER"] = "native"
+
+load_dotenv()
+API_URL = os.getenv("API_URL")
+TOKEN = os.getenv("TG_BOT_TOKEN")
+
+load_dotenv()
+
+KPx = float(os.getenv("KPx"))
+KPy = float(os.getenv("KPy"))
+KPz = float(os.getenv("KPz"))
+KIx = float(os.getenv("KIx"))
+KIy = float(os.getenv("KIy"))
+KIz = float(os.getenv("KIz"))
+KDx = float(os.getenv("KDx"))
+KDy = float(os.getenv("KDy"))
+KDz = float(os.getenv("KDz"))
+attraction_weight = float(os.getenv("attraction_weight"))
+cohesion_weight = float(os.getenv("cohesion_weight"))
+alignment_weight = float(os.getenv("alignment_weight"))
+repulsion_weight = float(os.getenv("repulsion_weight"))
+unstable_weight = float(os.getenv("unstable_weight"))
+current_velocity_weight = float(os.getenv("current_velocity_weight"))
+noise_weight = float(os.getenv("noise_weight"))
+safety_radius = float(os.getenv("safety_radius"))
+max_acceleration = float(os.getenv("max_acceleration"))
+max_speed = float(os.getenv("max_speed"))
+unstable_radius = float(os.getenv("unstable_radius"))
+
+
+params = {
+    "kp": np.array([KPx, KPy, KPz, 0, 0, 0]),
+    "ki": np.array([KIx, KIy, KIz, 0, 0, 0]),
+    "kd": np.array([KDx, KDy, KDz, 0, 0, 0]),
+    "attraction_weight": attraction_weight,
+    "cohesion_weight": cohesion_weight,
+    "alignment_weight": alignment_weight,
+    "repulsion_weight": repulsion_weight,
+    "unstable_weight": unstable_weight,
+    "current_velocity_weight": current_velocity_weight,
+    "noise_weight": noise_weight,
+    "safety_radius": safety_radius,
+    "max_acceleration": max_acceleration,
+    "max_speed": max_speed,
+    "unstable_radius": unstable_radius,
+}
 
 
 def main():
-    # Получаем локальный IP-адрес
     ip = get_local_ip()
     drone = Pion(
         ip="localhost",

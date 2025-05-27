@@ -22,6 +22,7 @@ dependencies = [
     "pyserial>=3.5",
     "rich>=13.9.4",
     "lokky>=0.0.8",
+    "python-dotenv>=1.1.0",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

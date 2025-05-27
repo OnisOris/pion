@@ -87,6 +87,29 @@ User=$REAL_USER
 WantedBy=multi-user.target
 EOF
 
+cat > $REAL_HOME/pion/.env << EOF
+KPx=1
+KPy=1
+KPz=1
+KIx=1
+KIy=1
+KIz=1
+KDx=0.1
+KDy=0.1
+KDz=0.1
+attraction_weight=1.0
+cohesion_weight=1.0
+alignment_weight=1.0
+repulsion_weight=1.0
+unstable_weight=1.0
+current_velocity_weight=0.0
+noise_weight=1.0
+safety_radius=1
+max_acceleration=2
+max_speed=0.4
+unstable_radius=1.5
+EOF
+
 echo "Перезагружаем systemd и запускаем сервис..."
 systemctl daemon-reexec
 systemctl daemon-reload
