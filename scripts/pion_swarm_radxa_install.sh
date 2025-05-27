@@ -48,7 +48,7 @@ echo "Создаём директорию $INSTALL_DIR..."
 sudo -u "$REAL_USER" mkdir -p "$INSTALL_DIR"
 
 echo "Создаём виртуальное окружение..."
-sudo -u "$REAL_USER" env PATH="$REAL_PATH" bash -c "\"$REAL_HOME/.local/bin/uv\" venv --python $PYTHON_VER" --prompt pion \"$VENV_DIR\""
+sudo -u "$REAL_USER" env PATH="$REAL_PATH" bash -c "\"$REAL_HOME/.local/bin/uv\" venv --python $PYTHON_VER --prompt pion \"$VENV_DIR\""
 
 read -p "Установить pionsdk с PyPI (1) или с Git ветки dev (2)? [1/2]: " CHOICE
 if [[ "$CHOICE" == "2" ]]; then
