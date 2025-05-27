@@ -91,9 +91,9 @@ cat > $REAL_HOME/pion/.env << EOF
 KPx=1
 KPy=1
 KPz=1
-KIx=1
-KIy=1
-KIz=1
+KIx=0
+KIy=0
+KIz=0
 KDx=0.1
 KDy=0.1
 KDz=0.1
