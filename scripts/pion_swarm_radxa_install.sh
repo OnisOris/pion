@@ -43,10 +43,10 @@ if [[ "$CHOICE" == "2" ]]; then
         apt install -y python3-dev
     fi
     echo "Устанавливаем pionsdk с Git (ветка dev)..."
-    sudo -u "$REAL_USER" env PATH="$REAL_PATH" bash -c "source \"$VENV_DIR/bin/activate\" && pip install \"git+https://github.com/OnisOris/pion.git@dev\""
+    sudo -u "$REAL_USER" env PATH="$REAL_PATH" bash -c "source \"$VENV_DIR/bin/activate\" && \"$REAL_HOME/.local/bin/uv\" pip install \"git+https://github.com/OnisOris/pion.git@dev\""
 else
     echo "Устанавливаем pionsdk с PyPI..."
-    sudo -u "$REAL_USER" env PATH="$REAL_PATH" bash -c "source \"$VENV_DIR/bin/activate\" && pip install \"pionsdk\""
+    sudo -u "$REAL_USER" env PATH="$REAL_PATH" bash -c "source \"$VENV_DIR/bin/activate\" && \"$REAL_HOME/.local/bin/uv\" pip install \"pionsdk\""
 fi
 
 echo "Создаём systemd unit файл /etc/systemd/system/pion.service..."
