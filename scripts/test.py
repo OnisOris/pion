@@ -23,8 +23,6 @@ if "-c" in args:
 elif "-l" in args:
     drone.led_control(255, 0, 0, 0)
     drone.land()
-    time.sleep(10)
-    drone.disarm()
 
 elif "-d" in args:
     drone.led_control(255, 255, 0, 0)
@@ -59,4 +57,3 @@ else:
         wait=True,
     )
     drone.stop()
-    drone.land()

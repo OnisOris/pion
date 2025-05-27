@@ -36,8 +36,11 @@ drone = Pion(ip=ip, mavlink_port=port)
 ```
 
 # Автоустанока swarmserver на radxa
+
 ```
-curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/pion_swarm_radxa_install.sh | sudo bash
+curl -o pion_install.sh https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/pion_swarm_radxa_install.sh
+chmod +x pion_install.sh
+sudo ./pion_install.sh
 ```
 
 
