@@ -65,7 +65,7 @@ def main():
         connection_method="udpout",
         name=f"Drone-{ip}",
         dt=0.001,
-        logger=True,
+        logger=False,
         max_speed=0.5,
     )
 
