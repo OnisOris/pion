@@ -12,10 +12,6 @@ from swarm_server import SwarmCommunicator
 os.environ["GRPC_DNS_RESOLVER"] = "native"
 
 load_dotenv()
-API_URL = os.getenv("API_URL")
-TOKEN = os.getenv("TG_BOT_TOKEN")
-
-load_dotenv()
 
 KPx = float(os.getenv("KPx"))
 KPy = float(os.getenv("KPy"))
