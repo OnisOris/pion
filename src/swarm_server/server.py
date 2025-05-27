@@ -256,8 +256,6 @@ class SwarmCommunicator:
             self.params = params
         self.swarm_solver = SSolver(params=self.params, count_of_objects=1)
 
-        print(self.swarm_solver.safety_radius)
-        print(self.params)
         self.mode: int = mode
         self.control_object = control_object
         self.env_state_matrix: np.ndarray = np.array(
@@ -268,7 +266,6 @@ class SwarmCommunicator:
         self.receive_queue: Queue[Any] = Queue()
         # Определяем IP для формирования уникального id
         local_ip = ip if ip is not None else self.control_object.ip
-        print(unique_id)
         if unique_id:
             self.unique_id = unique_id
         else:
