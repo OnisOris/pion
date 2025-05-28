@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import os
 import time
 
@@ -12,6 +13,9 @@ from swarm_server import SwarmCommunicator
 os.environ["GRPC_DNS_RESOLVER"] = "native"
 
 load_dotenv()
+parser = argparse.ArgumentParser(description="Запуск дрона для записи данных")
+parser.add_argument("--log", action="store_true", help="Turn on rich logs")
+args = parser.parse_args()
 
 KPx = float(os.getenv("KPx"))
 KPy = float(os.getenv("KPy"))
@@ -61,7 +65,7 @@ def main():
         connection_method="udpout",
         name=f"Drone-{ip}",
         dt=0.001,
-        logger=False,
+        logger=args.log,
         max_speed=0.5,
     )
 
