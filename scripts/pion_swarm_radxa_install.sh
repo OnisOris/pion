@@ -71,7 +71,7 @@ echo "Создаём systemd unit файл /etc/systemd/system/pion.service..."
 cat > /etc/systemd/system/pion.service << EOF
 [Unit]
 Description=Pion Autostart Service
-After=network.target
+After=network.target gs_router.service
 
 [Service]
 Type=simple
