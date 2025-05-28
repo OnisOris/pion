@@ -14,7 +14,12 @@ os.environ["GRPC_DNS_RESOLVER"] = "native"
 
 load_dotenv()
 parser = argparse.ArgumentParser(description="Запуск дрона для записи данных")
-parser.add_argument("--log", action="store_true", help="Turn on rich logs")
+parser.add_argument(
+    "--log",
+    type=bool,
+    default=False,
+    help="Rich logs",
+)
 args = parser.parse_args()
 
 KPx = float(os.getenv("KPx"))
