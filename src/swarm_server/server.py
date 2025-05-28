@@ -464,7 +464,9 @@ class SwarmCommunicator:
                 try:
                     self.stop_trp()
                     x, y, z, yaw = state.data
-                    start_threading(self.smart_goto, x, y, z, yaw)
+                    self.control_object.threads.append(
+                        start_threading(self.smart_goto, x, y, z, yaw)
+                    )
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
             elif command == CMD.LED:
