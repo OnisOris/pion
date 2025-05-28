@@ -45,9 +45,9 @@ unstable_radius = float(os.getenv("unstable_radius"))
 
 
 params = {
-    "kp": np.array([KPx, KPy, KPz, 0, 0, 0]),
-    "ki": np.array([KIx, KIy, KIz, 0, 0, 0]),
-    "kd": np.array([KDx, KDy, KDz, 0, 0, 0]),
+    "kp": np.array([[KPx, KPy, KPz, 0, 0, 0]]),
+    "ki": np.array([[KIx, KIy, KIz, 0, 0, 0]]),
+    "kd": np.array([[KDx, KDy, KDz, 0, 0, 0]]),
     "attraction_weight": attraction_weight,
     "cohesion_weight": cohesion_weight,
     "alignment_weight": alignment_weight,
