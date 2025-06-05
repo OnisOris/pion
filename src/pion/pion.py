@@ -426,8 +426,9 @@ class Pion(DroneBase):
             self.position_controller(target_point, dt)
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
+        self.speed_flag = False
 
-    def goto_yaw(self, yaw: float = 0.0, accuracy: float = 0.057) -> None:
+    def goto_yaw(self, yaw: float = 0.0, accuracy: float = 0.2) -> None:
         """
         Метод берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
 
@@ -466,6 +467,7 @@ class Pion(DroneBase):
             )
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
+        self.speed_flag = False
 
     def send_speed(
         self, vx: float, vy: float, vz: float, yaw_rate: float

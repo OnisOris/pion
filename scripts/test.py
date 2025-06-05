@@ -41,8 +41,8 @@ elif "-tr" in args:
     drone.start_track_point()
     while True:
         time.sleep(1)
-elif "yaw" in args:
-    drone.goto_yaw(float(sys.argv[2]))
+elif "-yaw" in args:
+    drone.goto_yaw(float(sys.argv[3]))
 else:
     print("---")
     drone.arm()
