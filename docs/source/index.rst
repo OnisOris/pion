@@ -9,11 +9,12 @@ Pion документация
 
 SDK для управления дронами `geoscan pioneer base <https://geoscan.education/pioneer-base>`_ по mavlink.
 
+Содержит в себе возможности роевого управления
+
 Дроны с модификацией ультразвуковой системы навигации `локус <https://www.geoscan.ru/ru/products/pioneer/locus>`_ и
 с raspberry pi zero 2w (модификация "Арена").
 
 Перед установкой, убедитесь, что у вас установлен git:
-
 
 * `Git <https://git-scm.com/downloads>`_
 
