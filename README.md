@@ -1,4 +1,4 @@
-![lokky-analyze plot](https://github.com/OnisOris/lokky/blob/main/img/img.gif?raw=true)
+![lokky-analyze plot](https://github.com/OnisOris/pion/blob/dev/docs/img/swarm_figure.gif)
 
 # Pion
 
@@ -39,13 +39,22 @@ port = 8000
 drone = Pion(ip=ip, mavlink_port=port)
 ```
 
-# Автоустанока swarmserver на radxa
+# Рой дронов
+
+В pionsdk реализовано роевое управление через класс SwarmCommunicator
+
+![SchemeImg](https://github.com/OnisOris/pion/blob/dev/docs/img/swarm_scheme.png)
+
+
+## Автоустанока swarmserver на radxa
 
 ```
 curl -o pion_install.sh https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/scripts/pion_swarm_radxa_install.sh
 chmod +x pion_install.sh
 sudo ./pion_install.sh
 ```
+
+После установки достаточно запустить /scripts/vserver.py и pionsrv (ниже есть ссылка) для управления роем
 
 
 # Подробное описание с примерами
@@ -61,9 +70,8 @@ sudo ./pion_install.sh
 - [Pio](docs/pio.md) - Асбстрактные классы
 
 
+# Дополнительно ПО
 
-Дополнительные примеры с инструкцией можно найти по ссылкам:
+- [Консоль управления роем](https://github.com/OnisOris/pionsrv)
 
-https://github.com/OnisOris/pion_examples
-
-https://github.com/OnisOris/Danalysis
+- [Модуль алгоритмов роя lokky](https://github.com/OnisOris/lokky)
