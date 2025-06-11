@@ -5,6 +5,10 @@ Controller
    :members:
    :special-members:
 
+.. autoclass:: pion.cython_pid.AdaptiveController
+   :members:
+   :special-members:
+
 
 Диаграмма
 ---------

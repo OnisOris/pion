@@ -76,7 +76,7 @@ jobs:
         run: |
           source /opt/venv/bin/activate
           pip install pytest
-          pip install .
+          pip install git+https://github.com/OnisOris/pion.git
           pytest tests/
   macos:
     name: Test on macOS

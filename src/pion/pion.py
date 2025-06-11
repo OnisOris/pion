@@ -276,18 +276,27 @@ class Pion(DroneBase):
         """
         Полет к указанной точке в текущей системе координат навигации.
 
+        .. warning::
+            Данная функуция выполняется при запуске вычислений с **дрона**.
+
+        .. note::
+            Координаты задаются в ENU (East-North-Up) системе координат, но будут автоматически
+            преобразованы в NED (North-East-Down).
+
         :param x: Координата по оси X в ENU (East-North-Up) системе координат.
         :type x: float | int
+
         :param y: Координата по оси Y в ENU (East-North-Up) системе координат.
         :type y: float | int
+
         :param z: Координата по оси Z (высота) в ENU (East-North-Up) системе координат.
         :type z: float | int
+
         :param yaw: Угол курса, на который должен повернуться дрон. По умолчанию 0.
         :type yaw: float | int, Optional
+
         :return: None
 
-        :note: Координаты задаются в ENU (East-North-Up) системе координат, но будут автоматически преобразованы
-            в NED (North-East-Down).
         """
         self.tracking = False
         mask = 0b0000_10_0_111_111_000
@@ -347,21 +356,34 @@ class Pion(DroneBase):
         wait: bool = False,
     ) -> None:
         """
-        Метод достижения целевой позиции
+        Метод достижения целевой позиции.
+
+        .. warning::
+            Данная функуция выполняется при запуске вычислений с **внешнего устройства - ПК**.
+
+        Функция берет целевую координату и вычисляет необходимые скорости для
+        достижения целевой позиции, посылая их в управление t_speed.Для использования
+        необходимо включить цикл :py:meth:`Pion.v_while` для посылки вектора скорости дрону.
+        Максимальная скорость обрезается np.clip по полю self.max_speed
 
         :param x: координата по x
         :type x: float
+
         :param y: координата по y
         :type y: float
+
         :param z: координата по z
         :type z: float
+
         :param yaw: координата по yaw
         :type yaw: float
+
         :param accuracy: Погрешность целевой точки
         :type accuracy: Optional[float]
-        :param wait: Блокировка основного потока если True,
-        запуск процесса в отдельном потоке, если False
+
+        :param wait: Блокировка основного потока если True, запуск процесса в отдельном потоке, если False
         :type wait: bool
+
         :return: None
         """
         if wait:
@@ -810,9 +832,9 @@ class Pion(DroneBase):
 
     def set_rc(self) -> None:
         """
-        Создает поток, который вызывает функцию rc_while() для параллельной отправки управляющего сигнала rc channels
+        Создает поток, который вызывает функцию :py:meth:`Pion.rc_while` для параллельной отправки управляющего сигнала rc channels
 
-        :return:
+        :return: None
         """
         if not self.set_rc_check_flag and not self.set_v_check_flag:
             self.rc_flag = True
