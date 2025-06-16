@@ -53,31 +53,32 @@ jobs:
           pip install .
           pytest tests/
 
-  arch:
-    name: Test on Arch Linux (Docker)
-    runs-on: ubuntu-latest
-    container:
-      image: archlinux:latest
-    steps:
-      - uses: actions/checkout@v3
+arch:
+  name: Test on Arch Linux (Docker)
+  runs-on: ubuntu-latest
+  container:
+    image: archlinux:latest
+  steps:
+    - uses: actions/checkout@v3
 
-      - name: Install system dependencies
-        run: |
-          pacman -Syu --noconfirm python python-pip git gcc
+    - name: Install system dependencies
+      run: |
+        pacman -Syu --noconfirm python python-pip git gcc
 
-      - name: Set up virtual environment and install dependencies
-        run: |
-          python -m venv /opt/venv
-          source /opt/venv/bin/activate
-          python scripts/setup_all.py
-          pip install --upgrade pip
+    - name: Set up virtual environment and install dependencies
+      run: |
+        python -m venv /opt/venv
+        source /opt/venv/bin/activate
+        python scripts/setup_all.py
+        pip install --upgrade pip
 
-      - name: Build Cython module and run tests
-        run: |
-          source /opt/venv/bin/activate
-          pip install pytest
-          pip install git+https://github.com/OnisOris/pion.git
-          pytest tests/
+    - name: Build and test local package
+      run: |
+        source /opt/venv/bin/activate
+        pip install pytest
+        pip install .
+        pytest tests/
+
   macos:
     name: Test on macOS
     runs-on: macos-latest
