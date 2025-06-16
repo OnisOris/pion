@@ -126,3 +126,39 @@ SDK для управления дронами `geoscan pioneer base <https://ge
 
 - `Консоль управления роем (pionsrv) <https://github.com/OnisOris/pionsrv>`_
 - `Модуль алгоритмов роя (lokky) <https://github.com/OnisOris/lokky>`_
+
+
+.. toctree::
+
+
+   :maxdepth: 1
+
+
+   :caption: Оглавление:
+
+
+
+
+
+   Установка модуля Pion <user/install>
+
+
+   Описание работы скриптов <examples/index>
+
+
+   pion
+
+
+   spion
+
+
+   apion
+
+
+   simulator
+
+
+   pio
+
+
+   controller
