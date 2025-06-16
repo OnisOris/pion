@@ -261,7 +261,6 @@ class Pion(DroneBase):
         self.land()
         while np.all(self.last_points[:, 2] < hight_of_disarm):
             print(np.all(self.last_points[:, 2] < hight_of_disarm))
-            print("laaal")
             time.sleep(0.2)
         time.sleep(1)
         self.disarm()
@@ -318,8 +317,8 @@ class Pion(DroneBase):
         :return: None
         :rtype: None
         """
-        start_threading(self.point_tracking)
-        self.threads.append(threading.Thread(target=self.point_tracking))
+        tracker_thread = start_threading(self.point_tracking)
+        self.threads.append(tracker_thread)
 
     def point_tracking(self) -> None:
         """
@@ -337,7 +336,6 @@ class Pion(DroneBase):
         last_time = time.time()
         time.sleep(self.period_send_speed)
         self.tracking = True
-        print(1)
         while self.tracking:
             current_time = time.time()
             dt = current_time - last_time
@@ -448,7 +446,6 @@ class Pion(DroneBase):
             self.position_controller(target_point, dt)
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
-        self.speed_flag = False
 
     def goto_yaw(self, yaw: float = 0.0, accuracy: float = 0.2) -> None:
         """
@@ -489,7 +486,6 @@ class Pion(DroneBase):
             )
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
-        self.speed_flag = False
 
     def send_speed(
         self, vx: float, vy: float, vz: float, yaw_rate: float
@@ -891,6 +887,7 @@ class Pion(DroneBase):
         self.rc_flag = False
         self.check_attitude_flag = False
         self.message_handler_flag = False
+        self.tracking = False
 
     def led_control(self, led_id=255, r=0, g=0, b=0) -> None:
         """

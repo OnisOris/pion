@@ -38,6 +38,7 @@ elif "-tr" in args:
     drone.arm()
     drone.takeoff()
     time.sleep(8)
+    drone.target_point = np.array([2, 2, 2, 0])
     drone.start_track_point()
     while True:
         time.sleep(1)
