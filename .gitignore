@@ -187,6 +187,8 @@ src/pion/rtf/
 test2.py
 testscripts/
 *.gv
+*.npz
+*.npy
 
 .python-version
 uv.lock
