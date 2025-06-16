@@ -9,6 +9,10 @@ SDK для управления дронами [geoscan pioneer base](https://ge
 Дроны с модификацией ультразвуковой системы навигации [локус](https://www.geoscan.ru/ru/products/pioneer/locus) и
 с raspberry pi zero 2w (модификация "Арена").
 
+Перед работой с модулем рекомендуется загрузить рекомендуемые параметры через [Pioneer Station](https://docs.geoscan.ru/pioneer/instructions/applications/pioneer_station/pioneer_station_main.html)
+
+[Параметры автопилота](./scripts/parameters.txt)
+
 ## Установка
 
 ```shell
@@ -20,7 +24,7 @@ pip install git+https://github.com/OnisOris/pion
 ```
 
 
-## Установка клонированием
+## Установка для разработки
 Данный способ вам нужен, если вы хотите модифицировать модуль, для использования вам это не нужно,
 устанавливайте через pip.
 
@@ -31,6 +35,11 @@ pip install -e .
 # Подключение
 Для подключения к дрону достаточно создать экземпляр класса Pion
 
+Частый ip для реального дрона 10.1.100.[номер]
+
+Порт 5656
+
+В примере указан ip и порт для Геоскан симулятора
 ```python
 from pion import Pion
 
