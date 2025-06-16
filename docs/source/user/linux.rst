@@ -1,20 +1,24 @@
 Установка на Linux
 ==================
 
-Автоматическая установка
+Установка через pip
+---------
+
+.. code-block:: shell
+
+    pip install pionsdk
+
+.. code-block:: shell
+
+    pip install git+https://github.com/OnisOris/pion
+
+Установка для разработки
 ------------------------
+Данный способ требуется только для модификации модуля. Для использования устанавливайте через pip.
 
-Перейдите в папку с проектом и выполните команду:
+.. code-block:: shell
 
-.. code:: bash
-
-   sudo curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_linux.sh | sudo bash
-
-После выполнения скрипта активируйте виртуальное окружение
-
-.. code:: bash
-
-   source .venv/bin/activate
+    pip install -e .
 
 Ручная установка
 ----------------
@@ -43,10 +47,3 @@
 .. code-block:: bash
 
    python3.13-dev
-
-Через pip (на windows и linux)
-------------------------------
-
-.. code-block:: bash
-
-   pip install git+https://github.com/OnisOris/pion

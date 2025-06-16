@@ -267,10 +267,10 @@ class Pion(DroneBase):
 
     def goto(
         self,
-        x: Union[float, int],
-        y: Union[float, int],
-        z: Union[float, int],
-        yaw: Union[float, int],
+        x: float,
+        y: float,
+        z: float,
+        yaw: float,
     ) -> None:
         """
         Полет к указанной точке в текущей системе координат навигации.

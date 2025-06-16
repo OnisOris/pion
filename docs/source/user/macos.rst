@@ -1,17 +1,13 @@
 Установка на mac os
 ===================
 
-Автоматическая установка
-------------------------
+Установка через pip
+---------
 
-Перейдите в папку с проектом и выполните команду:
+.. code-block:: shell
 
-.. code-block:: bash
+    pip install pionsdk
 
-   curl -sSL https://raw.githubusercontent.com/OnisOris/pion/refs/heads/dev/install_scripts/install_macos.sh | bash
+.. code-block:: shell
 
-После выполнения скрипта активируйте виртуальное окружение
-
-.. code-block::
-
-   source ./.venv/bin/activate
+    pip install git+https://github.com/OnisOris/pion
