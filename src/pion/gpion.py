@@ -30,7 +30,6 @@ class Gpion(DroneBase):
             mavlink_port=mavlink_port,
             name=name,
             mass=0.3,
-            dimension=3,
             position=None,
             attitude=None,
             count_of_checking_points=20,

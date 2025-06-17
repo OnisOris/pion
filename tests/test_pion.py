@@ -14,19 +14,9 @@ class TestPion:
         position_3d = np.array([1, 2, 3, 0.1, 0.2, 0.3])
         pion_3d = Pion(
             position=position_3d,
-            dimension=3,
             start_message_handler_from_init=False,
         )
         assert np.allclose(position_3d, pion_3d.position)
-
-        # Тест для 2D
-        position_2d = np.array([1, 2, 0.1, 0.2])
-        pion_2d = Pion(
-            position=position_2d,
-            dimension=2,
-            start_message_handler_from_init=False,
-        )
-        assert np.allclose(position_2d, pion_2d.position)
 
     def test_attitude(self):
         """

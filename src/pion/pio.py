@@ -2,10 +2,9 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from collections import deque
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
-from numpy.typing import NDArray
 from rich.live import Live
 from rich.table import Table
 
@@ -69,8 +68,7 @@ class DroneBase(Pio, ABC):
         mavlink_port: int = 5656,
         name: str = "baseclass",
         mass: float = 0.3,
-        dimension: int = 3,
-        position: Optional[Union[Array6, Array4]] = None,
+        position: Optional[Array6] = None,
         attitude: Optional[Array6] = None,
         count_of_checking_points: int = 20,
         logger: bool = False,
@@ -97,11 +95,8 @@ class DroneBase(Pio, ABC):
         :param mass: Масса дрона
         :type mass: float
 
-        :param dimension: Размерность дрона, возможные значения: 2, 3
-        :type dimension: int
-
-        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz] или [x, y, vx, vy]
-        :type position: Optional[Union[Array6, Array4]]
+        :param position: Начальное состояние дрона вида [x, y, z, vx, vy, vz]
+        :type position: Array6
 
         :param attitude: Начальное состояние дрона вида [roll, pitch, yaw, v_roll, v_pitch, v_yaw]
         :type attitude: Optional[Array6]
@@ -132,10 +127,9 @@ class DroneBase(Pio, ABC):
         self.logger: bool = logger
         self.logs: dict = {}
         self.checking_components: bool = checking_components
-        self.dimension: Annotated[int, Literal[3]] = dimension
         self._pid_position_controller: PIDController = None
         if position is None:
-            position = np.zeros(self.dimension * 3)
+            position = np.zeros(6)
         else:
             if position.shape != (6,):
                 raise ValueError(
@@ -144,18 +138,16 @@ class DroneBase(Pio, ABC):
         if attitude is None:
             attitude = np.zeros(6)
         # Вектор, подобный LOCAL_POSITION_NED из mavlink
-        self._position: Annotated[NDArray[Any], (self.dimension * 2,)] = (
-            position
-        )
+        self._position: Array6 = position
         # Вектор, подобный ATTITUDE из mavlink
         self._attitude: Array6 = attitude
         # Задающая скорость target speed размером (4,), -> [vx, vy, vz, v_yaw], работает при запущенном потоке v_while
         self.t_speed = np.zeros(4)  # [vx, vy, vz, yaw_rate]
         self.position_pid_matrix: np.ndarray = np.array(
             [
-                [0.5] * self.dimension,
-                [0.0] * self.dimension,
-                [2.0] * self.dimension,
+                [0.5] * 3,
+                [0.0] * 3,
+                [2.0] * 3,
             ],
             dtype=np.float64,
         )
@@ -218,7 +210,7 @@ class DroneBase(Pio, ABC):
 
         :return: np.ndarray
         """
-        return self.position[0 : self.dimension]
+        return self.position[0:3]
 
     @xyz.setter
     def xyz(self, position: Union[Array3, Array2]) -> None:
@@ -227,7 +219,7 @@ class DroneBase(Pio, ABC):
 
         :return: None
         """
-        self.position[0 : self.dimension] = position
+        self.position[0:3] = position
 
     @property
     def yaw(self) -> float:
@@ -449,9 +441,7 @@ class DroneBase(Pio, ABC):
             -self.max_speed,
             self.max_speed,
         )
-        self.t_speed = np.hstack(
-            [signal, np.array([0] * (4 - self.dimension))]
-        )
+        self.t_speed = np.hstack([signal, [0]])
 
     def print_information(self) -> None:
         """
@@ -463,8 +453,8 @@ class DroneBase(Pio, ABC):
         self.logs.update(
             {
                 "name:": f"{self.name}",
-                "xyz": f"{np.round(self.position[0 : self.dimension], 3)} \n",
-                "speed": f"{np.round(self.position[self.dimension : self.dimension * 2], 3)} \n",
+                "xyz": f"{np.round(self.position[0:3], 3)} \n",
+                "speed": f"{np.round(self.position[3:6], 3)} \n",
                 "yaw": f"{self.yaw}",
                 "t_speed": f"{np.round(self.t_speed, 3)} \n",
                 "target_point": f"{self.target_point}",

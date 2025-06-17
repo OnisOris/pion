@@ -48,7 +48,6 @@ class Pion(DroneBase):
         checking_components: bool = True,
         accuracy: float = 5e-2,
         max_speed: float = 2.0,
-        dimension: int = 3,
     ):
         """
         Инициализация класса Pion, устанавливающего MAVLink соединение с дроном и управляющего взаимодействием по передаче и приему данных.
@@ -98,9 +97,6 @@ class Pion(DroneBase):
 
         :param max_speed: Максимальная скорость дрона в режиме управления по скорости
         :type max_speed: float
-
-        :param dimension: Размерность дрона, возможные значения: 2, 3
-        :type dimension: int
         """
 
         DroneBase.__init__(
@@ -109,7 +105,6 @@ class Pion(DroneBase):
             mavlink_port=mavlink_port,
             name=name,
             mass=mass,
-            dimension=dimension,
             position=position,
             attitude=attitude,
             count_of_checking_points=count_of_checking_points,
@@ -148,7 +143,7 @@ class Pion(DroneBase):
         # Используется для хранения последних count_of_checking_points данных в виде [x, y, z] для верификации достижения таргетной точки
         self.last_points: Annotated[
             NDArray[Any], (count_of_checking_points,)
-        ] = np.zeros((count_of_checking_points, self.dimension))
+        ] = np.zeros((count_of_checking_points, 3))
         # Используется для хранения последних 14 значений yaw в матрице для верификации достижения таргетного угла по z
         self.last_angles: Annotated[NDArray[Any], (14,)] = np.zeros(14)
         if start_message_handler_from_init:
@@ -159,9 +154,9 @@ class Pion(DroneBase):
             self._message_handler_thread.start()
         self.position_pid_matrix: np.ndarray = np.array(
             [
-                [0.5] * self.dimension,
-                [0.0] * self.dimension,
-                [0.7] * self.dimension,
+                [0.5] * 3,
+                [0.0] * 3,
+                [0.7] * 3,
             ],
             dtype=np.float64,
         )
@@ -526,7 +521,7 @@ class Pion(DroneBase):
         self.set_v()
         if not yaw_off:
             self.goto_yaw(yaw)
-        if self.dimension == 2:
+        if 3 == 2:
             target_point = np.array([x, y])
         else:
             target_point = np.array([x, y, z])
@@ -892,14 +887,11 @@ class Pion(DroneBase):
             ):
                 return
         if msg.get_type() == "LOCAL_POSITION_NED":
-            if self.dimension == 3:
-                self.position = np.array(
-                    [msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz]
-                )
-            else:
-                self.position = np.array([msg.x, msg.y, msg.vx, msg.vy])
+            self.position = np.array(
+                [msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz]
+            )
             self.last_points = update_array(
-                self.last_points, self.position[0 : self.dimension]
+                self.last_points, self.position[0:3]
             )
         elif msg.get_type() == "ATTITUDE":
             self.attitude = np.array(

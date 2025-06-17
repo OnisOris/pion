@@ -39,7 +39,6 @@ class Spion(Simulator, DroneBase):
         accuracy: float = 2e-5,
         max_speed: float = 2.0,
         start_message_handler_from_init: bool = True,
-        dimension: int = 3,
     ) -> None:
         """
         Конструктор дочернего класса, наследующегося от Pio и Simulator
@@ -89,9 +88,6 @@ class Spion(Simulator, DroneBase):
 
         :param start_message_handler_from_init: Старт message handler при создании объекта
         :type start_message_handler_from_init: bool
-
-        :param dimension: Размерность дрона, возможные значения: 2, 3
-        :type dimension: int
         """
         DroneBase.__init__(
             self,
@@ -99,7 +95,6 @@ class Spion(Simulator, DroneBase):
             mavlink_port=mavlink_port,
             name=name,
             mass=mass,
-            dimension=dimension,
             position=position,
             attitude=attitude,
             count_of_checking_points=count_of_checking_points,
@@ -126,30 +121,24 @@ class Spion(Simulator, DroneBase):
         self.combine_system: int = combine_system
         self.count_of_checking_points: int = count_of_checking_points
 
-        self.position_pid_matrix: Annotated[
-            NDArray[Any], (3, self.dimension)
-        ] = np.array(
+        self.position_pid_matrix: Annotated[NDArray[Any], (3, 4)] = np.array(
             [
-                [2.0] * (self.dimension + 1),
-                [0.0] * (self.dimension + 1),
-                [0.1] * (self.dimension + 1),
+                [2.0] * 4,
+                [0.0] * 4,
+                [0.1] * 4,
             ],
             dtype=np.float64,
         )
 
-        self.velocity_pid_matrix: Annotated[
-            NDArray[Any], (3, self.dimension)
-        ] = np.array(
+        self.velocity_pid_matrix: Annotated[NDArray[Any], (3, 4)] = np.array(
             [
-                [3.0] * (self.dimension + 1),
-                [0.0] * (self.dimension + 1),
-                [0.1] * (self.dimension + 1),
+                [3.0] * 4,
+                [0.0] * 4,
+                [0.1] * 4,
             ],
             dtype=np.float64,
         )
-        Simulator.__init__(
-            self, self.simulation_objects, dt=dt, dimension=self.dimension
-        )
+        Simulator.__init__(self, self.simulation_objects, dt=dt, dimension=3)
         # Период отправления следующего вектора скорости
         self.period_send_speed: float = 0.05
         self.speed_flag: bool = True
@@ -160,12 +149,10 @@ class Spion(Simulator, DroneBase):
         self.lower_bound: Array3 = np.array([-5.5, -5.5, 0])
         self.upper_bound: Array3 = np.array([5.5, 5.5, 4])
         self.point_reached: bool = False
-        self._message_thread: Optional[threading.Thread] = (
-            None  # Поток для _message_handler
-        )
+        self._message_thread: Optional[threading.Thread] = None
         self.last_points: Annotated[
-            NDArray[Any], (count_of_checking_points, self.dimension + 1)
-        ] = np.zeros((count_of_checking_points, self.dimension + 1))
+            NDArray[Any], (count_of_checking_points, 4)
+        ] = np.zeros((count_of_checking_points, 4))
         if start_message_handler_from_init:
             self.start_message_handler()
 
@@ -272,7 +259,7 @@ class Spion(Simulator, DroneBase):
         # Изменено: обновляем массив последних точек с полным вектором [x, y, z, yaw]
         current_full_position = np.hstack(
             [
-                self.simulation_objects[0].state[0 : self.dimension],
+                self.simulation_objects[0].state[0:3],
                 np.array([self.simulation_objects[0].attitude[2]]),
             ]
         )
@@ -374,7 +361,7 @@ class Spion(Simulator, DroneBase):
 
         :param x: координата по x
         :param y: координата по y
-        :param z:  координата по z (не используется, если self.dimension = 2)
+        :param z:  координата по z
         :param yaw:  координата по yaw
         :param accuracy: Погрешность целевой точки
 
@@ -396,9 +383,7 @@ class Spion(Simulator, DroneBase):
         """
         Запускает симуляцию движения дрона к заданной точке.
         """
-        target_point = [x, y, z, yaw] if self.dimension == 3 else [x, y, yaw]
-        if accuracy is None:
-            accuracy = self.accuracy
+        target_point = [x, y, z, yaw]
         self.point_reached = True
         with self._handler_lock:
             last_time = time.time()
@@ -418,9 +403,7 @@ class Spion(Simulator, DroneBase):
                     )
                     current_full_position = np.hstack(
                         [
-                            self.simulation_objects[0].state[
-                                0 : self.dimension
-                            ],
+                            self.simulation_objects[0].state[0:3],
                             np.array([self.simulation_objects[0].attitude[2]]),
                         ]
                     )
@@ -441,7 +424,7 @@ class Spion(Simulator, DroneBase):
                 self.logs.update(
                     {"Регулятор положения": f"Точка {target_point} достигнута"}
                 )
-            self.t_speed = np.zeros(self.dimension + 1)
+            self.t_speed = np.zeros(4)
 
     def stop(self) -> None:
         """
@@ -462,7 +445,7 @@ class Spion(Simulator, DroneBase):
         """
         position = self.simulation_objects[0].position
         # Проверка на достижение границы и добавление отскока
-        for i in range(self.dimension):
+        for i in range(3):
             if position[i] <= self.lower_bound[i]:
                 position[i] += 0.1  # отскок внутрь области
                 print("lower bound")
