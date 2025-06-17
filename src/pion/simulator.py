@@ -1,9 +1,11 @@
 import threading
 import time
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
+
+from pion.trajectory import Trajectory
 
 
 class Point:
@@ -32,7 +34,7 @@ class Point:
         self.state: NDArray[np.float64] = np.array(position, dtype=np.float64)
         self.time: float = 0.0
         self.trajectory_write: bool = trajectory_write
-        self.trajectory: Trajectory_writer = Trajectory_writer(
+        self.trajectory: Trajectory = Trajectory(
             ["x", "y", "z", "vx", "vy", "vz", "t"]
         )
         # Матрица динамики для state: d/dt[state] = A @ state + b,
@@ -108,7 +110,7 @@ class PointYaw(Point):
         При симуляции обновляется только динамика yaw.
         """
         super().__init__(mass, position, trajectory_write, drag_coefficient)
-        self.trajectory: Trajectory_writer = Trajectory_writer(
+        self.trajectory: Trajectory = Trajectory(
             ["x", "y", "z", "vx", "vy", "vz", "yaw", "t"]
         )
         self.attitude: NDArray[np.float64] = attitude
@@ -484,46 +486,3 @@ class Simulator_realtime_th(Simulator_realtime, Simulator_th):
                         break
         else:
             print("Неизвестный тип цикла! Выберите 'while' или 'for'.")
-
-
-class Trajectory_writer:
-    def __init__(self, list_of_names_columns: Union[list[str], NDArray[Any]]):
-        """
-        Специальный класс для записи и хранения траектории размером nx[len(list_of_names_columns)], n - количество точек.
-
-        :param list_of_names_columns: названия колонн
-        :type list_of_names_columns: Union[list[str], NDArray[Any]]
-        """
-        self.trajectory = np.zeros((len(list_of_names_columns),))
-        self.columns = list_of_names_columns
-        self.stopped = False
-
-    def vstack(self, vstack_array: NDArray[np.float64]) -> None:
-        """
-        Метод объединяет входящие вектора с матрицей trajectory
-
-        :param vstack_array: массив размерности len(list_of_names_columns)
-        :type vstack_array: NDArray[np.float64]
-        :return: None
-        :rtype: None
-        """
-        if not self.stopped:
-            self.trajectory = np.vstack([self.trajectory, vstack_array])
-
-    def stop(self) -> None:
-        """
-        Остановка записи траектории
-        """
-        self.stopped = True
-
-    def get_trajectory(self) -> NDArray[np.float64]:
-        """
-        Метод возвращает записанную траекторию
-
-        :return: NDArray[np.float64]
-        :rtype: None
-        """
-        if not self.trajectory.shape == (len(self.columns),):
-            return self.trajectory[1:]
-        else:
-            return self.trajectory
