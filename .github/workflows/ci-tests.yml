@@ -8,7 +8,6 @@ on:
 
 jobs:
   ubuntu:
-
     name: Test on Ubuntu
     runs-on: ubuntu-latest
     steps:
@@ -18,20 +17,24 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - name: install pytest
-        run: |
-          pip install pytest
-      - name: Run setup_all.py on Ubuntu
-        run: |
-          sudo python3 scripts/setup_all.py
 
-      - name: Activate venv and run tests
+      - name: Install system dependencies
         run: |
-          pip install .
-          pytest tests/
+          sudo apt update
+          sudo apt install -y build-essential python3-dev git
+
+      - name: Install Python dependencies
+        run: pip install pytest
+
+      - name: Install package
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: 0.0.1
+        run: pip install .
+
+      - name: Run tests
+        run: pytest tests/
 
   windows:
-
     name: Test on Windows
     runs-on: windows-latest
     steps:
@@ -41,20 +44,31 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - name: install pytest
-        run: |
-          pip install pytest
-      - name: Run setup_all.py on Windows
-        run: |
-          python scripts/setup_all.py
 
-      - name: Activate venv and run tests
+      - name: Install Visual Studio Build Tools
+        shell: powershell
         run: |
-          pip install .
-          pytest tests/
+          # Проверяем наличие Chocolatey
+          if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+          }
+          choco install visualstudio2022buildtools -y --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+
+      - name: Install Python dependencies
+        run: pip install pytest
+
+      - name: Install package
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: 0.0.1
+        run: pip install .
+
+      - name: Run tests
+        run: pytest tests/
 
   arch:
-    name: Test on Arch Linux (Docker)
+    name: Test on Arch Linux
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
@@ -63,20 +77,29 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          pacman -Syu --noconfirm python python-pip git gcc
+          pacman -Syu --noconfirm base-devel git python python-pip
 
-      - name: Set up virtual environment and install dependencies
+      - name: Set up virtual environment
         run: |
           python -m venv /opt/venv
           source /opt/venv/bin/activate
-          python scripts/setup_all.py
           pip install --upgrade pip
 
-      - name: Build and test local package
+      - name: Install Python dependencies
         run: |
           source /opt/venv/bin/activate
           pip install pytest
+
+      - name: Install package
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: 0.0.1
+        run: |
+          source /opt/venv/bin/activate
           pip install .
+
+      - name: Run tests
+        run: |
+          source /opt/venv/bin/activate
           pytest tests/
 
   macos:
@@ -84,15 +107,34 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - name: Run setup_all.py on macOS and setup pion
+
+      - name: Install system dependencies
         run: |
-          python3 scripts/setup_all.py
-          pip install .
-      - name: Activate venv and run tests
-        run: |
-          pip install pytest
-          pytest tests/
+          # Проверяем наличие Homebrew
+          if ! command -v brew &> /dev/null; then
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+          brew update
+
+          # Устанавливаем Xcode Command Line Tools
+          if ! xcode-select -p &> /dev/null; then
+            sudo xcode-select --install
+          fi
+
+          brew install python3 git
+
+      - name: Install Python dependencies
+        run: pip install pytest
+
+      - name: Install package
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: 0.0.1
+        run: pip install .
+
+      - name: Run tests
+        run: pytest tests/
