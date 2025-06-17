@@ -170,7 +170,6 @@ class Pion(DroneBase):
         )
         self.set_v_check_flag: bool = False
         self.set_rc_check_flag: bool = False
-        self.target_point: np.ndarray = np.array([0, 0, 2, 0])
         self.tracking: bool = False
 
     @property
@@ -180,7 +179,7 @@ class Pion(DroneBase):
 
         :return: Union[Array2, Array3]
         """
-        return self._position[self.dimension : self.dimension * 2]
+        return self._position[3:6]
 
     def arm(self) -> None:
         """
@@ -343,6 +342,109 @@ class Pion(DroneBase):
             self.position_controller(self.target_point[0:3], dt)
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
+
+    def trajectory_tracking(self, path_to_traj_file: str = "./data.npy"):
+        """
+        Функция обрабатывает файлы с траекторией полета дрона следующих форматов:
+
+        4:
+        [x, y, z, time]
+        5:
+        [x, y, z, yaw, time]
+        17:
+        [x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t]
+
+        :param path_to_traj_file: npy файл с траекторией размера nx4/5/17
+        :type path_to_traj_file: str
+        """
+        array_traj = np.load(path_to_traj_file)
+
+        self.goto_from_outside(
+            array_traj[0, 0],
+            array_traj[0, 1],
+            array_traj[0, 2],
+            array_traj[0, 3],
+            wait=True,
+        )
+
+        match array_traj.shape[1]:
+            case 5:
+                self.trajectory_tracking_process(array_traj)
+            case 17:
+                self.trajectory_tracking_process(
+                    np.hstack(
+                        [
+                            array_traj[:, 0:3],
+                            array_traj[:, 8].reshape(-1, 1),
+                            array_traj[:, 16].reshape(-1, 1),
+                        ]
+                    )
+                )
+            case 4:
+                self.trajectory_tracking_process(
+                    np.hstack(
+                        [
+                            array_traj[:, 0:3],
+                            np.zeros((array_traj.shape[0], 1)),
+                            array_traj[:, 3].reshape(-1, 1),
+                        ]
+                    )
+                )
+            case _:
+                raise Exception(
+                    f"Формат траектории: {self.description_traj_fromat}"
+                )
+
+    def trajectory_tracking_process(self, trajectory: NDArray) -> None:
+        """
+        Запуск процесса слежения за траекторией
+
+        :param trajectory: траектория размером nx5, вида [x, y, z, yaw, time]
+        :type param: NDArray
+        """
+        if trajectory.shape[1] != 5:
+            raise Exception(
+                "trajectory в trajectory_tracking_process должен быть размером (nx5)"
+            )
+
+        self.start_track_point()
+
+        self.target_point = trajectory[0, :4]
+        t_prev = trajectory[0, 4]
+
+        for i in range(1, len(trajectory)):
+            current_point = trajectory[i]
+            prev_point = trajectory[i - 1]
+
+            # Вычисляем расстояние между точками
+            dx = current_point[0] - prev_point[0]
+            dy = current_point[1] - prev_point[1]
+            dz = current_point[2] - prev_point[2]
+            distance = np.sqrt(dx**2 + dy**2 + dz**2)
+
+            # Вычисляем минимальное время для перемещения с максимальной скоростью
+            min_time = distance / self.max_speed if self.max_speed > 0 else 0
+
+            # Планируемое время перемещения из файла
+            planned_delta = current_point[4] - t_prev
+
+            # Фактическое время ожидания - максимум из требуемого и планируемого
+            actual_delta = max(min_time, planned_delta)
+
+            time.sleep(actual_delta)
+            self.target_point = current_point[:4]
+            t_prev = current_point[4]
+
+            print(f"Point: {current_point[:4]}")
+            print(
+                f"  Distance: {distance:.2f}m, Max speed: {self.max_speed:.2f}m/s"
+            )
+            print(
+                f"  Min time: {min_time:.2f}s, Planned delta: {planned_delta:.2f}s"
+            )
+            print(f"  Actual sleep: {actual_delta:.2f}s")
+
+        self.tracking = False
 
     def goto_from_outside(
         self,
