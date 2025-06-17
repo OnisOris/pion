@@ -15,7 +15,6 @@ from pionfunc.annotation import (
     Array3,
     Array4,
     Array6,
-    Array14,
     Array17,
 )
 
@@ -124,7 +123,6 @@ class DroneBase(Pio, ABC):
         :type max_speed: float
         """
 
-        # Время создания экземпляра
         self.t0: float = time.time()
         self.ip: str = ip
         self.mavlink_port: int = mavlink_port
@@ -134,15 +132,14 @@ class DroneBase(Pio, ABC):
         self.logger: bool = logger
         self.logs: dict = {}
         self.checking_components: bool = checking_components
-        # Размерность дрона (2 или 3 измерения)
-        self.dimension: Annotated[int, Literal[3, 4]] = dimension
+        self.dimension: Annotated[int, Literal[3]] = dimension
         self._pid_position_controller: PIDController = None
         if position is None:
-            position = np.zeros(self.dimension * 2)
+            position = np.zeros(self.dimension * 3)
         else:
-            if position.shape not in [(4,), (6,)]:
+            if position.shape != (6,):
                 raise ValueError(
-                    "Размерность вектора position должна быть равна 4 или 6"
+                    "Размерность вектора position должна быть равна 6"
                 )
         if attitude is None:
             attitude = np.zeros(6)
@@ -170,11 +167,11 @@ class DroneBase(Pio, ABC):
         self.battery_voltage: Optional[float] = None
         # Флаг для запуска и остановки сохранения координат
         self.check_attitude_flag: bool = False
-        # trajectory - информация, включающая
-        # x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
-        # которая складывается в матрицу (n, 17/14), где n - число точек в траектории
-        # если размерность 2, то z составляющая убирается из траектории и размерность вектора равна 14, а не 17
-        self.trajectory: Union[Array14, Array17] = np.zeros(
+        self.description_traj_fromat = """trajectory - информация, включающая
+        x, y, z, vx, vy, vz, roll, pitch, yaw, v_roll, v_pitch, v_yaw, v_xc, v_yc, v_zc, v_yaw_c, t
+        которая складывается в матрицу (n, 17), где n - число точек в траектории
+        """
+        self.trajectory: Array17 = np.zeros(
             (
                 2,
                 self._position.shape[0]
@@ -470,11 +467,12 @@ class DroneBase(Pio, ABC):
                 "speed": f"{np.round(self.position[self.dimension : self.dimension * 2], 3)} \n",
                 "yaw": f"{self.yaw}",
                 "t_speed": f"{np.round(self.t_speed, 3)} \n",
+                "target_point": f"{self.target_point}",
                 "battery voltage": f"{self.battery_voltage} \n",
                 "threads": f"{self.threads} \n",
             }
         )
-        self.print_latest_logs(self.logs, 7, "Таблица с сообщениями")
+        self.print_latest_logs(self.logs, 8, "Таблица с сообщениями")
 
     def print_latest_logs(
         self, log_dict: dict, n: int = 5, name: str = "Название"
@@ -514,3 +512,6 @@ class DroneBase(Pio, ABC):
     def _cleanup_threads(self):
         """Очищает список потоков от завершенных."""
         self.threads = [t for t in self.threads if t.is_alive()]
+
+    def trajectory_tracking(self, path_to_traj_file: str = "./data.npy"):
+        pass
