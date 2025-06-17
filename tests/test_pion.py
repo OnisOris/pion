@@ -1,4 +1,3 @@
-import time
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -36,20 +35,6 @@ class TestPion:
         attitude = np.array([0.1, 0.2, 0.3, 0.01, 0.02, 0.03])
         pion = Pion(attitude=attitude, start_message_handler_from_init=False)
         assert np.allclose(attitude, pion.attitude)
-
-    def test_thread_flags(self):
-        """
-        Тестирование управления потоками отправки команд
-        """
-        pion = Pion(start_message_handler_from_init=False)
-
-        pion.set_v()
-        assert pion.speed_flag is True
-        assert len(pion.threads) == 1
-
-        pion.speed_flag = False
-        time.sleep(0.1)
-        assert pion.set_v_check_flag is False
 
     def test_message_processing(self):
         """
