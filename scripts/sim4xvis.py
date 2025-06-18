@@ -8,7 +8,7 @@ from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
 # Импортируем классы симуляции
-from swarmsim import SwarmSim, create_objects_Point_yaw
+from swarm_server.swarmsim import SwarmSim, create_objects_Point_yaw
 
 
 def load_drone_config(config_file: str = "drones_config.json"):
