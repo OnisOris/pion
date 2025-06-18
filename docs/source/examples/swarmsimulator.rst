@@ -1,12 +1,6 @@
 Скрипты симуляции роя
 ===================
 
-.. image:: docs/img/simswarm.gif
-  :width: 400
-  :align: center
-  :alt: swarm sim gif
-
-
 Данные скрипты находятся по пути ./scripts/examples/swarmsim_example.py и ./scripts/4xSimWriter.py.
 
 ./scripts/examples/swarmsim_example.py используется для симуляции поведения большого количества единиц роя, не используя при этом
