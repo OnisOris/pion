@@ -22,6 +22,20 @@ def create_objects_Point_yaw(
     linspace_y: list = [-5, 5],
     z_offset: float = 0.0,
 ) -> NDArray:
+    """
+    Создает массив объектов PointYaw для симуляции роя.
+
+    :param number: количество объектов по каждой оси сетки
+    :type number: int
+    :param linspace_x: диапазон координат по оси X [start, stop]
+    :type linspace_x: list
+    :param linspace_y: диапазон координат по оси Y [start, stop]
+    :type linspace_y: list
+    :param z_offset: смещение по оси Z для первого объекта
+    :type z_offset: float
+    :return: массив объектов PointYaw
+    :rtype: NDArray
+    """
     x1 = np.linspace(*linspace_x, num=number)
     x2 = np.linspace(*linspace_y, num=number)
     x, y = np.meshgrid(x1, x2)
@@ -35,19 +49,36 @@ def create_objects_Point_yaw(
 
 
 class SwarmSim(Simulator_realtime_th):
-    """ """
+    """
+    Класс симуляции роя
+    """
 
     def __init__(
         self,
-        simulation_objects: np.ndarray,
+        simulation_objects: NDArray,
         dt: float = 0.01,
-        dimension: int = 3,
         max_speed: float = 1,
         max_acceleration: float = 10,
         logger: bool = False,
         params: Optional[dict] = None,
     ):
-        super().__init__(simulation_objects, dt, dimension)
+        """
+        Инициализирует симулятор роя.
+
+        :param simulation_objects: массив объектов для симуляции
+        :type simulation_objects: NDArray
+        :param dt: шаг времени симуляции
+        :type dt: float
+        :param max_speed: максимальная скорость объектов
+        :type max_speed: float
+        :param max_acceleration: максимальное ускорение объектов
+        :type max_acceleration: float
+        :param logger: флаг включения логгирования
+        :type logger: bool
+        :param params: параметры роя
+        :type params: Optional[dict]
+        """
+        super().__init__(simulation_objects, dt, 3)
         # Количество объектов (роя)
         self.n_objects = simulation_objects.shape[0]
         # Количество каналов для контроля (например, скорость по dimension + yaw rate)
@@ -202,7 +233,6 @@ class SwarmSim(Simulator_realtime_th):
 
         Колонки: ID, x, y, z, vx, vy, vz, yaw, t_speed_x, t_speed_y, t_speed_z, t_yaw.
         """
-        # Создаем таблицу
         table = Table(title="Swarm Simulation Status")
         table.add_column("ID", style="cyan", justify="right")
         table.add_column("x", style="green")
@@ -217,16 +247,10 @@ class SwarmSim(Simulator_realtime_th):
         table.add_column("t_vz", style="red")
         table.add_column("t_yaw", style="red")
 
-        # Заполняем строки данными каждого объекта
         for i, obj in enumerate(self.simulation_objects):
-            # Позиция (state)
             x, y, z, vx, vy, vz = obj.state
-            # print(f"obj_channel = ", i, "pos = ", obj.state)
-            # Текущий yaw
             yaw = obj.attitude[5]
-            # Желаемая скорость
             tvx, tvy, tvz, tyaw = self.t_speed[i]
-
             table.add_row(
                 str(i),
                 f"{x:.2f}",
@@ -241,14 +265,11 @@ class SwarmSim(Simulator_realtime_th):
                 f"{tvz:.2f}",
                 f"{tyaw:.2f}",
             )
-
-        # Инициализируем или обновляем Live
         if self._live is None:
             self._live = Live(table, refresh_per_second=10)
             self._live.start()
         else:
             self._live.update(table)
-        # self.print_latest_logs(self.logs, 7, "Таблица с сообщениями")
 
     def print_latest_logs(
         self, log_dict: dict, n: int = 5, name: str = "Название"
@@ -300,6 +321,9 @@ class SwarmSim(Simulator_realtime_th):
     def get_yaws(self) -> NDArray:
         """
         Отдает yaw и сокрость по yaw каждого объекта
+
+        :return: yaw массив
+        :rtype: NDArray
         """
         yaws = np.array([0, 0])
         for point in self.simulation_objects:
@@ -307,18 +331,31 @@ class SwarmSim(Simulator_realtime_th):
         return yaws
 
     def swarm_controller(self, dt: float) -> None:
+        """
+        Вычисляет управляющие сигналы для роя на основе алгоритма роевого интеллекта.
+
+        :param dt: шаг времени симуляции
+        :type dt: float
+        :return: None
+        :rtype: None
+        """
         matrix_signal = self.swarmsolver.solve_for_all(
             state_matrix=self.get_states(),
             target_matrix=self.t_position,
             dt=dt,
         )
-
         matrix_signal = np.hstack(
             [matrix_signal, np.zeros((matrix_signal.shape[0], 1))]
         )
         self.t_speed = matrix_signal
 
-    def stop(self):
+    def stop(self) -> None:
+        """
+        Останавливает симуляцию роя.
+
+        :return: None
+        :rtype: None
+        """
         self.simulation_turn_on = False
 
 
@@ -327,16 +364,30 @@ class SwarmWriter(SwarmSim):
         self,
         simulation_objects: np.ndarray,
         dt: float = 0.01,
-        dimension: int = 3,
         max_speed: float = 1,
         max_acceleration: float = 10,
         logger: bool = False,
         params: Optional[dict] = None,
     ):
+        """
+        Инициализирует симулятор роя с возможностью записи траекторий.
+
+        :param simulation_objects: массив объектов для симуляции
+        :type simulation_objects: np.ndarray
+        :param dt: шаг времени симуляции
+        :type dt: float
+        :param max_speed: максимальная скорость объектов
+        :type max_speed: float
+        :param max_acceleration: максимальное ускорение объектов
+        :type max_acceleration: float
+        :param logger: флаг включения логгирования
+        :type logger: bool
+        :param params: параметры роя
+        :type params: Optional[dict]
+        """
         super().__init__(
             simulation_objects,
             dt,
-            dimension,
             max_speed,
             max_acceleration,
             logger,
@@ -346,7 +397,14 @@ class SwarmWriter(SwarmSim):
             sim_object.trajectory_write = True
 
     def save_trajectories(self, filename: str = "swarm_trajectory.npz"):
-        # Собираем траектории из каждого PointYaw
+        """
+        Сохраняет траектории объектов в файл.
+
+        :param filename: имя файла для сохранения
+        :type filename: str
+        :return: None
+        :rtype: None
+        """
         all_trajs = [obj.get_trajectory() for obj in self.simulation_objects]
         traj_stack = np.stack(all_trajs, axis=0)
         time_vector = traj_stack[0, :, -1]
@@ -369,6 +427,17 @@ class SwarmWriter(SwarmSim):
         После выполнения шага симуляции поток ждёт, пока все остальные потоки не вызовут sync_barrier.wait().
         Таким образом синхронизуются шаги.
         Дополнение для этого наследника: нет синхронизации по времени
+
+        :param simulation_object: объект симуляции
+        :type simulation_object: Any
+        :param object_channel: идентификатор объекта
+        :type object_channel: int
+        :param type_of_cycle: тип цикла ('while' или 'for')
+        :type type_of_cycle: str
+        :param steps: количество шагов для цикла 'for'
+        :type steps: int
+        :return: None
+        :rtype: None
         """
         if type_of_cycle == "while":
             while self.simulation_turn_on:
@@ -402,7 +471,19 @@ class SwarmWriter(SwarmSim):
 
 
 class ScriptedSwarm(SwarmWriter):
+    """
+    Роевой симулятор с возможностью считывания команд
+    """
+
     def __init__(self, script_file: str, *args, **kwargs):
+        """
+        Инициализирует роевой симулятор со сценарием управления.
+
+        :param script_file: путь к файлу сценария
+        :type script_file: str
+        :param args: позиционные аргументы
+        :param kwargs: именованные аргументы
+        """
         super().__init__(*args, **kwargs)
         self.script = self._parse_script(script_file)
         self.current_command_idx = 0
@@ -410,6 +491,14 @@ class ScriptedSwarm(SwarmWriter):
         self._init_groups()
 
     def _parse_script(self, script_file: str) -> List[Dict]:
+        """
+        Парсит файл сценария управления.
+
+        :param script_file: путь к файлу сценария
+        :type script_file: str
+        :return: список команд управления
+        :rtype: List[Dict]
+        """
         commands = []
         t = 0.0
         with open(script_file) as f:
@@ -431,13 +520,28 @@ class ScriptedSwarm(SwarmWriter):
                     )
         return commands
 
-    def _init_groups(self):
-        """Инициализация групп: четные - 0, нечетные - 1"""
+    def _init_groups(self) -> None:
+        """
+        Инициализирует группы объектов.
+
+        Четные - 0, нечетные - 1
+
+        :return: None
+        :rtype: None
+        """
         for i, obj in enumerate(self.simulation_objects):
             self.group_mapping[i] = i % 2
             obj.group = i % 2
 
     def _get_target_ids(self, target: str) -> List[int]:
+        """
+        Возвращает идентификаторы объектов по цели.
+
+        :param target: целевая группа или объект ('all', 'g:<id>', '<id>')
+        :type target: str
+        :return: список идентификаторов
+        :rtype: List[int]
+        """
         if target == "all":
             return list(range(self.n_objects))
         if target.startswith("g:"):
@@ -451,6 +555,14 @@ class ScriptedSwarm(SwarmWriter):
             return []
 
     def swarm_controller(self, dt: float):
+        """
+        Управление роем на основе сценария.
+
+        :param dt: шаг времени симуляции
+        :type dt: float
+        :return: None
+        :rtype: None
+        """
         while (
             self.current_command_idx < len(self.script)
             and self.time >= self.script[self.current_command_idx]["time"]
@@ -464,9 +576,20 @@ class ScriptedSwarm(SwarmWriter):
             self.current_command_idx += 1
         super().swarm_controller(dt)
 
-    def _execute_command(self, target: str, cmd: str, args: List[str]):
+    def _execute_command(self, target: str, cmd: str, args: List[str]) -> None:
+        """
+        Выполняет команду управления для целевых объектов.
+
+        :param target: целевые объекты
+        :type target: str
+        :param cmd: команда управления
+        :type cmd: str
+        :param args: аргументы команды
+        :type args: List[str]
+        :return: None
+        :rtype: None
+        """
         ids = self._get_target_ids(target)
-        # ic(cmd, ids, args)
         if cmd == "takeoff":
             h = float(args[0]) if args else 1.5
             for i in ids:
@@ -496,6 +619,24 @@ class SimulationRunner:
         i_coeff: float = 0.0,
         d_coeff: float = 0.1,
     ):
+        """
+        Инициализирует запускатель симуляции.
+
+        :param num_drones: количество дронов
+        :type num_drones: int
+        :param script_file: файл сценария
+        :type script_file: str
+        :param output_file: файл для сохранения траекторий
+        :type output_file: str
+        :param sim_time: время симуляции
+        :type sim_time: float
+        :param p_coeff: коэффициент P для PID
+        :type p_coeff: float
+        :param i_coeff: коэффициент I для PID
+        :type i_coeff: float
+        :param d_coeff: коэффициент D для PID
+        :type d_coeff: float
+        """
         side = int(np.sqrt(num_drones))
         self.num_drones = num_drones
         self.objects = create_objects_Point_yaw(side)
@@ -528,6 +669,12 @@ class SimulationRunner:
         self.sim_time = sim_time
 
     def run(self):
+        """
+        Запускает и выполняет симуляцию.
+
+        :return: None
+        :rtype: None
+        """
         self.sim.start_simulation_for(int(self.sim_time / self.sim.dt))
 
         # Ожидаем завершения потоков
@@ -541,6 +688,7 @@ class SimulationRunner:
 
 
 def main():
+    """Основная точка входа для выполнения скрипта."""
     number_of_objects = 82
 
     script = f"/home/{getpass.getuser()}/code/pion/scripts/mission_script.txt"
@@ -552,13 +700,6 @@ def main():
         int(np.sqrt(number_of_objects)), [-50, 50], [-50, 50], 0.2
     )
 
-    # Assign even/odd groups
-
-    for idx, o in enumerate(objs):
-        o.group = idx % 2
-
-    # Initialize runner
-
     runner = SimulationRunner(
         num_drones=number_of_objects - 1,
         script_file=script,
@@ -568,8 +709,6 @@ def main():
         i_coeff=0.0,
         d_coeff=1.0,
     )
-
-    # Override objects and start
 
     runner.objects = objs
 
