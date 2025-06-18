@@ -3,6 +3,7 @@
 ![lokky-analyze plot](https://github.com/OnisOris/pion/blob/dev/docs/img/swarm_figure.gif)
 ## Симуляционные дроны + алгоритмы роя
 ![simswarm plot](https://github.com/OnisOris/pion/blob/dev/docs/img/simswarm.gif)
+
 Модуль используется для:
 
 - Управления дронами по wifi (mavlink)
