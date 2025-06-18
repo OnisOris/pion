@@ -1,7 +1,7 @@
 Скрипты симуляции роя
 ===================
 
-.. image:: https://github.com/OnisOris/pion/blob/dev/docs/img/simswarm.gif
+.. image:: docs/img/simswarm.gif
   :width: 400
   :alt: swarm sim gif
 
