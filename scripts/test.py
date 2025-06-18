@@ -57,7 +57,8 @@ group.add_argument(
     help="Set yaw value for drone",
 )
 group.add_argument(
-    "--go_to",
+    "-gt",
+    "--goto",
     nargs=4,
     metavar=("x", "y", "z", "yaw"),
     type=float,
@@ -76,7 +77,7 @@ def main():
         count_of_checking_points=5,
     )
 
-    np.set_printoptions(suppress=True)  # Отключить экспоненциальный формат
+    np.set_printoptions(suppress=True)
 
     if args.coordinate:
         drone.led_control(255, 0, 255, 0)
@@ -114,13 +115,15 @@ def main():
     if args.yaw:
         drone.goto_yaw(args.yaw)
 
-    if args.go_to:
+    if args.goto:
+        print(*args.goto)
         drone.arm()
         drone.takeoff()
         time.sleep(8)
         drone.set_v()
-        drone.goto_from_outside(
-            *args.go_to,
+        drone.goto(
+            *args.goto,
+            autopilot_controller=False,
             wait=True,
         )
         drone.stop()
