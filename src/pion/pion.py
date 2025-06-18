@@ -145,7 +145,7 @@ class Pion(DroneBase):
             NDArray[Any], (count_of_checking_points,)
         ] = np.zeros((count_of_checking_points, 3))
         # Используется для хранения последних 14 значений yaw в матрице для верификации достижения таргетного угла по z
-        self.last_angles: Annotated[NDArray[Any], (14,)] = np.zeros(14)
+        self.last_angles: Array4 = np.zeros(4)
         if start_message_handler_from_init:
             self._message_handler_thread: threading.Thread = threading.Thread(
                 target=self._message_handler, args=(combine_system,)
@@ -166,6 +166,10 @@ class Pion(DroneBase):
         self.set_v_check_flag: bool = False
         self.set_rc_check_flag: bool = False
         self.tracking: bool = False
+        # Счетчик количества сообщений ATTITUDE
+        self.count_of_attitude_messeges: int = 0
+        # Счетчик количества сообщений координат
+        self.count_of_pos_messeges: int = 0
 
     @property
     def speed(self) -> Union[Array2, Array3]:
@@ -521,10 +525,7 @@ class Pion(DroneBase):
         self.set_v()
         if not yaw_off:
             self.goto_yaw(yaw)
-        if 3 == 2:
-            target_point = np.array([x, y])
-        else:
-            target_point = np.array([x, y, z])
+        target_point = np.array([x, y, z])
         if accuracy is None:
             accuracy = self.accuracy
         self._pid_position_controller = PIDController(
@@ -544,7 +545,7 @@ class Pion(DroneBase):
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
 
-    def goto_yaw(self, yaw: float = 0.0, accuracy: float = 0.2) -> None:
+    def goto_yaw(self, yaw: float = 0.0, accuracy: float = 0.05) -> None:
         """
         Метод берет целевую координату по yaw и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
 
@@ -557,6 +558,8 @@ class Pion(DroneBase):
         :type accuracy: float
         :return: None
         """
+        while self.count_of_pos_messeges < self.last_angles.shape[0]:
+            time.sleep(self.period_send_speed)
         self.tracking = False
         self.set_v()
         pid_controller = PIDController(*self.yaw_pid_matrix)
@@ -893,6 +896,7 @@ class Pion(DroneBase):
             self.last_points = update_array(
                 self.last_points, self.position[0:3]
             )
+            self.count_of_pos_messeges += 1
         elif msg.get_type() == "ATTITUDE":
             self.attitude = np.array(
                 [
@@ -905,6 +909,7 @@ class Pion(DroneBase):
                 ]
             )
             self.last_angles = update_vector(self.last_angles, self.yaw)
+            self.count_of_attitude_messeges += 1
         elif msg.get_type() == "BATTERY_STATUS":
             self.battery_voltage = msg.voltages[0] / 100
 
