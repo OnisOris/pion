@@ -3,6 +3,7 @@
 
 .. image:: docs/img/simswarm.gif
   :width: 400
+  :align: center
   :alt: swarm sim gif
 
 
