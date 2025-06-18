@@ -1,7 +1,7 @@
 import select
 import threading
 import time
-from typing import Annotated, Any, Optional, Tuple, Union
+from typing import Annotated, Any, List, Optional, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -269,6 +269,84 @@ class Pion(DroneBase):
         y: float,
         z: float,
         yaw: float,
+        accuracy: float = 0.05,
+        autopilot_controller=False,
+        wait: bool = False,
+    ) -> None:
+        """
+        Метод достижения целевой позиции.
+
+        :param x: координата по x
+        :type x: float
+
+        :param y: координата по y
+        :type y: float
+
+        :param z: координата по z
+        :type z: float
+
+        :param yaw: координата по yaw
+        :type yaw: float
+
+        :param accuracy: Погрешность целевой точки
+        :type accuracy: Optional[float]
+
+        :param goto_to_autopilot: Использовать ли регулятор автопилота
+        :type goto_to_autopilot: bool
+
+        :param wait: Блокировка основного потока если True, запуск процесса в отдельном потоке, если False
+        :type wait: bool
+
+        :return: None
+        :rtype: None
+
+        :note: Если goto_to_autopilot False, то используется PID регулятор данного модуля
+        """
+
+        if autopilot_controller:
+            if wait:
+                self.goto_to_autopilot(x, y, z, yaw)
+                self.wait_point(
+                    [
+                        x,
+                        y,
+                        z,
+                    ]
+                )
+            else:
+                self.goto_to_autopilot(x, y, z, yaw)
+        else:
+            self.goto_from_outside(x, y, z, yaw, accuracy, wait)
+
+    def wait_point(
+        self, target_point: Union[List, Array3], accuracy: float = 0.05
+    ) -> None:
+        """
+        Функция ожидания достижения таргетной точки
+
+        Блокирует ваш поток циклом, пока вы не долетите до target_point
+
+        :param target_point: Целевая точка
+        :type target_point: Union[List, Array3]
+
+        :param accuracy: точность atol
+        :type accuracy: float
+
+        :return: None
+        :rtype: None
+        """
+        self.point_reached = False
+        while not self.point_reached:
+            self.point_reached = vector_reached(
+                target_point, self.last_points, accuracy=accuracy
+            )
+
+    def goto_to_autopilot(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        yaw: float,
     ) -> None:
         """
         Полет к указанной точке в текущей системе координат навигации.
@@ -293,7 +371,6 @@ class Pion(DroneBase):
         :type yaw: float | int, Optional
 
         :return: None
-
         """
         self.tracking = False
         mask = 0b0000_10_0_111_111_000
