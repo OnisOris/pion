@@ -352,7 +352,7 @@ class Spion(Simulator, DroneBase):
         y: float,
         z: float,
         yaw: float,
-        accuracy: Optional[float] = None,
+        accuracy: float = 5e-2,
     ) -> None:
         """
         Метод берет целевую координату и вычисляет необходимые скорости для достижения целевой позиции, посылая их в управление t_speed.
