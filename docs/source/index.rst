@@ -1,10 +1,19 @@
 Pion
 ====
+.. note::
+
+   Мы используем `uv <https://docs.astral.sh/uv/getting-started/installation/>`_
+
+   Вместо "python script.py" в инструкции будет использоваться "uv run script.py"
+
+
 
 SDK для управления дронами `geoscan pioneer base <https://geoscan.education/pioneer-base>`_ по протоколу MAVLink.
 
 Поддерживает дроны с модификацией ультразвуковой системы навигации `локус <https://www.geoscan.ru/ru/products/pioneer/locus>`_
-и с Raspberry Pi Zero 2W (модификация "Арена").
+и с Raspberry Pi Zero 2W (модификация "Арена") или на radxa zero 3w.
+
+Тесты проводились также на pioneer mini, но могут быть ошибки в некоторых методах.
 
 Перед работой с модулем рекомендуется загрузить рекомендуемые параметры через `Pioneer Station <https://docs.geoscan.ru/pioneer/instructions/applications/pioneer_station/pioneer_station_main.html>`_.
 
