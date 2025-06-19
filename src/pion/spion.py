@@ -382,6 +382,20 @@ class Spion(Simulator, DroneBase):
     ) -> None:
         """
         Запускает симуляцию движения дрона к заданной точке.
+
+        :param x: Целевая координата x
+        :type x: float
+        :param y: Целевая координата y
+        :type y: float
+        :param z: Целевая координата z
+        :type z: float
+        :param yaw: Целевой угол рысканья
+        :type yaw: float
+        :param accuracy: Точность достижения цели
+        :type accuracy: float
+        :param wait: Ожидать завершения движения
+        :type wait: bool
+        :return: None
         """
         target_point = [x, y, z, yaw]
         self.point_reached = True

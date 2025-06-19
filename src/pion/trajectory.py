@@ -3,6 +3,13 @@ from numpy.typing import NDArray
 
 
 class Trajectory:
+    """
+    Класс для хранения и управления траекторией движения.
+
+    Хранит траекторию в виде матрицы размером nxm, где n - количество точек,
+    m - количество параметров (длина list_of_names_columns).
+    """
+
     def __init__(self, list_of_names_columns: list[str]):
         """
         Специальный класс для записи и хранения траектории размером nx[len(list_of_names_columns)], n - количество точек.

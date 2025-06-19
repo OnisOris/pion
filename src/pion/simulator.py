@@ -367,6 +367,11 @@ class Simulator_th(Simulator):
 
         После выполнения шага симуляции поток ждёт, пока все остальные потоки не вызовут sync_barrier.wait().
         Таким образом синхронизуются шаги.
+
+        :param simulation_object: объект для симуляции
+        :param object_channel: канал объекта
+        :param type_of_cycle: тип цикла ('while' или 'for')
+        :param steps: количество шагов (для цикла 'for')
         """
         if type_of_cycle == "while":
             while self.simulation_turn_on:
