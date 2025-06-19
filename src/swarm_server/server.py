@@ -108,6 +108,10 @@ class UDPBroadcastClient:
 
 
 class UDPBroadcastServer:
+    """
+    Сервер для приема UDP широковещательных сообщений.
+    """
+
     def __init__(
         self,
         server_to_agent_queue: Queue[Any],
@@ -523,7 +527,6 @@ class SwarmCommunicator:
         """
         Вовзрат параметров swarm_solver в начальное значение
         """
-        self.swarm_solver.read_params(self.swarm_solver.params)
 
     def update_swarm_control(self, target_position: Array6, dt: float) -> None:
         """

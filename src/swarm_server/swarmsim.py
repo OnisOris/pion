@@ -609,6 +609,10 @@ class ScriptedSwarm(SwarmWriter):
 
 
 class SimulationRunner:
+    """
+    Класс для запуска симуляции роя.
+    """
+
     def __init__(
         self,
         num_drones: int = 16,
@@ -688,7 +692,9 @@ class SimulationRunner:
 
 
 def main():
-    """Основная точка входа для выполнения скрипта."""
+    """
+    Основная точка входа для выполнения скрипта.
+    """
     number_of_objects = 82
 
     script = f"/home/{getpass.getuser()}/code/pion/scripts/mission_script.txt"
