@@ -30,7 +30,7 @@ class Spion(Simulator, DroneBase):
             [0, 0, 0, 0, 0, 0], dtype=np.float64
         ),
         combine_system: int = 0,
-        count_of_checking_points: int = 20,
+        count_of_checking_points: int = 2,
         name: str = "simulator",
         mass: float = 0.3,
         dt: float = 0.1,
@@ -104,6 +104,7 @@ class Spion(Simulator, DroneBase):
             dt=dt,
             max_speed=max_speed,
         )
+        self.__goto_process = False
         initial_yaw = self._attitude[2]
         self.simulation_objects: NDArray[Any] = np.array(
             [
@@ -323,6 +324,7 @@ class Spion(Simulator, DroneBase):
         :return: None
         :rtype: None
         """
+        print("aboba")
         signal = np.clip(
             self._pid_position_controller.compute_control(
                 target_position=np.array(
@@ -408,7 +410,8 @@ class Spion(Simulator, DroneBase):
             self._pid_velocity_controller = PIDController(
                 *self.velocity_pid_matrix
             )
-            while not self.point_reached:
+            self.__goto_process = True
+            while not self.point_reached and self.__goto_process:
                 current_time = time.time()
                 elapsed_time = current_time - last_time
                 if elapsed_time >= self.dt:
@@ -425,6 +428,7 @@ class Spion(Simulator, DroneBase):
                         self.last_points, current_full_position
                     )
                     self.velocity_controller()
+                    print("Я вызываюсь из goto")
                     self.position_controller(np.array(target_point))
                     last_time = current_time
                     for object_channel, simulation_object in enumerate(
@@ -487,6 +491,7 @@ class Spion(Simulator, DroneBase):
         :return: None
         """
         print("goto_body")
+        self.__goto_process = False
         current_yaw = self.simulation_objects[0].attitude[2]
         cos_yaw = np.cos(current_yaw)
         sin_yaw = np.sin(current_yaw)
@@ -503,14 +508,14 @@ class Spion(Simulator, DroneBase):
             target_yaw = self.simulation_objects[0].attitude[2]
         self.goto(target_xyz[0], target_xyz[1], target_xyz[2], target_yaw)
 
-    def set_body_velocity(self, body_vel: NDArray[np.float64]) -> None:
+    def set_body_velocity(self, body_vel: Array4) -> None:
         """
         Устанавливает скорость дрона, заданную в системе координат, закрепленной за дроном.
 
         Параметр body_vel задаёт скорость относительно тела дрона. Эта скорость преобразуется в инерциальную систему,
         с учётом текущего yaw дрона, после чего вызывается метод set_force.
 
-        :param body_vel: скорость в системе координат дрона (например, [vx_body, vy_body, vz_body])
+        :param body_vel: скорость в системе координат дрона (например, [vx_body, vy_body, vz_body, v_yaw])
         :type body_vel: NDArray[np.float64]
         :return: None
         """
@@ -522,8 +527,8 @@ class Spion(Simulator, DroneBase):
         inertial_z = body_vel[2] if len(body_vel) >= 3 else 0.0
 
         inertial_velocity = np.hstack([inertial_xy, [inertial_z]])
-        velocity_command = np.hstack([inertial_velocity, [0.0]])
-        self.set_force(velocity_command, 0)
+        velocity_command = np.hstack([inertial_velocity, [body_vel[3]]])
+        self.send_speed(*velocity_command)
 
     def send_speed(
         self, vx: float, vy: float, vz: float, yaw_rate: float
