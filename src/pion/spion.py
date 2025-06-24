@@ -524,3 +524,21 @@ class Spion(Simulator, DroneBase):
         inertial_velocity = np.hstack([inertial_xy, [inertial_z]])
         velocity_command = np.hstack([inertial_velocity, [0.0]])
         self.set_force(velocity_command, 0)
+
+    def send_speed(
+        self, vx: float, vy: float, vz: float, yaw_rate: float
+    ) -> None:
+        """
+        Метод задает вектор скорости дрону. Отсылать необходимо в цикле.
+
+        :param vx: скорость по оси x (м/с)
+        :type vx: float
+        :param vy: скорость по оси y (м/с)
+        :type vy: float
+        :param vz:  скорость по оси z (м/с)
+        :type vz: float
+        :param yaw_rate:  скорость поворота по оси z (рад/с)
+        :type yaw_rate: float
+        :return: None
+        """
+        self.t_speed = np.array([vx, vy, vz, yaw_rate])
