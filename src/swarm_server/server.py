@@ -1,3 +1,4 @@
+from __future__ import annotations
 import datetime
 import os
 import random
@@ -10,6 +11,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 from lokky.pionmath import SSolver
 
+from pion.pio import DroneBase
 from pionfunc.annotation import Array6
 from pionfunc.functions import (
     get_local_ip,
@@ -261,7 +263,7 @@ class SwarmCommunicator:
         self.swarm_solver = SSolver(params=self.params, count_of_objects=1)
 
         self.mode: int = mode
-        self.control_object = control_object
+        self.control_object: DroneBase = control_object
         self.env_state_matrix: np.ndarray = np.array(
             [self.control_object.position]
         )
@@ -301,6 +303,14 @@ class SwarmCommunicator:
         self.control_object.name += (
             f", unid: {self.unique_id}, gr: {self.group_id}"
         )
+
+    @property
+    def co(self):
+        """
+        Короткий геттер контролируемого объекта
+        """
+        return self.control_object
+
 
     def start(self) -> None:
         """
