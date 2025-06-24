@@ -7,7 +7,6 @@ import numpy as np
 from pion.spion import Spion
 from swarm_server import SwarmCommunicator
 
-# from .params import params
 
 params = {
     "kp": np.array([[1, 1, 1, 1, 1, 1]]) * 0.2,
@@ -26,7 +25,7 @@ params = {
 }
 
 
-def main():
+def drone_init():
     parser = argparse.ArgumentParser(description="Симуляция члена роя")
     parser.add_argument(
         "--id",
@@ -80,7 +79,9 @@ def main():
     except KeyboardInterrupt:
         swarm_comm.stop()
         print("Swarm communicator остановлен.")
+    print("Drone_init")
+    return swarm_comm
 
 
 if __name__ == "__main__":
-    main()
+    drone_init()
