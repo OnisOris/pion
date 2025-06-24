@@ -49,7 +49,7 @@ def drone_init():
     # Разбираем входные координаты
     x, y, z, yaw = args.initial
     position = np.array([x, y, z, 0, 0, 0])
-    attitude = np.array([0, 0, yaw, 0, 0, 0])
+    attitude = np.array([0, 0, np.pi/3, 0, 0, 0])
     # Получаем локальный IP-адрес
     sim_drone = Spion(
         ip="/dev/ttyS0",
@@ -76,6 +76,24 @@ def drone_init():
     print(f"SwarmCommunicator запущен для {sim_drone.name}")
     return swarm_comm
 
+# drone = drone_init()
+# print("---")
+# print("Main arm ------------<")
+# drone.control_object.arm()
+# print("takeoff -----------------<")
+# drone.control_object.takeoff()
+# time.sleep(5)
+# print("goto --------------<")
+# drone.control_object.goto_from_outside(5, 1, 1, 1)
+#
+# body_target = np.array([1, 0, 0])
+# drone.control_object.goto_body(body_target)
+# print("land ----------------<")
+# drone.control_object.land()
+# print("stop ----------------<")
+# drone.stop()
+
+
 drone = drone_init()
 print("---")
 print("Main arm ------------<")
@@ -84,11 +102,4 @@ print("takeoff -----------------<")
 drone.control_object.takeoff()
 time.sleep(5)
 print("goto --------------<")
-drone.control_object.goto_from_outside(5, 1, 1, 1)
-
-body_target = np.array([1, 0, 0])
-drone.control_object.goto_body(body_target)
-print("land ----------------<")
-drone.control_object.land()
-print("stop ----------------<")
-drone.stop()
+drone.co.set_body_velocity(np.array([1, 0, 0, 0]))
