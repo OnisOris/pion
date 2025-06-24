@@ -363,6 +363,7 @@ class SwarmCommunicator:
         :return: None
         :rtype: None
         """
+        self.control_object.stop()
         self.running = False
         self.broadcast_server.running = False
 
