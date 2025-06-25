@@ -12,6 +12,11 @@ from pionfunc.functions import start_threading, update_array, vector_reached
 from .pio import DroneBase
 from .simulator import PointYaw, Simulator
 
+def normalize_channel(value: int) -> float:
+    """
+    Функция нормализации rc-каналов
+    """
+    return np.clip((value - 1500) / 500, -1.0, 1.0)
 
 class Spion(Simulator, DroneBase):
     """
@@ -547,3 +552,32 @@ class Spion(Simulator, DroneBase):
         :return: None
         """
         self.t_speed = np.array([vx, vy, vz, yaw_rate])
+
+    def send_rc_channels(
+            self,
+            channel_1: int = 1500,
+            channel_2: int = 1500,
+            channel_3: int = 1500,
+            channel_4: int = 1500,
+    ) -> None:
+        """
+        Управление по rc-каналам
+        """
+        throttle = normalize_channel(channel_1)
+        yaw = normalize_channel(channel_2)
+        pitch = -normalize_channel(channel_3)
+        roll = normalize_channel(channel_4)
+
+        current_yaw = self.yaw
+        cos_yaw = np.cos(current_yaw)
+        sin_yaw = np.sin(current_yaw)
+
+        vx_global = pitch * cos_yaw - roll * sin_yaw
+        vy_global = pitch * sin_yaw + roll * cos_yaw
+
+        vx = vx_global * self.max_speed
+        vy = vy_global * self.max_speed
+        vz = throttle * self.max_speed
+        vyaw = yaw * self.max_yaw_rate
+
+        self.t_speed = np.array([vx, vy, vz, vyaw])
