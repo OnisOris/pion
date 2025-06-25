@@ -217,7 +217,7 @@ class Spion(Simulator, DroneBase):
         :rtype: None
         """
         super().land()
-        self.goto(self.position[0], self.position[1], 0, 0)
+        self.goto(self.position[0], self.position[1], 0, self.yaw)
 
     def start_message_handler(self) -> None:
         """
