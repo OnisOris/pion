@@ -329,7 +329,6 @@ class Spion(Simulator, DroneBase):
         :return: None
         :rtype: None
         """
-        print("aboba")
         signal = np.clip(
             self._pid_position_controller.compute_control(
                 target_position=np.array(
@@ -495,7 +494,6 @@ class Spion(Simulator, DroneBase):
         :type body_target: Union[Array3, Array4]
         :return: None
         """
-        print("goto_body")
         self.__goto_process = False
         current_yaw = self.simulation_objects[0].attitude[2]
         cos_yaw = np.cos(current_yaw)
@@ -563,6 +561,7 @@ class Spion(Simulator, DroneBase):
         """
         Управление по rc-каналам
         """
+        self.__goto_process = False
         throttle = normalize_channel(channel_1)
         yaw = normalize_channel(channel_2)
         pitch = -normalize_channel(channel_3)
