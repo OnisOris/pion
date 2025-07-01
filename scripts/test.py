@@ -66,17 +66,7 @@ group.add_argument(
 )
 
 
-def main():
-    args = parser.parse_args()
-
-    drone = Pion(
-        ip=f"10.1.100.{args.drone_number}",
-        mavlink_port=5656,
-        logger=True,
-        dt=0.0,
-        count_of_checking_points=5,
-    )
-
+def main(drone: Pion, args):
     np.set_printoptions(suppress=True)
 
     if args.coordinate:
@@ -130,7 +120,18 @@ def main():
 
 
 if __name__ == "__main__":
+    args = parser.parse_args()
+
+    drone = Pion(
+        ip=f"10.1.100.{args.drone_number}",
+        mavlink_port=5656,
+        logger=True,
+        dt=0.0,
+        count_of_checking_points=5,
+    )
     try:
-        main()
+        main(drone, args)
     except KeyboardInterrupt:
         print("Work finished.")
+    finally:
+        drone.stop()
