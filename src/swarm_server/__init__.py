@@ -2,6 +2,8 @@ from .commands import CMD
 from .datagram import DDatagram
 from .server import SwarmCommunicator, UDPBroadcastClient, UDPBroadcastServer
 from .swarmsim import SimulationRunner
+from .udpmulticast import UDPMulticastClient, UDPMulticastServer
+from .server import get_numeric_id
 
 __all__ = [
     "CMD",
@@ -10,6 +12,9 @@ __all__ = [
     "UDPBroadcastClient",
     "UDPBroadcastServer",
     "SimulationRunner",
+    "UDPMulticastClient",
+    "UDPMulticastServer",
+    "get_numeric_id"
 ]
 
 """
