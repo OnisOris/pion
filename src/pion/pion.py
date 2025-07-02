@@ -124,13 +124,14 @@ class Pion(DroneBase):
         # Последнее сообщение из _message_handler()
         self._msg: Optional["MAVLink_message"] = None
         self.mavlink_port: int = mavlink_port
+        self.connection_method: str = connection_method
         self.mavlink_socket: mavutil.mavfile = create_connection(
             connection_method=connection_method,
             address=ip,
             port_or_baudrate=mavlink_port,
         )
         self.connection: bool = False
-        self.last_message_time: float = 0.
+        self.last_message_time: float = 0.0
         self._heartbeat_timeout: float = 1.0
         self._mavlink_send_number: int = 10
         self.__is_socket_open: threading.Event = threading.Event()
@@ -947,7 +948,9 @@ class Pion(DroneBase):
                     if self._msg is not None:
                         self._process_message(self._msg, src_component)
                 else:
-                    self.connection = (time.time() - self.last_message_time) < self._connection_timeout
+                    self.connection = (
+                        time.time() - self.last_message_time
+                    ) < self._connection_timeout
                 if self.check_attitude_flag:
                     self.attitude_write()
                 if self.logger:
@@ -1057,7 +1060,7 @@ class Pion(DroneBase):
             command=mavutil.mavlink.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN,
             target_component=1,
             param1=1,
-            mavlink_send_number=self._mavlink_send_number,
+            mavlink_send_number=1,
         )
 
     def stop(self) -> None:

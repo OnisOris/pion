@@ -201,6 +201,8 @@ class SwarmCommunicator:
         params: Optional[dict] = None,
         mode: int = 1,
         unique_id: int = None,
+        use_multicast: bool = True,
+        multicast_group: str = "224.0.0.1",
     ) -> None:
         """
         Инициализация компонента для обмена данными в роевой архитектуре.
@@ -237,6 +239,12 @@ class SwarmCommunicator:
 
         :param mode: Режим роя, имеет 3 состояния: 1 - включен ПИД до таргетной позиции + силы отталкивания от других
          донов + вектор вывода дрона с состояния равновесия в локальных минимумах
+
+        :param use_multicast: Ипользование мультикаста
+        :type use_multicast: bool
+
+        :param multicast_group: Адрес мультикаст группы
+        :type multicast_group: str
 
         :return: None
         :rtype: None
@@ -310,7 +318,6 @@ class SwarmCommunicator:
         Короткий геттер контролируемого объекта
         """
         return self.control_object
-
 
     def start(self) -> None:
         """
