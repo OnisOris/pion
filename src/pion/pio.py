@@ -79,8 +79,9 @@ class DroneBase(Pio, ABC):
         max_acceleration: float = 10,
     ):
         """
-        Абстрактный класс с частичной реализацией методов, служит для сокращения кода в дочерних классах    :param ip: IP-адрес для подключения к дрону.
+        Абстрактный класс с частичной реализацией методов, служит для сокращения кода в дочерних классах
 
+        :param ip: IP-адрес для подключения к дрону.
         :type ip: str
 
         :param mavlink_port: Порт для MAVLink соединения.
@@ -118,6 +119,7 @@ class DroneBase(Pio, ABC):
         :type max_speed: float
         """
 
+        self.max_yaw_rate: float = 1.0
         self.t0: float = time.time()
         self.ip: str = ip
         self.mavlink_port: int = mavlink_port
@@ -505,3 +507,16 @@ class DroneBase(Pio, ABC):
 
     def trajectory_tracking(self, path_to_traj_file: str = "./data.npy"):
         pass
+
+    def send_rc_channels(
+            self,
+            channel_1: int = 1500,
+            channel_2: int = 1500,
+            channel_3: int = 1500,
+            channel_4: int = 1500,
+    ) -> None:
+        """
+        Управление по rc-каналам
+        """
+        pass
+

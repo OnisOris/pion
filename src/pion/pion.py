@@ -114,6 +114,7 @@ class Pion(DroneBase):
             dt=dt,
             max_speed=max_speed,
         )
+        self._connection_timeout: float = 1.5
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag: bool = True
         # Флаг для остановки отдачи управляющих сигналов rc channels
@@ -128,6 +129,8 @@ class Pion(DroneBase):
             address=ip,
             port_or_baudrate=mavlink_port,
         )
+        self.connection: bool = False
+        self.last_message_time: float = 0.
         self._heartbeat_timeout: float = 1.0
         self._mavlink_send_number: int = 10
         self.__is_socket_open: threading.Event = threading.Event()
@@ -943,6 +946,8 @@ class Pion(DroneBase):
                     self._msg = self.mavlink_socket.recv_msg()
                     if self._msg is not None:
                         self._process_message(self._msg, src_component)
+                else:
+                    self.connection = (time.time() - self.last_message_time) < self._connection_timeout
                 if self.check_attitude_flag:
                     self.attitude_write()
                 if self.logger:
@@ -989,6 +994,9 @@ class Pion(DroneBase):
             self.count_of_attitude_messeges += 1
         elif msg.get_type() == "BATTERY_STATUS":
             self.battery_voltage = msg.voltages[0] / 100
+        elif msg.get_type() == "HEARTBEAT":
+            self.connection = True
+            self.last_message_time = time.time()
 
     def rc_while(self) -> None:
         """

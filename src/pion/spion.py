@@ -12,6 +12,11 @@ from pionfunc.functions import start_threading, update_array, vector_reached
 from .pio import DroneBase
 from .simulator import PointYaw, Simulator
 
+def normalize_channel(value: int) -> float:
+    """
+    Функция нормализации rc-каналов
+    """
+    return np.clip((value - 1500) / 500, -1.0, 1.0)
 
 class Spion(Simulator, DroneBase):
     """
@@ -212,7 +217,7 @@ class Spion(Simulator, DroneBase):
         :rtype: None
         """
         super().land()
-        self.goto(self.position[0], self.position[1], 0, 0)
+        self.goto(self.position[0], self.position[1], 0, self.yaw)
 
     def start_message_handler(self) -> None:
         """
@@ -324,7 +329,6 @@ class Spion(Simulator, DroneBase):
         :return: None
         :rtype: None
         """
-        print("aboba")
         signal = np.clip(
             self._pid_position_controller.compute_control(
                 target_position=np.array(
@@ -490,7 +494,6 @@ class Spion(Simulator, DroneBase):
         :type body_target: Union[Array3, Array4]
         :return: None
         """
-        print("goto_body")
         self.__goto_process = False
         current_yaw = self.simulation_objects[0].attitude[2]
         cos_yaw = np.cos(current_yaw)
@@ -547,3 +550,33 @@ class Spion(Simulator, DroneBase):
         :return: None
         """
         self.t_speed = np.array([vx, vy, vz, yaw_rate])
+
+    def send_rc_channels(
+            self,
+            channel_1: int = 1500,
+            channel_2: int = 1500,
+            channel_3: int = 1500,
+            channel_4: int = 1500,
+    ) -> None:
+        """
+        Управление по rc-каналам
+        """
+        self.__goto_process = False
+        throttle = normalize_channel(channel_1)
+        yaw = normalize_channel(channel_2)
+        pitch = -normalize_channel(channel_3)
+        roll = normalize_channel(channel_4)
+
+        current_yaw = self.yaw
+        cos_yaw = np.cos(current_yaw)
+        sin_yaw = np.sin(current_yaw)
+
+        vx_global = pitch * cos_yaw - roll * sin_yaw
+        vy_global = pitch * sin_yaw + roll * cos_yaw
+
+        vx = vx_global * self.max_speed
+        vy = vy_global * self.max_speed
+        vz = throttle * self.max_speed
+        vyaw = yaw * self.max_yaw_rate
+
+        self.t_speed = np.array([vx, vy, vz, vyaw])
