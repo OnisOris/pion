@@ -306,7 +306,7 @@ class Pion(DroneBase):
 
         :note: Если goto_to_autopilot False, то используется PID регулятор данного модуля
         """
-
+        self.target_point = np.array([x, y, z, yaw])
         if autopilot_controller:
             if wait:
                 self.goto_to_autopilot(x, y, z, yaw)
