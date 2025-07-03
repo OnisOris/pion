@@ -1069,6 +1069,9 @@ class Pion(DroneBase):
 
         :return: None
         """
+        if self._live:
+            self._live.stop()
+
         print("STOP")
         self.speed_flag = False
         self.rc_flag = False
