@@ -3,6 +3,7 @@
 #   "matplotlib",
 #   "pionsdk @ git+https://github.com/OnisOris/pion@dev",
 #   "tornado",
+#   "pyqt5",
 # ]
 # ///
 import argparse
@@ -23,6 +24,8 @@ parser.add_argument("--web", action="store_true", help="Запуск в web")
 args = parser.parse_args()
 if args.web:
     matplotlib.use("WebAgg")
+else:
+    matplotlib.use("Qt5Agg")
 args = parser.parse_args()
 
 
