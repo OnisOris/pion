@@ -70,7 +70,7 @@ def main(drone: Pion, args):
     np.set_printoptions(suppress=True)
 
     if args.coordinate:
-        drone.led_control(255, 0, 255, 0)
+        drone.led_control(255, 100, 255, 0)
         drone.logger = True
         while True:
             time.sleep(0.02)
@@ -116,7 +116,7 @@ def main(drone: Pion, args):
             autopilot_controller=False,
             wait=True,
         )
-        drone.stop()
+    drone.stop()
 
 
 if __name__ == "__main__":
