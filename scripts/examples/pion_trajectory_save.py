@@ -1,7 +1,21 @@
+# /// script
+# dependencies = [
+#   "matplotlib",
+#   "numpy",
+#   "tornado",
+#   "pyqt6",
+# ]
+# ///
+
 import time
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+import matplotlib
+
+
+matplotlib.use("qtagg")
 
 # Настройки карты
 fig, ax = plt.subplots(figsize=(8, 8))
