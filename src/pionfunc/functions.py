@@ -65,8 +65,9 @@ def get_local_ip():
         # Подключаемся к внешнему адресу (8.8.8.8) для определения локального IP
         s.connect(("8.8.8.8", 80))
         local_ip = s.getsockname()[0]
-    except Exception:
+    except Exception("local ip error") as e:
         local_ip = "127.0.0.1"
+        print(e)
     finally:
         s.close()
     return local_ip
