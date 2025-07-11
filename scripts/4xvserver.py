@@ -3,6 +3,7 @@
 #   "matplotlib",
 #   "pionsdk @ git+https://github.com/OnisOris/pion@dev",
 #   "tornado",
+#   "pyqt6",
 # ]
 # ///
 import argparse
@@ -18,6 +19,7 @@ from matplotlib.animation import FuncAnimation
 
 from swarm_server import DDatagram
 
+matplotlib.use("qtagg")
 
 class SwarmVisualizer4D:
     def __init__(self, port=37020, fig_width=12, fig_height=10, bound=5):
