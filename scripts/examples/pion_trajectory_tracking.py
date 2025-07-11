@@ -16,7 +16,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num",
         type=int,
-        default=153,
+        default=134,
         help="Number of drone",
     )
     args = parser.parse_args()
