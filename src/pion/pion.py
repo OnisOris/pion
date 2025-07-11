@@ -345,6 +345,7 @@ class Pion(DroneBase):
                 target_point, self.last_points, accuracy=accuracy
             )
 
+
     def goto_to_autopilot(
         self,
         x: float,
@@ -423,7 +424,10 @@ class Pion(DroneBase):
             time.sleep(self.period_send_speed)
         self.t_speed = np.zeros(4)
 
-    def trajectory_tracking(self, path_to_traj_file: str = "./data.npy"):
+    def trajectory_tracking(self,
+                            path_to_traj_file: Union[str, NDArray] = "./data.npy",
+                            wait_last_point: bool = False
+                            ):
         """
         Функция обрабатывает файлы с траекторией полета дрона следующих форматов:
 
@@ -436,8 +440,10 @@ class Pion(DroneBase):
 
         :param path_to_traj_file: npy файл с траекторией размера nx4/5/17
         :type path_to_traj_file: str
+        :param wait_last_point: Ждать ли последнюю точку
+        :type wait_last_point: bool
         """
-        array_traj = np.load(path_to_traj_file)
+        array_traj = np.load(path_to_traj_file) if type(path_to_traj_file) == str else path_to_traj_file
 
         self.goto_from_outside(
             array_traj[0, 0],
@@ -449,7 +455,7 @@ class Pion(DroneBase):
 
         match array_traj.shape[1]:
             case 5:
-                self.trajectory_tracking_process(array_traj)
+                self.trajectory_tracking_process(array_traj, wait_last_point)
             case 17:
                 self.trajectory_tracking_process(
                     np.hstack(
@@ -458,7 +464,8 @@ class Pion(DroneBase):
                             array_traj[:, 8].reshape(-1, 1),
                             array_traj[:, 16].reshape(-1, 1),
                         ]
-                    )
+                    ),
+                    wait_last_point
                 )
             case 4:
                 self.trajectory_tracking_process(
@@ -468,19 +475,25 @@ class Pion(DroneBase):
                             np.zeros((array_traj.shape[0], 1)),
                             array_traj[:, 3].reshape(-1, 1),
                         ]
-                    )
+                    ),
+                    wait_last_point
                 )
             case _:
                 raise Exception(
                     f"Формат траектории: {self.description_traj_fromat}"
                 )
 
-    def trajectory_tracking_process(self, trajectory: NDArray) -> None:
+    def trajectory_tracking_process(self,
+                                    trajectory: NDArray,
+                                    wait_last_point: bool = False
+                                    ) -> None:
         """
         Запуск процесса слежения за траекторией
 
         :param trajectory: траектория размером nx5, вида [x, y, z, yaw, time]
-        :type param: NDArray
+        :type trajectory: NDArray
+        :param wait_last_point: Ждать ли последнюю точку
+        :type wait_last_point: bool
         """
         if trajectory.shape[1] != 5:
             raise Exception(
@@ -523,7 +536,8 @@ class Pion(DroneBase):
                 f"  Min time: {min_time:.2f}s, Planned delta: {planned_delta:.2f}s"
             )
             print(f"  Actual sleep: {actual_delta:.2f}s")
-
+        if wait_last_point:
+            self.wait_point(self.target_point[0:3])
         self.tracking = False
 
     def goto_from_outside(
