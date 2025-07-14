@@ -136,6 +136,8 @@ SDK для управления дронами `geoscan pioneer base <https://ge
 - `Консоль управления роем (pionsrv) <https://github.com/OnisOris/pionsrv>`_
 - `Модуль алгоритмов роя (lokky) <https://github.com/OnisOris/lokky>`_
 
+Описание классов и функций
+-----------------
 
 .. toctree::
 
