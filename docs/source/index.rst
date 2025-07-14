@@ -17,7 +17,7 @@ SDK для управления дронами `geoscan pioneer base <https://ge
 
 Перед работой с модулем рекомендуется загрузить рекомендуемые параметры через `Pioneer Station <https://docs.geoscan.ru/pioneer/instructions/applications/pioneer_station/pioneer_station_main.html>`_.
 
-`Параметры автопилота <../scripts/parameters.txt>`_
+`Параметры автопилота <https://raw.githubusercontent.com/OnisOris/pion/refs/heads/main/scripts/parameters.txt>`_
 
 Установка
 ---------
