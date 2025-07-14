@@ -1,7 +1,9 @@
+# uv run ./scripts/4xvserver.py
 # /// script
 # dependencies = [
 #   "matplotlib",
 #   "pionsdk @ git+https://github.com/OnisOris/pion@dev",
+#   "threedtool==0.0.8",
 #   "tornado",
 #   "pyqt6",
 # ]
@@ -18,6 +20,7 @@ import numpy as np
 from matplotlib.animation import FuncAnimation
 
 from swarm_server import DDatagram
+import threedtool as tdt
 
 matplotlib.use("qtagg")
 
@@ -46,6 +49,7 @@ class SwarmVisualizer4D:
         self.ax_3d.set_navigate(False)
         self.ax_3d.mouse_init = lambda: None
         self.setup_axes()
+        self.cuboid = tdt.Cuboid(center=np.array([0, 0, 1.5]), length_width_height=np.array([11.5, 11.5, 3]))
 
     def setup_axes(self):
         self.ax_top.set_title("Top view (XY)")
@@ -300,6 +304,7 @@ class SwarmVisualizer4D:
                         bbox_to_anchor=(1.05, 1.0),
                         fontsize="small",
                     )
+            self.cuboid.show(self.ax_3d)
         return self.ax_top, self.ax_front, self.ax_side, self.ax_3d
 
     def run(self):
