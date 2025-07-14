@@ -340,7 +340,7 @@ if __name__ == "__main__":
         help="Высота графика (размер фигуры)",
     )
     parser.add_argument(
-        "--bound", type=float, default=5, help="Предел по осям (в метрах)"
+        "--bound", type=float, default=6, help="Предел по осям (в метрах)"
     )
     args = parser.parse_args()
     if args.web:
