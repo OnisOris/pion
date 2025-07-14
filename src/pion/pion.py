@@ -1077,6 +1077,17 @@ class Pion(DroneBase):
             mavlink_send_number=1,
         )
 
+    def stop_moving(self) -> None:
+        """
+        Останавливает все движение
+
+        :return: None
+        """
+        print("STOP_MOVING")
+        self.speed_flag = False
+        self.rc_flag = False
+        self.tracking = False
+
     def stop(self) -> None:
         """
         Останавливает все потоки внутри приложения
