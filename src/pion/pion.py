@@ -1087,6 +1087,7 @@ class Pion(DroneBase):
         self.speed_flag = False
         self.rc_flag = False
         self.tracking = False
+        self.point_reached = True
 
     def stop(self) -> None:
         """

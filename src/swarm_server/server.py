@@ -675,6 +675,5 @@ class SwarmCommunicator:
         :return: None
         :rtype: None
         """
-        self.control_object.tracking = False
-        self.control_object.point_reached = True
-        self.control_object.speed_flag = False
+        self.control_object.stop_moving()
+

@@ -47,6 +47,14 @@ class Pio(ABC):
     def stop(self):
         pass
 
+    def stop_moving(self) -> None:
+        """
+        Останавливает все движение
+
+        :return: None
+        """
+        print("STOP_MOVING")
+
     @abstractmethod
     def _send_heartbeat(self):
         """
