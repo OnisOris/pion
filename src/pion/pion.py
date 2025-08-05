@@ -114,6 +114,8 @@ class Pion(DroneBase):
             dt=dt,
             max_speed=max_speed,
         )
+        # режим затухания t_speed
+        self.attenuation_mode = False
         self._connection_timeout: float = 1.5
         # Флаг для остановки цикла отдачи вектора скорости дрону
         self.speed_flag: bool = True
@@ -1048,6 +1050,10 @@ class Pion(DroneBase):
         while self.speed_flag:
             with self._speed_control_lock:  # Захватываем управление
                 t_speed = self.t_speed
+                if self.attenuation_mode:
+                    self.t_speed *= 0.9
+                    if np.linalg.norm(self.t_speed) < 0.02:
+                        self.t_speed = np.zeros_like(self.t_speed)
                 self.send_speed(*t_speed)
                 time.sleep(self.period_send_speed)
         self.set_v_check_flag = False
