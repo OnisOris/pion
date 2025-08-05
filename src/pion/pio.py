@@ -380,7 +380,6 @@ class DroneBase(Pio, ABC):
         :param path: путь сохранения
         :return: None
         """
-        self.stop()
         np.save(f"{path}{file_name}", self.trajectory[2:])
 
     def check_battery(self) -> None:
@@ -517,14 +516,13 @@ class DroneBase(Pio, ABC):
         pass
 
     def send_rc_channels(
-            self,
-            channel_1: int = 1500,
-            channel_2: int = 1500,
-            channel_3: int = 1500,
-            channel_4: int = 1500,
+        self,
+        channel_1: int = 1500,
+        channel_2: int = 1500,
+        channel_3: int = 1500,
+        channel_4: int = 1500,
     ) -> None:
         """
         Управление по rc-каналам
         """
         pass
-
