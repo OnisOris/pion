@@ -545,6 +545,11 @@ class SwarmCommunicator:
         """
         Вовзрат параметров swarm_solver в начальное значение
         """
+        self.swarm_solver.kp = self.params["kp"]
+        self.swarm_solver.ki = self.params["ki"]
+        self.swarm_solver.kd = self.params["kd"]
+        self.swarm_solver.repulsion_weight = self.params["repulsion_weight"]
+        self.swarm_solver.unstable_weight = self.params["unstable_weight"]
 
     def update_swarm_control(self, target_position: Array6, dt: float) -> None:
         """
