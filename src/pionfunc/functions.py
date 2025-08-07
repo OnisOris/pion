@@ -40,7 +40,7 @@ def extract_ip_id(ip: str) -> int:
     return abs(hash(ip)) % 1000
 
 
-def start_threading(function: Callable, name: str, *args) -> threading.Thread:
+def start_threading(function: Callable, name: str = 'base', *args) -> threading.Thread:
     """
     Функция принимает ссылку на функцию и запускает поток
 
