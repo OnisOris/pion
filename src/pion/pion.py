@@ -558,7 +558,7 @@ class Pion(DroneBase):
             Данная функуция выполняется при запуске вычислений с **внешнего устройства - ПК**.
 
         Функция берет целевую координату и вычисляет необходимые скорости для
-        достижения целевой позиции, посылая их в управление t_speed.Для использования
+        достижения целевой позиции, посылая их в управление t_speed. Для использования
         необходимо включить цикл :py:meth:`Pion.v_while` для посылки вектора скорости дрону.
         Максимальная скорость обрезается np.clip по полю self.max_speed
 
@@ -585,9 +585,12 @@ class Pion(DroneBase):
         if wait:
             self.goto_process(x, y, z, yaw, accuracy)
         else:
-            self.threads.append(
-                start_threading(self.goto_process, x, y, z, yaw, accuracy)
-            )
+            # Защита от создания лишних потоков
+            if not any(t.name == "goto_process" and t.is_alive() for t in self.threads):
+                thread = start_threading(self.goto_process, "goto_process", x, y, z, yaw, accuracy)
+                self.threads.append(
+                    thread
+                )
 
     def goto_process(
         self,
