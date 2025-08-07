@@ -40,16 +40,19 @@ def extract_ip_id(ip: str) -> int:
     return abs(hash(ip)) % 1000
 
 
-def start_threading(function: Callable, *args) -> threading.Thread:
+def start_threading(function: Callable, name: str, *args) -> threading.Thread:
     """
     Функция принимает ссылку на функцию и запускает поток
 
     :param function: Ссылка на функцию
     :type function: Callable
+    :param name: Имя потока
+    :type name: str
     :return: Запущенный поток
     :rtype: threading.Thread
     """
     thread = threading.Thread(target=function, args=args)
+    thread.name = name
     thread.start()
     return thread
 
