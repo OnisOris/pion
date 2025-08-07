@@ -442,6 +442,8 @@ class SwarmCommunicator:
             elif command == CMD.GOTO:
                 try:
                     x, y, z, yaw = state.data
+                    self.control_object.point_reached = True
+                    time.sleep(0.05)
                     if self.control_object.tracking:
                         print(f"Smart tracking to {x, y, z, yaw}")
                         self.control_object.target_point = np.array(
@@ -481,14 +483,16 @@ class SwarmCommunicator:
                         start_threading(self.smart_point_tracking)
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
-
             elif command == CMD.SMART_GOTO:
                 try:
                     self.stop_trp()
                     x, y, z, yaw = state.data
-                    self.control_object.threads.append(
-                        start_threading(self.smart_goto, x, y, z, yaw)
-                    )
+                    if not any(t.name == "smart_goto" and t.is_alive() for t in self.control_object.threads):
+                        thread = start_threading(self.smart_goto, x, y, z, yaw)
+                        thread.name = "smart_goto"
+                        self.control_object.threads.append(
+                        thread
+                        )
                 except Exception as e:
                     print("Ошибка при выполнении smart_goto:", e)
             elif command == CMD.LED:
