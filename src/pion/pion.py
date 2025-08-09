@@ -1074,7 +1074,7 @@ class Pion(DroneBase):
 
     def reboot_board(self) -> None:
         """
-        Метод для перезагрузки дрона
+        Метод для перезагрузки автопилота
 
         :return: None
         """
@@ -1085,6 +1085,16 @@ class Pion(DroneBase):
             param1=1,
             mavlink_send_number=1,
         )
+
+    def reboot_computer(self):
+        """
+        Метод для перезагрузки бортового компьютера
+
+        :return: None
+        """
+        return self._send_command_long(command_name='RPi_REBOOT',
+                                       command=mavutil.mavlink.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN,
+                                       target_component=43)
 
     def stop_moving(self) -> None:
         """
