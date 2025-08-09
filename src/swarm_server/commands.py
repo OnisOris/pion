@@ -19,7 +19,7 @@ class CMD(Enum):
     :cvar SAVE: Команда для сохранения текущих настроек.
     :cvar SET_GROUP: Команда для установки группы.
     :cvar SET_MOD: Команда для установки мода.
-    :cvar REBOOT_BOARD: Команда для перезагрузки бортового компьютера
+    :cvar REBOOT_COMPUTER: Команда для перезагрузки бортового компьютера
     :cvar REBOOT_AUTOPILOT: Команда для перезагрузки автопилота
     """
 
@@ -37,5 +37,5 @@ class CMD(Enum):
     SAVE = 11
     SET_GROUP = 12
     SET_MOD = 13
-    REBOOT_BOARD = 14
+    REBOOT_COMPUTER = 14
     REBOOT_AUTOPILOT = 15
