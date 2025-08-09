@@ -506,6 +506,16 @@ class SwarmCommunicator:
                     print("Ошибка при выполнении LED control:", e)
             elif command == CMD.SAVE:
                 self.save_data()
+            elif command == CMD.REBOOT_AUTOPILOT:
+                try:
+                    self.control_object.reboot_board()
+                except Exception as e:
+                    print("Ошибка при выполнении reboot_board:", e)
+            elif command == CMD.REBOOT_COMPUTER:
+                try:
+                    self.control_object.reboot_board()
+                except Exception as e:
+                    print("Ошибка при выполнении reboot_board:", e)
             elif command == CMD.SET_MOD:
                 # +-------------+-----+-----------+-----------------+
                 # |             | PID | REPULSION | UNSTABLE_VECTOR |
