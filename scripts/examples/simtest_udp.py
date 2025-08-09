@@ -17,6 +17,7 @@ params = {
     "kd": np.array([[1, 1, 1, 1, 1, 1]]),
     "attraction_weight": 1.0,
     "cohesion_weight": 1.0,
+    "current_velocity_weight": 1.0,
     "alignment_weight": 1.0,
     "repulsion_weight": 4.0,
     "unstable_weight": 1.0,
@@ -99,7 +100,8 @@ print("---")
 print("Main arm ------------<")
 drone.control_object.arm()
 print("takeoff -----------------<")
-drone.control_object.takeoff()
-time.sleep(5)
-print("goto --------------<")
-drone.co.set_body_velocity(np.array([1, 0, 0, 0]))
+# drone.control_object.takeoff()
+# time.sleep(5)
+# print("goto --------------<")
+# drone.co.set_body_velocity(np.array([1, 0, 0, 0]))
+drone.control_object.goto(2.6, -2.7, 0, 0)
