@@ -651,6 +651,7 @@ class SimulationRunner:
             "attraction_weight": 0.0,
             "cohesion_weight": 1.0,
             "alignment_weight": 1.0,
+            "current_velocity_weight": 1.0,
             "repulsion_weight": 1.0,
             "unstable_weight": 1.0,
             "noise_weight": 1.0,
