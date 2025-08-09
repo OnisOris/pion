@@ -374,7 +374,7 @@ class Spion(Simulator, DroneBase):
         :return: None
         """
         self.threads.append(
-            start_threading(self.goto_from_outside, x, y, z, yaw, accuracy)
+            start_threading(self.goto_from_outside, "spion_goto", x, y, z, yaw, accuracy)
         )
 
     def goto_from_outside(
@@ -432,7 +432,6 @@ class Spion(Simulator, DroneBase):
                         self.last_points, current_full_position
                     )
                     self.velocity_controller()
-                    print("Я вызываюсь из goto")
                     self.position_controller(np.array(target_point))
                     last_time = current_time
                     for object_channel, simulation_object in enumerate(
