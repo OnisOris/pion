@@ -1,7 +1,7 @@
 Скрипт camera
 ===================
 
-Скрипт `сamera.py <github.com/OnisOris/pion/blob/dev/scripts/examples/camera.py>`_ с примером обработки видеопотока с камеры дрона
+Скрипт `сamera.py <https://github.com/OnisOris/pion/blob/dev/scripts/examples/camera.py>`_ с примером обработки видеопотока с камеры дрона
 
 
 **Код main()**
