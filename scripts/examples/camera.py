@@ -18,7 +18,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-# Абстрактный базовый класс для камеры
 class BaseCamera(ABC):
     @abstractmethod
     def get_cv_frame(self) -> Optional[NDArray]:
@@ -191,13 +190,8 @@ def run_loop(cam: BaseCamera, show_window: bool = True) -> None:
 # rtsp://10.1.100.134:8554/pioneer_stream
 def main():
     parser = argparse.ArgumentParser(description="Run camera reader")
-    parser.add_argument(
-        "--rtsp",
-        type=str,
-        help="RTSP URL, например rtsp://radxa:radxa@10.1.100.134/pioneer_streamer",
-    )
-    parser.add_argument("--sock-host", type=str, help="IP для SocketCamera")
-    parser.add_argument("--sock-port", type=int, help="порт для SocketCamera")
+    parser.add_argument("--ip", type=str, help="IP", default="10.1.100.160")
+    parser.add_argument("--port", type=int, help="порт", default="8554")
     parser.add_argument(
         "--headless",
         action="store_true",
@@ -207,15 +201,7 @@ def main():
 
     show = (not args.headless) and _has_display()
 
-    if args.rtsp:
-        cam = RTSPCamera(rtsp_url=args.rtsp)
-    elif args.sock_host and args.sock_port:
-        cam = SocketCamera(ip=args.sock_host, port=args.sock_port)
-    else:
-        # Значение по умолчанию из твоего примера
-        ip = "10.1.100.160"
-        cam = RTSPCamera(rtsp_url=f"rtsp://{ip}:8554/pioneer_stream")
-    print(cam.rtsp_url)
+    cam = RTSPCamera(rtsp_url=f"rtsp://{args.ip}:{args.port}/pioneer_stream")
     run_loop(cam, show_window=show)
 
 
