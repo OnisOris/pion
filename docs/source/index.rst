@@ -135,6 +135,8 @@ SDK для управления дронами `geoscan pioneer base <https://ge
 
 - `Консоль управления роем (pionsrv) <https://github.com/OnisOris/pionsrv>`_
 - `Модуль алгоритмов роя (lokky) <https://github.com/OnisOris/lokky>`_
+- `Автоустановка rtsp сервера на radxa <https://github.com/OnisOris/pion_camera>`_
+- `Пример использования камеры на дроне <github.com/OnisOris/pion/blob/dev/scripts/examples/camera.py>`_
 
 Описание классов и функций
 -----------------

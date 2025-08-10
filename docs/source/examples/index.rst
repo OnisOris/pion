@@ -10,3 +10,5 @@
    first_flight
 
    swarmsimulator
+
+   camera
