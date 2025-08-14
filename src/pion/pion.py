@@ -1052,7 +1052,7 @@ class Pion(DroneBase):
         self.set_v_check_flag = True
         while self.speed_flag:
             with self._speed_control_lock:  # Захватываем управление
-                t_speed = self.t_speed
+                t_speed = np.clip(self.t_speed, -self.max_speed, self.max_speed)
                 if self.attenuation_mode:
                     self.t_speed *= 0.9
                     if np.linalg.norm(self.t_speed) < 0.02:
